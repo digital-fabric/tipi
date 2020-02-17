@@ -5,7 +5,7 @@ PATH
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
       modulation (~> 1.0)
-      polyphony (~> 0.24)
+      polyphony (~> 0.30)
       rack (~> 2.0.8)
       websocket (~> 1.2.8)
 
@@ -26,9 +26,9 @@ GEM
       minitest (>= 5.0)
       ruby-progressbar
     modulation (1.0)
-    polyphony (0.24)
+    polyphony (0.30)
       modulation (~> 1.0)
-    rack (2.0.8)
+    rack (2.0.9)
     ruby-progressbar (1.10.1)
     simplecov (0.17.1)
       docile (~> 1.1)
