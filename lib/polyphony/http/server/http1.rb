@@ -235,9 +235,9 @@ class HTTP1Adapter
 
   def format_header_lines(key, value)
     if value.is_a?(Array)
-      value.each { |item| data << "#{key}: #{item}\r\n" }
+      value.inject(+'') { |data, item| data << "#{key}: #{item}\r\n" }
     else
-      data << "#{key}: #{value}\r\n"
+      "#{key}: #{value}\r\n"
     end
   end
 
