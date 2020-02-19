@@ -13,6 +13,8 @@ def serve(host, port, opts = {}, &handler)
   opts[:alpn_protocols] = ALPN_PROTOCOLS
   server = Net.tcp_listen(host, port, opts)
   accept_loop(server, opts, &handler)
+ensure
+  server.close
 end
 
 def listen(host, port, opts = {})
@@ -21,6 +23,8 @@ def listen(host, port, opts = {})
     socket.define_singleton_method(:each) do |&block|
       MODULE.accept_loop(socket, opts, &block)
     end
+  ensure
+    socket.close
   end
 end
 
