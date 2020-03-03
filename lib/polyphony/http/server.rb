@@ -23,8 +23,6 @@ def listen(host, port, opts = {})
     socket.define_singleton_method(:each) do |&block|
       MODULE.accept_loop(socket, opts, &block)
     end
-  ensure
-    socket.close
   end
 end
 
