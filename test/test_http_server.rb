@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'helper'
-require 'polyphony/http'
+require 'polyphony/http/server'
 
 class String
   def http_lines
@@ -169,18 +169,18 @@ class HTTP1ServerTest < MiniTest::Test
       6
       foobar
     HTTP
-    2.times { snooze }
+    20.times { snooze }
     assert request
     assert_equal %w[foobar], chunks
     assert !request.complete?
 
     connection << "6\r\nbazbud\r\n"
-    snooze
+    20.times { snooze }
     assert_equal %w[foobar bazbud], chunks
     assert !request.complete?
 
     connection << "0\r\n\r\n"
-    snooze
+    20.times { snooze }
     assert_equal %w[foobar bazbud], chunks
     assert request.complete?
 
@@ -270,17 +270,17 @@ class HTTP1ServerTest < MiniTest::Test
 
     connection.close
     assert !done
-    snooze
+    10.times { snooze }
     assert done
   end
 
   def test_big_download
-    chunk_size = 100_000
-    chunk_count = 10
+    chunk_size = 10000
+    chunk_count = 1000
     chunk = '*' * chunk_size
     @server, connection = spin_server do |req|
       req.send_headers
-      chunk_count.times do
+      chunk_count.times do |i|
         req << chunk
         snooze
       end
@@ -292,7 +292,7 @@ class HTTP1ServerTest < MiniTest::Test
     count = 0
 
     connection << "GET / HTTP/1.1\r\n\r\n"
-    while (data = connection.readpartial(chunk_size * 2))
+    while (data = connection.readpartial(chunk_size))
       response << data
       count += 1
       snooze
@@ -308,6 +308,6 @@ class HTTP1ServerTest < MiniTest::Test
     HTTP
 
     assert_equal expected, response
-    assert_equal chunk_count * 2 + 1, count
+    assert count >= chunk_count
   end
 end

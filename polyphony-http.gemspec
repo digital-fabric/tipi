@@ -19,8 +19,7 @@ Gem::Specification.new do |s|
 
   s.executables   = ['poly']
 
-  s.add_runtime_dependency      'modulation',         '~>1.0'
-  s.add_runtime_dependency      'polyphony',          '~>0.32'
+  s.add_runtime_dependency      'polyphony',          '~>0.38'
   
   s.add_runtime_dependency      'http_parser.rb',     '~>0.6.0'
   s.add_runtime_dependency      'http-2',             '~>0.10.0'
