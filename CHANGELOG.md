@@ -1,6 +1,10 @@
+## 0.27 2020-04-14
+
+* Remove modulation dependency
+
 ## 0.26 2020-03-03
 
-* Fix "Server#listen"
+* Fix `Server#listen`
 
 ## 0.25 2020-02-19
 
