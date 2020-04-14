@@ -22,7 +22,7 @@ module Polyphony
           opts[:alpn_protocols] = ALPN_PROTOCOLS
           Net.tcp_listen(host, port, opts).tap do |socket|
             socket.define_singleton_method(:each) do |&block|
-              MODULE.accept_loop(socket, opts, &block)
+              ::Polyphony::HTTP::Server.accept_loop(socket, opts, &block)
             end
           end
         end
