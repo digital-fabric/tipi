@@ -20,17 +20,25 @@ Minitest::Reporters.use! [
 
 class MiniTest::Test
   def setup
+    # puts "* setup #{self.name}"
     if Fiber.current.children.size > 0
       puts "Children left: #{Fiber.current.children.inspect}"
       exit!
     end
     Fiber.current.setup_main_fiber
+    Fiber.current.instance_variable_set(:@auto_watcher, nil)
+    Thread.current.agent = Polyphony::LibevAgent.new
     sleep 0
   end
 
   def teardown
+    # puts "* teardown #{self.name.inspect} Fiber.current: #{Fiber.current.inspect}"
     Fiber.current.terminate_all_children
     Fiber.current.await_all_children
+  rescue => e
+    puts e
+    puts e.backtrace.join("\n")
+    exit!
   end
 end
 

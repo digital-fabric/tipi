@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http'
+require 'polyphony/http/server'
 
 opts = {
   reuse_addr:  true,

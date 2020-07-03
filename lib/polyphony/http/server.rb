@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'polyphony'
 require_relative './server/http1'
 require_relative './server/http2'
 
@@ -31,6 +32,7 @@ module Polyphony
           loop do
             client = server.accept
             spin { client_loop(client, opts, &handler) }
+            snooze
           rescue OpenSSL::SSL::SSLError
             # disregard
           end

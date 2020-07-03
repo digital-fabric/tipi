@@ -18,11 +18,11 @@ class SiteConnectionManager < ResourcePool
   # end
 
   def acquire
-    Gyro.ref
+    Thread.current.agent.ref
     prepare_first_connection if @size.zero?
     super
   ensure
-    Gyro.unref
+    Thread.current.agent.unref
     # The size goes back to 0 only in case existing connections get into an
     # error state and then get discarded
     @state = nil if @size == 0

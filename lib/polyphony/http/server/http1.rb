@@ -17,8 +17,11 @@ module Polyphony
         end
 
         def each(&block)
-          while (data = @conn.readpartial(8192))
+          loop do
+            data = @conn.readpartial(8192)
             return if handle_incoming_data(data, &block)
+          rescue EOFError
+            break
           end
         rescue SystemCallError, IOError
           # ignore
@@ -68,11 +71,14 @@ module Polyphony
         # callback
         def consume_request
           request = @requests_head
-          while (data = @conn.readpartial(8192))
+          loop do
+            data = @conn.readpartial(8192)
             @parser << data
             return if request.complete?
 
             snooze
+          rescue EOFError
+            break
           end
         end
 

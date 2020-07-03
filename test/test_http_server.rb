@@ -208,6 +208,7 @@ class HTTP1ServerTest < MiniTest::Test
     opts = {
       upgrade: {
         echo: lambda do |conn, _headers|
+          p :echo1
           conn << <<~HTTP.http_lines
             HTTP/1.1 101 Switching Protocols
             Upgrade: echo
@@ -215,9 +216,12 @@ class HTTP1ServerTest < MiniTest::Test
 
           HTTP
 
-          while (data = conn.readpartial(8192))
+          loop do
+            data = conn.readpartial(8192)
             conn << data
             snooze
+          rescue EOFError
+            break
           end
           done = true
         end
@@ -270,12 +274,13 @@ class HTTP1ServerTest < MiniTest::Test
 
     connection.close
     assert !done
+    
     10.times { snooze }
     assert done
   end
 
   def test_big_download
-    chunk_size = 10000
+    chunk_size = 1000
     chunk_count = 1000
     chunk = '*' * chunk_size
     @server, connection = spin_server do |req|
@@ -292,7 +297,8 @@ class HTTP1ServerTest < MiniTest::Test
     count = 0
 
     connection << "GET / HTTP/1.1\r\n\r\n"
-    while (data = connection.readpartial(chunk_size))
+    
+    while (data = connection.read(chunk_size))
       response << data
       count += 1
       snooze
