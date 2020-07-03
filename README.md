@@ -1,5 +1,9 @@
 # Polyphony - Easy Concurrency for Ruby
 
+[![Gem Version](https://badge.fury.io/rb/polyphony-http.svg)](http://rubygems.org/gems/polyphony-http)
+[![Modulation Test](https://github.com/digital-fabric/polyphony-http/workflows/Tests/badge.svg)](https://github.com/digital-fabric/polyphony-http/actions?query=workflow%3ATests)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/digital-fabric/polyphony-http/blob/master/LICENSE)
+
 [DOCS](https://dfab.gitbook.io/polyphony) |
 [EXAMPLES](examples)
 
