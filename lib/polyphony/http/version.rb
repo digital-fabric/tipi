@@ -2,6 +2,6 @@
 
 module Polyphony
   module HTTP
-    VERSION = '0.27'
+    VERSION = '0.28'
   end
 end

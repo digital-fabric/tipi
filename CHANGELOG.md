@@ -1,3 +1,7 @@
+## 0.28 2020-07-03
+
+* Update with API changes from Polyphony >= 0.41
+
 ## 0.27 2020-04-14
 
 * Remove modulation dependency
