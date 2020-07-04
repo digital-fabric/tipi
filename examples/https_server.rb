@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http'
+require 'polyphony/http/server'
 require 'localhost/authority'
+
+::Exception.__disable_sanitized_backtrace__ = true
 
 authority = Localhost::Authority.fetch
 opts = {

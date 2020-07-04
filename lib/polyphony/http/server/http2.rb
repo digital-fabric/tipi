@@ -51,10 +51,7 @@ module Polyphony
           @interface.on(:stream) { |stream| start_stream(stream, &block) }
           upgrade if @upgrade_headers
 
-          while (data = @conn.readpartial(8192))
-            @interface << data
-            snooze
-          end
+          @conn.read_loop(&@interface.method(:<<))
         rescue SystemCallError, IOError
           # ignore
         ensure
@@ -62,7 +59,7 @@ module Polyphony
         end
 
         def start_stream(stream, &block)
-          stream = Stream.new(stream, &block)
+          stream = HTTP2StreamHandler.new(stream, &block)
           @streams[stream] = true
         end
 

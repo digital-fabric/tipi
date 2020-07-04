@@ -17,11 +17,8 @@ module Polyphony
         end
 
         def each(&block)
-          loop do
-            data = @conn.readpartial(8192)
+          @conn.read_loop do |data|
             return if handle_incoming_data(data, &block)
-          rescue EOFError
-            break
           end
         rescue SystemCallError, IOError
           # ignore
@@ -32,7 +29,6 @@ module Polyphony
         # return [Boolean] true if client loop should stop
         def handle_incoming_data(data, &block)
           @parser << data
-          snooze
           while (request = @requests_head)
             return true if upgrade_connection(request.headers, &block)
 

@@ -16,7 +16,7 @@ module Polyphony
           server = Net.tcp_listen(host, port, opts)
           accept_loop(server, opts, &handler)
         ensure
-          server.close
+          server&.close
         end
         
         def listen(host, port, opts = {})

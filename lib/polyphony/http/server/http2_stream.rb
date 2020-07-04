@@ -12,10 +12,10 @@ module Polyphony
 
         def initialize(stream, &block)
           @stream = stream
-          @calling_fiber = Fiber.current
-          @stream_fiber = Fiber.new { |req| handle_request(req, &block) }
+          @connection_fiber = Fiber.current
+          @stream_fiber = spin { |req| handle_request(req, &block) }
 
-          # Stream callbacks occur on the connection fiber (see HTTP2::Protocol#each).
+          # Stream callbacks occur on the connection fiber (see HTTP2Adapter#each).
           # The request handler is run on a separate fiber for each stream, allowing
           # concurrent handling of incoming requests on the same HTTP/2 connection.
           #
@@ -34,25 +34,25 @@ module Polyphony
         def handle_request(request, &block)
           error = nil
           block.(request)
-          @calling_fiber.transfer
+          @connection_fiber.schedule
         rescue Polyphony::MoveOn
           # ignore
         rescue Exception => e
           error = e
         ensure
           @done = true
-          @calling_fiber.transfer error
+          @connection_fiber.schedule error
         end
 
         def on_headers(headers)
           @request = Request.new(headers.to_h, self)
-          @stream_fiber.transfer(@request)
+          @stream_fiber.schedule @request
         end
 
         def on_data(data)
           if @waiting_for_body_chunk
             @waiting_for_body_chunk = nil
-            @stream_fiber.transfer(data)
+            @stream_fiber.schedule data
           else
             @request.buffer_body_chunk(data)
           end
@@ -61,10 +61,10 @@ module Polyphony
         def on_half_close
           if @waiting_for_body_chunk
             @waiting_for_body_chunk = nil
-            @stream_fiber.transfer(nil)
+            @stream_fiber.schedule
           elsif @waiting_for_half_close
             @waiting_for_half_close = nil
-            @stream_fiber.transfer(nil)
+            @stream_fiber.schedule
           else
             @request.complete!
           end
