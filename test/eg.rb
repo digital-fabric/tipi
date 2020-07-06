@@ -15,7 +15,7 @@ module Kernel
           m.instance_variable_set(k, v)
         else
           block = if v.respond_to?(:to_proc)
-                    proc { |*args| instance_exec(*args, &v) }
+                    proc { |*args, &block| instance_exec { v.(*args, &block) } }
                   else
                     proc { v }
                   end

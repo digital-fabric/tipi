@@ -24,6 +24,7 @@ class IO
   def self.mockup_connection(input, output, output2)
     eg(
       :read        => ->(*args) { input.read(*args) },
+      :read_loop   => ->(*args, &block) { input.read_loop(*args, &block) },
       :readpartial => ->(*args) { input.readpartial(*args) },
       :<<          => ->(*args) { output.write(*args) },
       :write       => ->(*args) { output.write(*args) },
@@ -128,6 +129,7 @@ class HTTP1ServerTest < MiniTest::Test
     end
 
     connection << "GET / HTTP/1.1\r\n\r\nGET / HTTP/1.1\r\nFoo: bar\r\n\r\n"
+    2.times { snooze }
     response = connection.readpartial(8192)
 
     expected = <<~HTTP.http_lines
