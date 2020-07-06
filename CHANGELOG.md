@@ -1,3 +1,7 @@
+## 0.29 2020-07-06
+
+* Use IO#read_loop
+
 ## 0.28 2020-07-03
 
 * Update with API changes from Polyphony >= 0.41
