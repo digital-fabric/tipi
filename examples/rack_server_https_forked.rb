@@ -5,7 +5,7 @@ require 'polyphony/http'
 require 'localhost/authority'
 
 app_path = ARGV.first || File.expand_path('./config.ru', __dir__)
-app = Polyphony::HTTP::Rack.load(app_path)
+app = Polyphony::HTTP::Server::RackAdapter.load(app_path)
 
 authority = Localhost::Authority.fetch
 opts = {

@@ -2,7 +2,7 @@
 
 require 'http/parser'
 require_relative './request'
-require_relative './http2'
+require_relative './http2_adapter'
 
 module Polyphony
   module HTTP
@@ -230,7 +230,7 @@ module Polyphony
           headers.each do |k, v|
             next if k =~ /^:/
 
-            format_header_lines(k, v)
+            data << format_header_lines(k, v)
           end
           data << "\r\n"
         end
