@@ -1,3 +1,26 @@
+# Roadmap
+
+- Update README (get rid of non-http stuff)
+- Improve Rack spec compliance, add tests
+- Homogenize HTTP 1 and HTTP 2 headers - upcase ? downcase ?
+
+## 0.30
+
+- Add more poly CLI commands and options:
+
+  - serve static files from given directory
+  - serve from rack up file
+  - serve both http and https
+  - use custom certificate files for SSL
+  - set host address to bind to
+  - set port to bind to
+  - set forking process count
+
+## 0.31 Working Sinatra application
+
+- app with database access (postgresql)
+- benchmarks!
+
 # HTTP Client Agent
 
 The concurrency model and the fact that we want to serve the response object on
@@ -41,19 +64,3 @@ def request(ctx, &block)
 end
 ```
 
-# Roadmap:
-
-## 0.25 Full Rack adapter implementation
-
-- Work better mechanism supervising multiple coprocesses (`when_done` feels a
-  bit hacky)
-- Add supervisor test
-- Homogenize HTTP 1 and HTTP 2 headers - upcase ? downcase ?
-- find some demo Rack apps and test with Polyphony
-
-## 0.26 Working Sinatra application
-
-- app with database access (postgresql)
-- benchmarks!
-
-## 0.27 Testing & docs
