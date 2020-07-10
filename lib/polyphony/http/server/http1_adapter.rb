@@ -230,7 +230,7 @@ module Polyphony
           headers.each do |k, v|
             next if k =~ /^:/
 
-            data << format_header_lines(k, v)
+            format_header_lines(k, v)
           end
           data << "\r\n"
         end
