@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
 require 'polyphony'
-require_relative './server/http1'
-require_relative './server/http2'
+require_relative './server/http1_adapter'
+require_relative './server/http2_adapter'
 
 module Polyphony
   module HTTP
     module Server
       ALPN_PROTOCOLS = %w[h2 http/1.1].freeze
       H2_PROTOCOL = 'h2'
-      
+
       class << self
         def serve(host, port, opts = {}, &handler)
           opts[:alpn_protocols] = ALPN_PROTOCOLS
@@ -18,7 +18,7 @@ module Polyphony
         ensure
           server&.close
         end
-        
+
         def listen(host, port, opts = {})
           opts[:alpn_protocols] = ALPN_PROTOCOLS
           Net.tcp_listen(host, port, opts).tap do |socket|
@@ -27,7 +27,7 @@ module Polyphony
             end
           end
         end
-        
+
         def accept_loop(server, opts, &handler)
           loop do
             client = server.accept
@@ -37,7 +37,7 @@ module Polyphony
             # disregard
           end
         end
-        
+
         def client_loop(client, opts, &handler)
           client.no_delay if client.respond_to?(:no_delay)
           adapter = protocol_adapter(client, opts)
@@ -45,7 +45,7 @@ module Polyphony
         ensure
           client.close
         end
-        
+
         def protocol_adapter(socket, opts)
           use_http2 = socket.respond_to?(:alpn_protocol) &&
                       socket.alpn_protocol == H2_PROTOCOL

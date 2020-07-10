@@ -2,6 +2,7 @@
 
 require 'cuba'
 require 'cuba/safe'
+require 'delegate' # See https://github.com/rack/rack/pull/1610
 
 Cuba.use Rack::Session::Cookie, secret: '__a_very_long_string__'
 

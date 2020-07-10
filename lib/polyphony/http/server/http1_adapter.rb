@@ -2,7 +2,7 @@
 
 require 'http/parser'
 require_relative './request'
-require_relative './http2'
+require_relative './http2_adapter'
 
 module Polyphony
   module HTTP
