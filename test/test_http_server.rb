@@ -44,7 +44,7 @@ class HTTP1ServerTest < MiniTest::Test
   def spin_server(opts = {}, &handler)
     server_connection, client_connection = IO.server_client_mockup
     coproc = spin do
-      Polyphony::HTTP::Server.client_loop(server_connection, opts, &handler)
+      Tipi.client_loop(server_connection, opts, &handler)
     end
     [coproc, client_connection, server_connection]
   end
