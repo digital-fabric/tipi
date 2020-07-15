@@ -2,7 +2,7 @@ require_relative './lib/tipi/version'
 
 Gem::Specification.new do |s|
   s.name        = 'tipi'
-  s.version     = Polyphony::HTTP::VERSION
+  s.version     = Tipi::VERSION
   s.licenses    = ['MIT']
   s.summary     = 'Tipi - the All-in-one Web Server for Ruby Apps'
   s.author      = 'Sharon Rosner'
