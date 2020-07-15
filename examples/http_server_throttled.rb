@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http'
+require 'tipi'
 
 $throttler = throttle(1000)
 opts = { reuse_addr: true, dont_linger: true }
 spin do
-  Polyphony::HTTP::Server.serve('0.0.0.0', 1234, opts) do |req|
+  Tipi.serve('0.0.0.0', 1234, opts) do |req|
     $throttler.call { req.respond("Hello world!\n") }
   end
 end

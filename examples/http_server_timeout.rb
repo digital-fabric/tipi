@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http'
+require 'tipi'
 
 opts = {
   reuse_addr:  true,
@@ -19,7 +19,7 @@ end
 sleep 0
 
 spin do
-  Polyphony::HTTP::Server.serve(
+  Tipi.serve(
     '0.0.0.0',
     1234,
     opts,

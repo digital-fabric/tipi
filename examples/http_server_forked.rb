@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http/server'
+require 'tipi'
 
 ::Exception.__disable_sanitized_backtrace__ = true
 

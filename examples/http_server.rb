@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http/server'
+require 'tipi'
 
 opts = {
   reuse_addr:  true,
@@ -9,7 +9,7 @@ opts = {
 }
 
 spin do
-  Polyphony::HTTP::Server.serve('0.0.0.0', 1234, opts) do |req|
+  Tipi.serve('0.0.0.0', 1234, opts) do |req|
     req.respond("Hello world!\n")
   rescue Exception => e
     p e

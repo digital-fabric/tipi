@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http'
+require 'tipi'
 require 'localhost/authority'
 
 app_path = ARGV.first || File.expand_path('./config.ru', __dir__)

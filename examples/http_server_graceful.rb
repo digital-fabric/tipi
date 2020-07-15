@@ -2,7 +2,7 @@
 
 require 'bundler/setup'
 require 'polyphony'
-require 'polyphony/http'
+require 'tipi'
 
 opts = {
   reuse_addr:  true,
@@ -10,7 +10,7 @@ opts = {
 }
 
 server = spin do
-  Polyphony::HTTP::Server.serve('0.0.0.0', 1234, opts) do |req|
+  Tipi.serve('0.0.0.0', 1234, opts) do |req|
     req.respond("Hello world!\n")
   end
 end

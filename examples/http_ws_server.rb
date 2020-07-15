@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'polyphony/http'
-require 'polyphony/websocket'
+require 'tipi'
+require 'tipi/websocket'
 
 def ws_handler(conn)
   timer = spin do
@@ -28,7 +28,7 @@ opts = {
 HTML = IO.read(File.join(__dir__, 'ws_page.html'))
 
 spin do
-  Polyphony::HTTP::Server.serve('0.0.0.0', 1234, opts) do |req|
+  Tipi.serve('0.0.0.0', 1234, opts) do |req|
     req.respond(HTML, 'Content-Type' => 'text/html')
   end
 end
