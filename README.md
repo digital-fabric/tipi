@@ -16,9 +16,13 @@ reverse-proxy such as Nginx.
 
 ## Features
 
-* **Full-blown, integrated, high-performance HTTP 1 / HTTP 2 / WebSocket server
-  with TLS/SSL termination, automatic ALPN protocol selection, and body
-  streaming**.
+* High-performance, highly concurrent web server based on
+  [Polyphony](https://github.com/digital-fabric/polyphony)
+* Full support for HTTP, HTTP/2, WebSocket protocols
+* Built-in SSL termination for secure, encrypted connections
+* Automatic ALPN protocol selection
+* Request and response body streaming for efficient downloads and uploads
+* Full support for Rack-based apps
 
 ## Documentation
 
