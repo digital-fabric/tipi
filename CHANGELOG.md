@@ -1,3 +1,10 @@
+## 0.30 2020-07-15
+
+* Rename project to Tipi
+* Rearrange source code
+* Remove HTTP client code (to be developed eventually into a separate gem)
+* Fix header rendering in rack adapter (#2)
+
 ## 0.29 2020-07-06
 
 * Use IO#read_loop
