@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/tipi-logo.png" /></p>
+
 # Tipi - the All-in-one Web Server for Ruby Apps
 
 [![Gem Version](https://badge.fury.io/rb/tipi.svg)](http://rubygems.org/gems/tipi)
