@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    polyphony-http (0.29)
+    tipi (0.29)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
       polyphony (~> 0.43.5)
@@ -42,9 +42,9 @@ DEPENDENCIES
   localhost (~> 1.1.4)
   minitest (~> 5.11.3)
   minitest-reporters (~> 1.4.2)
-  polyphony-http!
   rake (~> 12.3.3)
   simplecov (~> 0.17.1)
+  tipi!
 
 BUNDLED WITH
    2.1.4

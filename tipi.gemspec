@@ -1,18 +1,18 @@
-require_relative './lib/polyphony/http/version'
+require_relative './lib/tipi/version'
 
 Gem::Specification.new do |s|
-  s.name        = 'polyphony-http'
+  s.name        = 'tipi'
   s.version     = Polyphony::HTTP::VERSION
   s.licenses    = ['MIT']
-  s.summary     = 'Polyphony-http: Polyphonic HTTP for Ruby'
+  s.summary     = 'Tipi - the All-in-one Web Server for Ruby Apps'
   s.author      = 'Sharon Rosner'
   s.email       = 'ciconia@gmail.com'
   s.files       = `git ls-files`.split
-  s.homepage    = 'http://github.com/digital-fabric/polyphony-http'
+  s.homepage    = 'http://github.com/digital-fabric/tipi'
   s.metadata    = {
-    "source_code_uri" => "https://github.com/digital-fabric/polyphony-http"
+    "source_code_uri" => "https://github.com/digital-fabric/tipi"
   }
-  s.rdoc_options = ["--title", "polyphony", "--main", "README.md"]
+  s.rdoc_options = ["--title", "tipi", "--main", "README.md"]
   s.extra_rdoc_files = ["README.md"]
   s.require_paths = ["lib"]
   s.required_ruby_version = '>= 2.6'
