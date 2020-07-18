@@ -3,6 +3,7 @@
 require 'polyphony'
 require_relative './tipi/http1_adapter'
 require_relative './tipi/http2_adapter'
+require_relative './tipi/configuration'
 
 module Tipi
   ALPN_PROTOCOLS = %w[h2 http/1.1].freeze
