@@ -1,3 +1,9 @@
+## 0.31 2020-07-28
+
+* Fix websocket server code
+* Implement configuration layer (WIP)
+* Improve performance of rack adapter
+
 ## 0.30 2020-07-15
 
 * Rename project to Tipi
