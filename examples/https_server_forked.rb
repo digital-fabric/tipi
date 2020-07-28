@@ -13,7 +13,7 @@ opts = {
   secure_context: authority.server_context
 }
 
-server = Polyphony::HTTP::Server.listen('0.0.0.0', 1234, opts)
+server = Tipi.listen('0.0.0.0', 1234, opts)
 
 puts 'Listening on port 1234'
 
@@ -29,4 +29,4 @@ child_pids = []
   child_pids << pid
 end
 
-child_pids.each { |pid| Thread.current.agent.waitpid(pid) }
+child_pids.each { |pid| Thread.current.backend.waitpid(pid) }

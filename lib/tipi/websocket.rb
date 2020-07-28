@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-export :handler
-
 require 'digest/sha1'
 require 'websocket'
 

@@ -2,6 +2,7 @@
 
 require 'bundler/setup'
 require 'tipi'
+require 'tipi/websocket'
 
 def ws_handler(conn)
   while (msg = conn.recv)
@@ -13,7 +14,7 @@ opts = {
   reuse_addr:  true,
   dont_linger: true,
   upgrade:     {
-    websocket: Polyphony::Websocket.handler(&method(:ws_handler))
+    websocket: Tipi::Websocket.handler(&method(:ws_handler))
   }
 }
 

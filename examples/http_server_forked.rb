@@ -26,4 +26,4 @@ child_pids = []
   child_pids << pid
 end
 
-child_pids.each { |pid| Thread.current.agent.waitpid(pid) }
+child_pids.each { |pid| Thread.current.backend.waitpid(pid) }

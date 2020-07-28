@@ -5,6 +5,7 @@ require 'polyphony'
 require File.expand_path('../lib/tipi/configuration', __dir__)
 
 config = {}
+#config[:forked] = 4
 
 configuration_manager = spin { Tipi::Configuration.supervise_config }
 
