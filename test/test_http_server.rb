@@ -210,7 +210,6 @@ class HTTP1ServerTest < MiniTest::Test
     opts = {
       upgrade: {
         echo: lambda do |conn, _headers|
-          p :echo1
           conn << <<~HTTP.http_lines
             HTTP/1.1 101 Switching Protocols
             Upgrade: echo
@@ -218,13 +217,7 @@ class HTTP1ServerTest < MiniTest::Test
 
           HTTP
 
-          loop do
-            data = conn.readpartial(8192)
-            conn << data
-            snooze
-          rescue EOFError
-            break
-          end
+          conn.read_loop { |data| conn << data }
           done = true
         end
       }
@@ -277,7 +270,7 @@ class HTTP1ServerTest < MiniTest::Test
     connection.close
     assert !done
     
-    10.times { snooze }
+    12.times { snooze }
     assert done
   end
 
