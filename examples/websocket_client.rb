@@ -26,8 +26,7 @@ class WebsocketClient
   end
 
   def receive
-    loop do
-      data = @socket.readpartial(8192)
+    @socket.read_loop do |data|
       @reader << data
       parsed = @reader.next
       return parsed if parsed

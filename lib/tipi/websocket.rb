@@ -37,15 +37,18 @@ module Tipi
     end
     
     def recv
-      loop do
-        data = @client.readpartial(8192)
-        break nil unless data
-        
+      if (msg = @reader.next)
+        return msg.to_s
+      end
+    
+      @client.read_loop do |data|
         @reader << data
         if (msg = @reader.next)
           break msg.to_s
         end
       end
+      
+      nil
     end
     
     def send(data)

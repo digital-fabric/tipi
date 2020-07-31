@@ -65,14 +65,9 @@ module Tipi
     # callback
     def consume_request
       request = @requests_head
-      loop do
-        data = @conn.readpartial(8192)
+      @conn.read_loop do |data|
         @parser << data
         return if request.complete?
-        
-        snooze
-      rescue EOFError
-        break
       end
     end
     
