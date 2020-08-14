@@ -1,3 +1,7 @@
+* Respond with array of strings instead of concatenating for HTTP 1
+* Use read_loop instead of readpartial
+* Fix http upgrade test
+
 ## 0.31 2020-07-28
 
 * Fix websocket server code
