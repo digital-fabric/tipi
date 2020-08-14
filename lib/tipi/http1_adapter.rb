@@ -154,24 +154,27 @@ module Tipi
     end
     
     # response API
-    
+
+    CRLF = "\r\n"    
+    CRLF_ZERO_CRLF_CRLF = "\r\n0\r\n\r\n"
+
     # Sends response including headers and body. Waits for the request to complete
     # if not yet completed. The body is sent using chunked transfer encoding.
     # @param body [String] response body
     # @param headers
     def respond(body, headers)
       consume_request if @parsing
-      data = format_headers(headers, body)
+      data = collect_headers(headers, body)
       if body
-        data << if @parser.http_minor == 0
-          body
+        if @parser.http_minor == 0
+          data << body
         else
-          "#{body.bytesize.to_s(16)}\r\n#{body}\r\n0\r\n\r\n"
+          data << body.bytesize.to_s(16) << CRLF << body << CRLF_ZERO_CRLF_CRLF
         end
       end
-      @conn << data
+      @conn.write(*data)
     end
-    
+      
     DEFAULT_HEADERS_OPTS = {
       empty_response:  false,
       consume_request: true
@@ -183,7 +186,8 @@ module Tipi
     # @param empty_response [boolean] whether a response body will be sent
     # @return [void]
     def send_headers(headers, opts = DEFAULT_HEADERS_OPTS)
-      @conn << format_headers(headers, !opts[:empty_response])
+      data = collect_headers(headers, true)
+      @conn.write(*data)
     end
     
     # Sends a response body chunk. If no headers were sent, default headers are
@@ -193,9 +197,10 @@ module Tipi
     # @param done [boolean] whether the response is completed
     # @return [void]
     def send_chunk(chunk, done: false)
-      data = +"#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+      data = []
+      data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
       data << "0\r\n\r\n" if done
-      @conn << data
+      @conn.write(*data)
     end
     
     # Finishes the response to the current request. If no headers were sent,
@@ -210,30 +215,22 @@ module Tipi
     end
     
     private
-    
-    # Formats response headers. If empty_response is true(thy), the response
-    # status code will default to 204, otherwise to 200.
+
+    # Formats response headers into an array. If empty_response is true(thy),
+    # the response status code will default to 204, otherwise to 200.
     # @param headers [Hash] response headers
     # @param empty_response [boolean] whether a response body will be sent
     # @return [String] formatted response headers
-    def format_headers(headers, body)
+    def collect_headers(headers, body)
       status = headers[':status'] || (body ? 200 : 204)
-      data = format_status_line(body, status)
-      
+      lines = [format_status_line(body, status)]
       headers.each do |k, v|
         next if k =~ /^:/
         
-        data << format_header_lines(k, v)
+        collect_header_lines(lines, k, v)
       end
-      data << "\r\n"
-    end
-    
-    def format_header_lines(key, value)
-      if value.is_a?(Array)
-        value.inject(+'') { |data, item| data << "#{key}: #{item}\r\n" }
-      else
-        "#{key}: #{value}\r\n"
-      end
+      lines << CRLF
+      lines
     end
     
     def format_status_line(body, status)
@@ -257,6 +254,14 @@ module Tipi
         +"HTTP/1.0 #{status}\r\nContent-Length: #{body.bytesize}\r\n"
       else
         +"HTTP/1.1 #{status}\r\nTransfer-Encoding: chunked\r\n"
+      end
+    end
+
+    def collect_header_lines(lines, key, value)
+      if value.is_a?(Array)
+        value.inject(lines) { |lines, item| data << "#{key}: #{item}\r\n" }
+      else
+        lines << "#{key}: #{value}\r\n"
       end
     end
   end
