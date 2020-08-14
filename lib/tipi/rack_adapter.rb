@@ -68,10 +68,18 @@ module Tipi
         else                       RACK_ENV[key]
         end
       end
-      
+
       def respond(request, (status_code, headers, body))
         headers[':status'] = status_code.to_s
-        request.respond(body.first, headers)
+
+        content =
+          if body.respond_to?(:to_path)
+            File.open(body.to_path, 'rb') { |f| f.read }
+          else
+            body.first
+          end
+
+        request.respond(content, headers)
       end
     end
   end
