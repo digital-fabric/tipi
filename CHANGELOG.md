@@ -1,3 +1,5 @@
+## 0.32 2020-08-14
+
 * Respond with array of strings instead of concatenating for HTTP 1
 * Use read_loop instead of readpartial
 * Fix http upgrade test

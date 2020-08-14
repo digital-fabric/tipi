@@ -1,10 +1,10 @@
 PATH
   remote: .
   specs:
-    tipi (0.31)
+    tipi (0.32)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
-      polyphony (~> 0.44)
+      polyphony (~> 0.45)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)
 
@@ -24,7 +24,7 @@ GEM
       builder
       minitest (>= 5.0)
       ruby-progressbar
-    polyphony (0.44.0)
+    polyphony (0.45.2)
     rack (2.2.3)
     rake (12.3.3)
     ruby-progressbar (1.10.1)
