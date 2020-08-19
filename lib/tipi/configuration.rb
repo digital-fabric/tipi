@@ -19,7 +19,7 @@ module Tipi
       end
 
       def start_listeners(config)
-        puts "listening on port 1234"
+        puts "Listening on port 1234"
         @server = Polyphony::Net.tcp_listen('0.0.0.0', 1234, { reuse_addr: true, dont_linger: true })
       end
 

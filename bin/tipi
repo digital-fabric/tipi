@@ -7,7 +7,20 @@ require File.expand_path('../lib/tipi/configuration', __dir__)
 config = {}
 #config[:forked] = 4
 
+puts DATA.read
+puts
+
 configuration_manager = spin { Tipi::Configuration.supervise_config }
 
 configuration_manager << config
 configuration_manager.await
+
+__END__
+
+          ooo
+       oo
+     o
+   \|/
+   / \   Tipi - A better web server for a better world
+  /___\
+  
