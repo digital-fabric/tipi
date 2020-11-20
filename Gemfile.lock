@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    tipi (0.32)
+    tipi (0.33)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
       polyphony (~> 0.47.5.1)

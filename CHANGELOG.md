@@ -1,3 +1,8 @@
+## 0.33 2020-11-20
+
+* Update code for Polyphony 0.47.5
+* Add support for Rack::File body to Tipi::RackAdapter
+
 ## 0.32 2020-08-14
 
 * Respond with array of strings instead of concatenating for HTTP 1
