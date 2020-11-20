@@ -28,10 +28,8 @@ module Tipi
     end
     
     def accept_loop(server, opts, &handler)
-      loop do
-        client = server.accept
+      server.accept_loop do |client|
         spin { client_loop(client, opts, &handler) }
-        snooze
       rescue OpenSSL::SSL::SSLError
         # disregard
       end
@@ -47,7 +45,7 @@ module Tipi
     
     def protocol_adapter(socket, opts)
       use_http2 = socket.respond_to?(:alpn_protocol) &&
-      socket.alpn_protocol == H2_PROTOCOL
+                  socket.alpn_protocol == H2_PROTOCOL
       klass = use_http2 ? HTTP2Adapter : HTTP1Adapter
       klass.new(socket, opts)
     end

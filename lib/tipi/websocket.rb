@@ -41,7 +41,7 @@ module Tipi
         return msg.to_s
       end
     
-      @client.read_loop do |data|
+      @client.recv_loop do |data|
         @reader << data
         if (msg = @reader.next)
           break msg.to_s

@@ -49,7 +49,7 @@ module Tipi
       @interface.on(:stream) { |stream| start_stream(stream, &block) }
       upgrade if @upgrade_headers
       
-      @conn.read_loop(&@interface.method(:<<))
+      @conn.recv_loop(&@interface.method(:<<))
     rescue SystemCallError, IOError
       # ignore
     ensure

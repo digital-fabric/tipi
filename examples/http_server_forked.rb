@@ -7,23 +7,22 @@ require 'tipi'
 
 opts = {
   reuse_addr:  true,
+  reuse_port: true,
   dont_linger: true
 }
-
-server = Polyphony::HTTP::Server.listen('0.0.0.0', 1234, opts)
-
-puts 'Listening on port 1234'
 
 child_pids = []
 8.times do
   pid = Polyphony.fork do
     puts "forked pid: #{Process.pid}"
-    server.each do |req|
+    Tipi.serve('0.0.0.0', 1234, opts) do |req|
       req.respond("Hello world! from pid: #{Process.pid}\n")
     end
   rescue Interrupt
   end
   child_pids << pid
 end
+
+puts 'Listening on port 1234'
 
 child_pids.each { |pid| Thread.current.backend.waitpid(pid) }

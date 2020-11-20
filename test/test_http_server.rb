@@ -23,11 +23,13 @@ class IO
 
   def self.mockup_connection(input, output, output2)
     eg(
-      :read        => ->(*args) { input.read(*args) },
-      :read_loop   => ->(*args, &block) { input.read_loop(*args, &block) },
-      :readpartial => ->(*args) { input.readpartial(*args) },
-      :<<          => ->(*args) { output.write(*args) },
-      :write       => ->(*args) { output.write(*args) },
+      :read        => ->(*args) { p [:read]; input.read(*args) },
+      :read_loop   => ->(*args, &block) { p [:read_loop, caller]; input.read_loop(*args, &block) },
+      :recv_loop   => ->(*args, &block) { p [:recv_loop]; input.read_loop(*args, &block) },
+      :readpartial => ->(*args) { p [:readpartial]; input.readpartial(*args) },
+      :recv        => ->(*args) { p [:recv]; input.readpartial(*args) },
+      :<<          => ->(*args) { p [:<<, args]; output.write(*args) },
+      :write       => ->(*args) { p [:write, args]; output.write(*args) },
       :close       => -> { output.close },
       :eof?        => -> { output2.closed? }
     )
@@ -158,12 +160,14 @@ class HTTP1ServerTest < MiniTest::Test
       request = req
       req.send_headers
       req.each_chunk do |c|
+        puts "chunk: #{c.inspect}"
         chunks << c
         req << c.upcase
       end
       req.finish
     end
 
+    p connection
     connection << <<~HTTP.http_lines
       POST / HTTP/1.1
       Transfer-Encoding: chunked

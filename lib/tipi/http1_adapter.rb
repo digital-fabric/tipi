@@ -15,7 +15,7 @@ module Tipi
     end
     
     def each(&block)
-      @conn.read_loop do |data|
+      @conn.recv_loop do |data|
         return if handle_incoming_data(data, &block)
       end
     rescue SystemCallError, IOError
@@ -65,7 +65,7 @@ module Tipi
     # callback
     def consume_request
       request = @requests_head
-      @conn.read_loop do |data|
+      @conn.recv_loop do |data|
         @parser << data
         return if request.complete?
       end
@@ -164,7 +164,7 @@ module Tipi
     # @param headers
     def respond(body, headers)
       consume_request if @parsing
-      data = collect_headers(headers, body)
+      data = format_headers(headers, body)
       if body
         if @parser.http_minor == 0
           data << body
@@ -172,7 +172,7 @@ module Tipi
           data << body.bytesize.to_s(16) << CRLF << body << CRLF_ZERO_CRLF_CRLF
         end
       end
-      @conn.write(*data)
+      @conn.write(data.join)
     end
       
     DEFAULT_HEADERS_OPTS = {
@@ -186,8 +186,8 @@ module Tipi
     # @param empty_response [boolean] whether a response body will be sent
     # @return [void]
     def send_headers(headers, opts = DEFAULT_HEADERS_OPTS)
-      data = collect_headers(headers, true)
-      @conn.write(*data)
+      data = format_headers(headers, true)
+      @conn.write(data.join)
     end
     
     # Sends a response body chunk. If no headers were sent, default headers are
@@ -200,7 +200,7 @@ module Tipi
       data = []
       data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
       data << "0\r\n\r\n" if done
-      @conn.write(*data)
+      @conn.write(data.join)
     end
     
     # Finishes the response to the current request. If no headers were sent,
@@ -221,7 +221,7 @@ module Tipi
     # @param headers [Hash] response headers
     # @param empty_response [boolean] whether a response body will be sent
     # @return [String] formatted response headers
-    def collect_headers(headers, body)
+    def format_headers(headers, body)
       status = headers[':status'] || (body ? 200 : 204)
       lines = [format_status_line(body, status)]
       headers.each do |k, v|
