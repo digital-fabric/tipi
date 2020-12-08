@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.licenses    = ['MIT']
   s.summary     = 'Tipi - the All-in-one Web Server for Ruby Apps'
   s.author      = 'Sharon Rosner'
-  s.email       = 'ciconia@gmail.com'
+  s.email       = 'sharon@noteflakes.com'
   s.files       = `git ls-files`.split
   s.homepage    = 'http://github.com/digital-fabric/tipi'
   s.metadata    = {
