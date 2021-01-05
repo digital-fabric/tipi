@@ -7,13 +7,13 @@ module Tipi
   # Websocket connection
   class Websocket
     def self.handler(&block)
-      proc { |client, header|
-        block.(new(client, header))
+      proc { |conn, headers|
+        block.(new(conn, headers))
       }
     end  
 
-    def initialize(client, headers)
-      @client = client
+    def initialize(conn, headers)
+      @conn = conn
       @headers = headers
       setup(headers)
     end
@@ -31,7 +31,7 @@ module Tipi
       key = headers['Sec-WebSocket-Key']
       @version = headers['Sec-WebSocket-Version'].to_i
       accept = Digest::SHA1.base64digest([key, S_WS_GUID].join)
-      @client << format(UPGRADE_RESPONSE, accept: accept)
+      @conn << format(UPGRADE_RESPONSE, accept: accept)
       
       @reader = ::WebSocket::Frame::Incoming::Server.new(version: @version)
     end
@@ -41,13 +41,13 @@ module Tipi
         return msg.to_s
       end
     
-      @client.recv_loop do |data|
+      @conn.recv_loop do |data|
         @reader << data
         if (msg = @reader.next)
-          break msg.to_s
+          return msg.to_s
         end
       end
-      
+
       nil
     end
     
@@ -55,7 +55,7 @@ module Tipi
       frame = ::WebSocket::Frame::Outgoing::Server.new(
         version: @version, data: data, type: :text
       )
-      @client << frame.to_s
+      @conn << frame.to_s
     end
     alias_method :<<, :send
   end

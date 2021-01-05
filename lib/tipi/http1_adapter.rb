@@ -7,6 +7,8 @@ require_relative './http2_adapter'
 module Tipi
   # HTTP1 protocol implementation
   class HTTP1Adapter
+    attr_reader :conn
+
     # Initializes a protocol adapter instance
     def initialize(conn, opts)
       @conn = conn

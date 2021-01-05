@@ -3,8 +3,16 @@
 require 'uri'
 
 module Tipi
+  module RequestHeaders
+    def upgrade_protocol
+      @headers['Upgrade'] && @headers['Upgrade'].downcase
+    end
+  end
+
   # HTTP request
   class Request
+    include RequestHeaders
+
     attr_reader :headers, :adapter
     attr_accessor :__next__
     
