@@ -4,7 +4,7 @@ PATH
     tipi (0.33)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
-      polyphony (~> 0.47.5.1)
+      polyphony (~> 0.48.0)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)
 
@@ -24,7 +24,7 @@ GEM
       builder
       minitest (>= 5.0)
       ruby-progressbar
-    polyphony (0.47.5.1)
+    polyphony (0.48.0)
     rack (2.2.3)
     rake (12.3.3)
     ruby-progressbar (1.10.1)
@@ -33,7 +33,7 @@ GEM
       json (>= 1.8, < 3)
       simplecov-html (~> 0.10.0)
     simplecov-html (0.10.2)
-    websocket (1.2.8)
+    websocket (1.2.9)
 
 PLATFORMS
   ruby
