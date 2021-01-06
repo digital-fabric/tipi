@@ -97,6 +97,7 @@ module Tipi
       end
       buf
     end
+    alias_method :body, :read
     
     def respond(body, headers = {})
       @adapter.respond(body, headers)

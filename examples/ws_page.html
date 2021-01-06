@@ -6,14 +6,13 @@
 <body>
   <script>
     var connect = function () {
-      var exampleSocket = new WebSocket("ws://localhost:1234");
+      var exampleSocket = new WebSocket("wss://dev.realiteq.net/");
 
       exampleSocket.onopen = function (event) {
         document.querySelector('#status').innerText = 'connected';
         exampleSocket.send("Can you hear me?");
       };
       exampleSocket.onclose = function (event) {
-        console.log('onclose');
         document.querySelector('#status').innerText = 'disconnected';
         setTimeout(function () {
           // exampleSocket.removeAllListeners();
