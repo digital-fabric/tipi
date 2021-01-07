@@ -4,7 +4,7 @@ require_relative './protocol'
 require 'json'
 
 module Tipi::DigitalFabric
-  class Agent
+  class AgentProxy
     def initialize(df_service, req)
       @df_service = df_service
       @req = req

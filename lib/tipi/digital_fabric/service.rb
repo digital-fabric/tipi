@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative './protocol'
+require_relative './agent_proxy'
 
 module Tipi::DigitalFabric
   class Service
@@ -34,7 +35,7 @@ module Tipi::DigitalFabric
   
     def df_upgrade(req)
       req.adapter.conn << Protocol.df_upgrade_response
-      Agent.new(self, req)
+      AgentProxy.new(self, req)
     end
   
     def mount(route, agent)
