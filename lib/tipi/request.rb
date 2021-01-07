@@ -4,25 +4,16 @@ require 'uri'
 
 module Tipi
   module RequestHeaders
+    def host
+      @headers['Host']
+    end
+
     def upgrade_protocol
       @headers['Upgrade'] && @headers['Upgrade'].downcase
     end
-  end
 
-  # HTTP request
-  class Request
-    include RequestHeaders
-
-    attr_reader :headers, :adapter
-    attr_accessor :__next__
-    
-    def initialize(headers, adapter)
-      @headers  = headers
-      @adapter  = adapter
-    end
-    
     def protocol
-      @protocol = @adapter.protocol
+      @protocol ||= @adapter.protocol
     end
     
     def method
@@ -57,7 +48,20 @@ module Tipi
         h[k.to_sym] = URI.decode_www_form_component(v)
       end
     end
+  end
+
+  # HTTP request
+  class Request
+    include RequestHeaders
+
+    attr_reader :headers, :adapter
+    attr_accessor :__next__
     
+    def initialize(headers, adapter)
+      @headers  = headers
+      @adapter  = adapter
+    end
+        
     def buffer_body_chunk(chunk)
       @buffered_body_chunks ||= []
       @buffered_body_chunks << chunk
