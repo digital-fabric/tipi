@@ -12,8 +12,8 @@ module Tipi
       CONN_DATA = 'conn_data'
       CONN_CLOSE = 'conn_close'
 
-      WS_UPGRADE_REQUEST = 'ws_upgrade_request'
-      WS_UPGRADE_RESPONSE = 'ws_upgrade_response'
+      WS_REQUEST = 'ws_request'
+      WS_RESPONSE = 'ws_response'
       WS_DATA = 'ws_data'
       WS_CLOSE = 'ws_close'
 
@@ -56,12 +56,12 @@ module Tipi
           { kind: CONN_CLOSE, id: id }
         end
 
-        def ws_upgrade_request(id, headers)
-          { kind: WS_UPGRADE_REQUEST, id: id, headers: headers }
+        def ws_request(id, headers)
+          { kind: WS_REQUEST, id: id, headers: headers }
         end
 
-        def ws_upgrade_response(id, headers)
-          { kind: ws_upgrade_response, id: id, headers: headers }
+        def ws_response(id, headers)
+          { kind: WS_RESPONSE, id: id, headers: headers }
         end
 
         def ws_data(id, data)

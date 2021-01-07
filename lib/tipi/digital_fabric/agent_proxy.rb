@@ -167,10 +167,10 @@ module Tipi::DigitalFabric
 
     def handle_websocket_upgrade(req)
       with_request do |id|
-        send_df_message(Protocol.ws_upgrade_request(id, req.headers))
+        send_df_message(Protocol.ws_request(id, req.headers))
         response = receive
         case response['kind']
-        when Protocol::WS_UPGRADE_RESPONSE
+        when Protocol::WS_RESPONSE
           headers = response['headers'] || {} 
           status = headers[':status'] || 101
           if status != 101
@@ -188,7 +188,7 @@ module Tipi::DigitalFabric
     def run_websocket_connection(id, websocket)
       reader = spin do
         websocket.recv_loop do |data|
-        send_df_message(df_websocket_data(id, data))
+        send_df_message(Protocol.ws_data(id, data))
       end
       while message = receive
         case message['kind']
