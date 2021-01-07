@@ -21,7 +21,6 @@ module Tipi::DigitalFabric
     end
   
     def upgrade_request(req)
-      p upgrade_protocol: req.upgrade_protocol
       case (protocol = req.upgrade_protocol)
       when 'df'
         df_upgrade(req)
@@ -34,21 +33,22 @@ module Tipi::DigitalFabric
     end
   
     def df_upgrade(req)
-      req.adapter.conn << Protocol.upgrade_response
+      req.adapter.conn << Protocol.df_upgrade_response
       Agent.new(self, req)
     end
   
     def mount(route, agent)
       @agents[agent] = route
-      recompile_agent_routes
+      @routing_changed = true
     end
   
     def unmount(agent)
       @agents.delete(agent)
-      recompile_agent_routes
+      @routing_changed = true
     end
 
     def recompile_agent_routes
+      @routing_changed = false
       default_agent_idx = nil
       @agent_array = []
       @statements = []
@@ -65,8 +65,8 @@ module Tipi::DigitalFabric
       if default_agent_idx
         @statements.unshift "return @agent_array[#{default_agent_idx}]"
       end
-      puts "def find_agent(req); #{@statements.reverse.join}; end"
-      singleton_class.class_eval("def find_agent(req); #{@statements.reverse.join}; end")
+      body = "recompile_routing if @routing_changed; #{@statements.reverse.join}"
+      singleton_class.class_eval("def find_agent(req); #{body}; end")
     end
 
     def route_predicate(route)

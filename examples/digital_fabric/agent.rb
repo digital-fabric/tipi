@@ -15,18 +15,18 @@ UPGRADE_REQUEST = <<~HTTP
   GET / HTTP/1.1
   Host: localhost
   Upgrade: df
-  DF-Mount-Path: /agent
+  DF-Mount: path=/agent
 
 HTTP
 
 def df_upgrade(socket)
-  log "Upgrading connection"
+  log 'Upgrading connection'
   # cancel_after(10) do
     socket << UPGRADE_REQUEST
     while line = socket.gets
       break if line.chomp.empty?
     end
-    log "Connection upgraded"
+    log 'Connection upgraded'
   # end
 end
 
@@ -41,6 +41,10 @@ def handle_df_msg(socket, msg)
 end
 
 def handle_http_request(socket, req)
+  if req['headers'][':path'] == '/sse' then
+    return handle_sse_http_request(sockt, req)
+  end
+
   send_df_message(socket, Protocol.http_response(
     req['id'],
     'Hello world',
@@ -48,16 +52,35 @@ def handle_http_request(socket, req)
   ))
 end
 
+def handle_sse_http_request(socket, req)
+  send_df_message(socket, Protocol.http_response(
+    req['id'],
+    nil,
+    { 'Content_Type' => 'text/sse' },
+    false
+  ))
+  throttled_loop(interval: 1) do
+    messsage = Protocol.http_response(
+      req['id'],
+      "data: #{Time.now}\r\n",
+      nil,
+      false
+    )
+  end
+end
+
 def send_df_message(socket, msg)
+  raise Polyphony::Cancel unless socket
+
   # log "send #{msg.inspect}"
   socket.puts msg.to_json
 end
 
-log "Agent started"
+log 'Agent started'
 
 loop do
   socket = Polyphony::Net.tcp_connect('127.0.0.1', 4411)
-  log "Connected to server"
+  log 'Connected to server'
 
   df_upgrade(socket)
 
@@ -66,7 +89,7 @@ loop do
     handle_df_msg(socket, msg) if msg
   end
 rescue SystemCallError, IOError, Polyphony::Cancel
-  log "Disconnected" if socket
+  log 'Disconnected' if socket
   socket = nil
   sleep 1
 end
