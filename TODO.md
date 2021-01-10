@@ -4,6 +4,10 @@
 - Improve Rack spec compliance, add tests
 - Homogenize HTTP 1 and HTTP 2 headers - downcase symbols
 
+- Use `http-2-next` instead of `http-2` for http/2
+  - https://gitlab.com/honeyryderchuck/http-2-next
+  - Open an issue there, ask what's the difference between the two gems?
+
 ## 0.35
 
 - Add more poly CLI commands and options:
