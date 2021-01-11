@@ -112,7 +112,12 @@ module Tipi
     
     def send_chunk(chunk, done: false)
       send_headers({}, false) unless @headers_sent
-      @stream.data(chunk, end_stream: done)
+      
+      if chunk
+        @stream.data(chunk, end_stream: done)
+      elsif done
+        @stream.close
+      end
     end
     
     def finish

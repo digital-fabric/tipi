@@ -200,7 +200,7 @@ module Tipi
     # @return [void]
     def send_chunk(chunk, done: false)
       data = []
-      data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+      data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n" if chunk
       data << "0\r\n\r\n" if done
       @conn.write(data.join)
     end
