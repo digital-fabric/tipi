@@ -50,6 +50,19 @@ module Tipi
 
       nil
     end
+
+    def recv_loop
+      if (msg = @reader.next)
+        yield msg.to_s
+      end
+
+      @conn.recv_loop do |data|
+        @reader << data
+        while (msg = @reader.next)
+          yield msg.to_s
+        end
+      end
+    end
     
     def send(data)
       frame = ::WebSocket::Frame::Outgoing::Server.new(
@@ -58,5 +71,9 @@ module Tipi
       @conn << frame.to_s
     end
     alias_method :<<, :send
+
+    def close
+      @conn.close
+    end
   end
 end

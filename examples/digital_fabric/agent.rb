@@ -35,22 +35,60 @@ def handle_df_msg(socket, msg)
   case msg['kind']
   when Protocol::HTTP_REQUEST
     handle_http_request(socket, msg)
+  when Protocol::WS_REQUEST
+    handle_ws_request(socket, msg)
+  when Protocol::PING
+    log 'got ping from server'
   else
     log "Invalid DF message received: #{msg.inspect}"
   end
 end
 
+HTML_WS = IO.read(File.join(__dir__, 'ws_page.html'))
+HTML_SSE = IO.read(File.join(__dir__, 'sse_page.html'))
+
 def handle_http_request(socket, req)
-  if req['headers'][':path'] == '/agent/sse' then
-    return spin { handle_sse_http_request(socket, req) }
+  path = req['headers'][':path']
+  case path
+  when '/agent/ws'
+    send_df_message(socket, Protocol.http_response(
+      req['id'],
+      HTML_WS,
+      { 'Content-Type' => 'text/html' },
+      true
+    ))
+  when '/agent/sse'
+    send_df_message(socket, Protocol.http_response(
+      req['id'],
+      HTML_SSE,
+      { 'Content-Type' => 'text/html' },
+      true
+    ))
+  when '/agent/sse/events'
+    spin { handle_sse_http_request(socket, req) }
+  else
+    send_df_message(socket, Protocol.http_response(
+      req['id'],
+      nil,
+      { ':status' => 400 },
+      true
+    ))
   end
 
-  send_df_message(socket, Protocol.http_response(
-    req['id'],
-    'Hello world',
-    { 'DF-Foo' => 'bar' },
-    true
-  ))
+end
+
+def handle_ws_request(socket, req)
+  puts "handle_ws_request"
+  send_df_message(socket, Protocol.ws_response(req['id'], {}))
+  return spin { run_ws_connection(socket, req) }
+end
+
+def run_ws_connection(socket, req)
+  10.times do
+    sleep 1
+    send_df_message(socket, Protocol.ws_data(req['id'], Time.now.to_s))
+  end
+  send_df_message(socket, Protocol.ws_close(req['id']))
 end
 
 def handle_sse_http_request(socket, req)
@@ -60,7 +98,7 @@ def handle_sse_http_request(socket, req)
     { 'Content-Type' => 'text/event-stream' },
     false
   ))
-  3.times do
+  10.times do
     sleep 1
     send_df_message(socket, Protocol.http_response(
       req['id'],
@@ -71,7 +109,7 @@ def handle_sse_http_request(socket, req)
   end
   send_df_message(socket, Protocol.http_response(
     req['id'],
-    nil,
+    "retry: 0\n\n",
     nil,
     true
   ))
@@ -82,6 +120,8 @@ def send_df_message(socket, msg)
 
   # log "send #{msg.inspect}"
   socket.puts msg.to_json
+rescue Errno::EPIPE
+  socket = nil
 end
 
 log 'Agent started'

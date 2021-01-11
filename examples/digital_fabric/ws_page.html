@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Websocket Client</title>
+</head>
+<body>
+  <h1>WebSocket Client</h1>
+  <script>
+    var connect = function () {
+      console.log("connecting...")
+      var exampleSocket = new WebSocket("wss://dev.realiteq.net");
+
+      exampleSocket.onopen = function (event) {
+        console.log("connected");
+        document.querySelector('#status').innerText = 'connected';
+        exampleSocket.send("Can you hear me?");
+      };
+      exampleSocket.onclose = function (event) {
+        console.log("disconnected");
+        document.querySelector('#status').innerText = 'disconnected';
+        setTimeout(function () {
+          // exampleSocket.removeAllListeners();
+          connect();
+        }, 1000);
+      }
+      exampleSocket.onmessage = function (event) {
+        console.log("got message", event.data);
+        document.querySelector('#msg').innerText = event.data;
+        console.log(event.data);
+      }
+    };
+
+    window.onload = connect;
+  </script>
+  <h1 id="status">disconnected</h1>
+  <h1 id="msg"></h1>
+</body>
+</html>

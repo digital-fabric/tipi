@@ -2,6 +2,7 @@
 
 require_relative './protocol'
 require 'json'
+require 'tipi/websocket'
 
 module Tipi::DigitalFabric
   class AgentProxy
@@ -27,11 +28,13 @@ module Tipi::DigitalFabric
       @df_service.unmount(self)
     end
 
+    class TimeoutError < RuntimeError
+    end
+
     def keep_alive
       now = Time.now
       if now - @last_send >= Protocol::SEND_TIMEOUT
-        @last_send = now
-        @conn.puts Protocol.ping.to_json
+        send_df_message(Protocol.ping)
       end
       if now - @last_recv >= Protocol::RECV_TIMEOUT
         raise TimeoutError
@@ -155,7 +158,7 @@ module Tipi::DigitalFabric
     end
 
     def http_upgrade(req, protocol)
-      if protocol == :websocket
+      if protocol == 'websocket'
         handle_websocket_upgrade(req)
       else
         # other protocol upgrades should be handled by the agent, so we just run
@@ -204,6 +207,7 @@ module Tipi::DigitalFabric
       end
     ensure
       reader.stop
+      websocket.close
     end
   end
 end

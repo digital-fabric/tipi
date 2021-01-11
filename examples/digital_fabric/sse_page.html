@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>SSE Client</title>
+</head>
+<body>
+  <h1>SSE Client</h1>
+  <script>
+    var connect = function () {
+      console.log("connecting...");
+      var eventSource = new EventSource("/agent/sse/events");
+
+      eventSource.addEventListener('open', function(e) {
+        console.log("connected");
+        document.querySelector('#status').innerText = 'connected';
+        return false;
+      }, false);
+
+      eventSource.addEventListener('message', function(e) {
+        document.querySelector('#msg').innerText = e.data;
+      }, false);
+    };
+
+    window.onload = connect;
+  </script>
+  <h1 id="status">disconnected</h1>
+  <h1 id="msg"></h1>
+</body>
+</html>
