@@ -50,6 +50,13 @@ HTML_SSE = IO.read(File.join(__dir__, 'sse_page.html'))
 def handle_http_request(socket, req)
   path = req['headers'][':path']
   case path
+  when '/agent'
+    send_df_message(socket, Protocol.http_response(
+      req['id'],
+      'Hello, world!',
+      {},
+      true
+    ))
   when '/agent/ws'
     send_df_message(socket, Protocol.http_response(
       req['id'],
