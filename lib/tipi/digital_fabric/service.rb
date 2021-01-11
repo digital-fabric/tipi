@@ -7,7 +7,7 @@ module Tipi::DigitalFabric
   class Service
     def initialize
       @agents = {}
-      recompile_agent_routes
+      @routes = {}
     end
   
     # request routing
@@ -39,6 +39,9 @@ module Tipi::DigitalFabric
     end
   
     def mount(route, agent)
+      if route[:path]
+        route[:path_regexp] = path_regexp(route[:path])
+      end
       @agents[agent] = route
       @routing_changed = true
     end
@@ -48,39 +51,37 @@ module Tipi::DigitalFabric
       @routing_changed = true
     end
 
-    def recompile_agent_routes
-      @routing_changed = false
-      default_agent_idx = nil
-      @agent_array = []
-      @statements = []
-      idx = 0
-      @agents.each do |agent, route|
-        @agent_array << agent
-        if route
-          @statements << "return @agent_array[#{idx}] if #{route_predicate(route)}; "
-        else
-          default_agent_idx = idx
+    INVALID_HOST = 'INVALID_HOST'
+
+    def find_agent(req)
+      compile_agent_routes if @routing_changed
+
+      host = req.headers['Host'] || INVALID_HOST
+      path = req.headers[':path']
+      default_agent = nil
+
+      @routes.each do |agent, route|
+        if route.nil?
+          default_agent = agent
+          next
         end
-        idx += 1
+
+        return agent if host == route[:host]
+        return agent if path =~ route[:path_regexp]
       end
-      if default_agent_idx
-        @statements.unshift "return @agent_array[#{default_agent_idx}]"
-      end
-      @statements << 'nil; ' if @statements.empty?
-      body = "if @routing_changed; recompile_agent_routes; return find_agent(req); end; #{@statements.reverse.join}"
-      puts "*" * 40
-      puts body
-      puts
-      singleton_class.class_eval("def find_agent(req); #{body} end", __FILE__, __LINE__)
+
+      return default_agent
     end
 
-    def route_predicate(route)
-      return "(req.headers['Host'] == #{route[:host].inspect})" if route[:host]
-      return "(req.headers[':path'] =~ #{path_regexp(route[:path]).inspect})" if route[:path]
-      return "true" if route[:catch_all]
+    def compile_agent_routes
+      @routing_changed = false
 
-      "false"
+      @routes.clear
+      @agents.keys.reverse.each do |agent|
+        @routes[agent] = @agents[agent]
+      end
     end
+
 
     def path_regexp(path)
       /^#{path}/

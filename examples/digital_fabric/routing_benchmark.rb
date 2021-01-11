@@ -5,40 +5,56 @@ require 'polyphony'
 require 'tipi/digital_fabric'
 
 class FakeAgent
+  def initialize(idx)
+    @idx = idx
+  end
 end
 
 def setup_df_service_with_agents(agent_count)
   server = Tipi::DigitalFabric::Service.new
   agent_count.times do |i|
-    server.mount({path: "/#{i}"}, FakeAgent.new)
+    server.mount({path: "/#{i}"}, FakeAgent.new(i))
   end
   server
 end
 
 def benchmark_route_compilation(agent_count, iterations)
-  service = setup_df_service_with_agent(agent_count)
+  service = setup_df_service_with_agents(agent_count)
   t0 = Time.now
-  iterations.times { service.recompile_routing }
+  iterations.times { service.compile_agent_routes }
   elapsed = Time.now - t0
-  puts "route_compilation: #{agent_count} => #{1/(elapsed / iterations)} ops/sec"
+  puts "route_compilation: #{agent_count} => #{elapsed / iterations}s (#{1/(elapsed / iterations)} ops/sec)"
 end
 
-def benchmark_routing(agent_count, iterations)
-  service = setup_df_service_with_agent(agent_count)
+class FauxRequest
+  def initialize(agent_count)
+    @agent_count = agent_count
+  end
+
+  def headers
+    { ':path' => "/#{rand(@agent_count)}"}
+  end
+end
+
+def benchmark_find_agent(agent_count, iterations)
+  service = setup_df_service_with_agents(agent_count)
   t0 = Time.now
-  iterations.times { service.find_agent("/#{rand(agent_count)}") }
+  request = FauxRequest.new(agent_count)
+  iterations.times do
+    agent = service.find_agent(request)
+  end
   elapsed = Time.now - t0
-  puts "routing: #{agent_count} => #{1/(elapsed / iterations)} ops/sec"
+  puts "routing: #{agent_count} => #{elapsed / iterations}s (#{1/(elapsed / iterations)} ops/sec)"
 end
 
 def benchmark
-  benchmark_route_compilation(1, 100000)
-  benchmark_route_compilation(10, 10000)
   benchmark_route_compilation(100, 1000)
+  benchmark_route_compilation(500,  200)
   benchmark_route_compilation(1000, 100)
 
-  benchmark_routing(1, 100000)
-  benchmark_routing(10, 10000)
-  benchmark_routing(100, 1000)
-  benchmark_routing(1000, 100)
+  benchmark_find_agent(100, 1000)
+  benchmark_find_agent(500,  200)
+  benchmark_find_agent(1000, 100)
 end
+
+benchmark
