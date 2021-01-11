@@ -39,7 +39,7 @@ module Tipi::DigitalFabric
     end
 
     def route
-      case @req.headers['DF_Mount']
+      case @req.headers['DF-Mount']
       when /^\s*host\s*=\s*([^\s]+)/
         { host: Regexp.last_match(1) }
       when /^\s*path\s*=\s*([^\s]+)/
@@ -111,7 +111,7 @@ module Tipi::DigitalFabric
         body = message['body']
         done = message['complete']
         req.send_headers(headers) if headers
-        req.send_chunk(body, done: done) if body
+        req.send_chunk(body, done: done) if body or done
         done
       else
         # invalid message
@@ -133,7 +133,8 @@ module Tipi::DigitalFabric
         conn.recv_loop do |data|
           send_df_message(Protocol.conn_data(id, data))
         end
-      while message = receive
+      end
+      while (message = receive)
         return if http_custom_upgrade_message(conn, message)
       end
     ensure
@@ -151,7 +152,7 @@ module Tipi::DigitalFabric
         # invalid message
         true
       end
-  end
+    end
 
     def http_upgrade(req, protocol)
       if protocol == :websocket
@@ -188,24 +189,21 @@ module Tipi::DigitalFabric
     def run_websocket_connection(id, websocket)
       reader = spin do
         websocket.recv_loop do |data|
-        send_df_message(Protocol.ws_data(id, data))
+          send_df_message(Protocol.ws_data(id, data))
+        end
       end
-      while message = receive
+      while (message = receive)
         case message['kind']
         when Protocol::WS_DATA
           websocket << message['data']
         when Protocol::WS_CLOSE
           return
-        when
+        else
           raise "Unexpected websocket message #{message.inspect}"
         end
       end
     ensure
       reader.stop
-    end
-
-    rescue Polyphony::Cancel
-      send_df_message(df_websocket_close(id))
     end
   end
 end

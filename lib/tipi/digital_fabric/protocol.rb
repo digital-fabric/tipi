@@ -18,7 +18,7 @@ module Tipi
       WS_CLOSE = 'ws_close'
 
       SEND_TIMEOUT = 15
-      RECEIVE_TIMEOUT = SEND_TIMEOUT + 5
+      RECV_TIMEOUT = SEND_TIMEOUT + 5
 
       class << self
         def ping
@@ -33,7 +33,7 @@ module Tipi
         HTTP
 
         def df_upgrade_response
-          UPGRADE_RESPONSE
+          DF_UPGRADE_RESPONSE
         end
 
         def http_request(id, req)

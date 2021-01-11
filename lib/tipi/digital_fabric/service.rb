@@ -66,8 +66,12 @@ module Tipi::DigitalFabric
       if default_agent_idx
         @statements.unshift "return @agent_array[#{default_agent_idx}]"
       end
-      body = "recompile_routing if @routing_changed; #{@statements.reverse.join}"
-      singleton_class.class_eval("def find_agent(req); #{body}; end")
+      @statements << 'nil; ' if @statements.empty?
+      body = "if @routing_changed; recompile_agent_routes; return find_agent(req); end; #{@statements.reverse.join}"
+      puts "*" * 40
+      puts body
+      puts
+      singleton_class.class_eval("def find_agent(req); #{body} end", __FILE__, __LINE__)
     end
 
     def route_predicate(route)

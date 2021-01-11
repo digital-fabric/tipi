@@ -41,14 +41,15 @@ def handle_df_msg(socket, msg)
 end
 
 def handle_http_request(socket, req)
-  if req['headers'][':path'] == '/sse' then
-    return handle_sse_http_request(sockt, req)
+  if req['headers'][':path'] == '/agent/sse' then
+    return spin { handle_sse_http_request(socket, req) }
   end
 
   send_df_message(socket, Protocol.http_response(
     req['id'],
     'Hello world',
-    { 'DF-Foo' => 'bar' }
+    { 'DF-Foo' => 'bar' },
+    true
   ))
 end
 
@@ -56,17 +57,24 @@ def handle_sse_http_request(socket, req)
   send_df_message(socket, Protocol.http_response(
     req['id'],
     nil,
-    { 'Content_Type' => 'text/sse' },
+    { 'Content-Type' => 'text/event-stream' },
     false
   ))
-  throttled_loop(interval: 1) do
-    messsage = Protocol.http_response(
+  3.times do
+    sleep 1
+    send_df_message(socket, Protocol.http_response(
       req['id'],
-      "data: #{Time.now}\r\n",
+      "data: #{Time.now}\n\n",
       nil,
       false
-    )
+    ))
   end
+  send_df_message(socket, Protocol.http_response(
+    req['id'],
+    nil,
+    nil,
+    true
+  ))
 end
 
 def send_df_message(socket, msg)
@@ -77,6 +85,12 @@ def send_df_message(socket, msg)
 end
 
 log 'Agent started'
+
+socket = nil
+
+spin_loop(interval: Protocol::SEND_TIMEOUT) do
+  send_df_message(socket, Protocol.ping) if socket
+end
 
 loop do
   socket = Polyphony::Net.tcp_connect('127.0.0.1', 4411)
