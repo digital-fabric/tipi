@@ -20,8 +20,8 @@ module Tipi::DigitalFabric
       @df_service.mount(route, self)
       keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       while (line = @conn.gets)
-        msg = JSON.parse(line)
-        recv_df_message(msg)
+        msg = JSON.parse(line) rescue nil
+        recv_df_message(msg) if msg
       end
     ensure
       keep_alive_timer.stop
