@@ -11,6 +11,7 @@ module Tipi::DigitalFabric
       @port = port
       @route = route
       @requests = {}
+      @name = '<unknown>'
     end
 
     def run
@@ -25,10 +26,11 @@ module Tipi::DigitalFabric
     def connect
       log 'Connecting...'
       @socket = Polyphony::Net.tcp_connect(@host, @port)
+      @last_recv = @last_send = Time.now
+
       log 'Connected to server'
 
       df_upgrade
-      @last_recv = @last_send = Time.now
       true
     rescue IOError, Errno::ECONNREFUSED
       log 'Disconnected' if @socket
@@ -64,7 +66,7 @@ module Tipi::DigitalFabric
     end
 
     def log(msg)
-      puts "#{Time.now} #{msg}"
+      puts "#{Time.now} (#{@name}) #{msg}"
     end
 
     def process_incoming_requests
