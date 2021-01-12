@@ -8,7 +8,7 @@
   <script>
     var connect = function () {
       console.log("connecting...")
-      var exampleSocket = new WebSocket("wss://dev.realiteq.net");
+      var exampleSocket = new WebSocket("wss://dev.realiteq.net/agent");
 
       exampleSocket.onopen = function (event) {
         console.log("connected");
