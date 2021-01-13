@@ -11,9 +11,17 @@ module Tipi::DigitalFabric
       @req = req
       @conn = req.adapter.conn
       @pending_requests = {}
+      @current_request_count = 0
       @last_request_id = 0
       @last_recv = @last_send = Time.now
       run
+    end
+
+    def current_request_count
+      @current_request_count
+    end
+
+    class TimeoutError < RuntimeError
     end
 
     def run
@@ -23,12 +31,11 @@ module Tipi::DigitalFabric
         msg = JSON.parse(line) rescue nil
         recv_df_message(msg) if msg
       end
+    rescue TimeoutError, IOError
+      # go out quietly
     ensure
       keep_alive_timer.stop
       @df_service.unmount(self)
-    end
-
-    class TimeoutError < RuntimeError
     end
 
     def keep_alive
@@ -36,9 +43,9 @@ module Tipi::DigitalFabric
       if now - @last_send >= Protocol::SEND_TIMEOUT
         send_df_message(Protocol.ping)
       end
-      if now - @last_recv >= Protocol::RECV_TIMEOUT
-        raise TimeoutError
-      end
+      # if now - @last_recv >= Protocol::RECV_TIMEOUT
+      #   raise TimeoutError
+      # end
     end
 
     def route
@@ -85,10 +92,12 @@ module Tipi::DigitalFabric
     end
 
     def with_request
+      @current_request_count += 1
       id = (@last_request_id += 1)
       @pending_requests[id] = Fiber.current
       yield id
     ensure
+      @current_request_count -= 1
       @pending_requests.delete(id)
     end
 

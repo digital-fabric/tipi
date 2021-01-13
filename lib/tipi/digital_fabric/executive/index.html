@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Digital Fabric Executive</title>
+  <style>
+    .hidden { display: none }
+  </style>
+</head>
+<body>
+  <h1>Digital Fabric Executive</h1>
+  <script>
+    function updateStats(update) {
+      for (let k in update.service) {
+        let v = update.service[k];
+        let e = document.querySelector('#' + k);
+        if (e) e.innerText = v;
+      }
+      for (let k in update.machine) {
+        let v = update.machine[k];
+        let e = document.querySelector('#' + k);
+        if (e) e.innerText = v;
+      }
+    }
+
+    function connect() {
+      console.log("connecting...");
+      window.eventSource = new EventSource("/stream/stats");
+
+      window.eventSource.onopen = function(e) {
+        console.log("connected");
+        document.querySelector('#status').innerText = 'connected';
+        document.querySelector('#stats').className = '';
+        return false;
+      }
+
+      window.eventSource.onmessage = function(e) {
+        updateStats(JSON.parse(e.data));
+      }
+
+      window.eventSource.onerror = function(e) {
+        console.log("error", e);
+        document.querySelector('#status').innerText = 'disconnected';
+        document.querySelector('#stats').className = 'hidden';
+        setTimeout(connect, 5000);
+      }
+    };
+
+    window.onload = connect;
+  </script>
+  <h2 id="status">disconnected</h2>
+  <div id="stats" class="hidden">
+    <h2>Service</h2>
+    <p>Request rate: <span id="http_request_rate"></span></p>
+    <p>Error rate: <span id="error_rate"></span></p>
+    <p>Average Latency: <span id="average_latency"></span>s</p>
+    <p>Connected agents: <span id="agent_count"></span></p>
+    <p>Concurrent requests: <span id="concurrent_requests"></span></p>
+
+    <h2>Machine</h2>
+    <p>CPU utilization: <span id="cpu_utilization"></span>%</p>
+    <p>Free memory: <span id="mem_free"></span>MB</p>
+    <p>Load average: <span id="load_avg"></span></p>
+  </div>
+</body>
+</html>

@@ -14,28 +14,31 @@ module Tipi::DigitalFabric
       @name = '<unknown>'
     end
 
+    class TimeoutError < RuntimeError
+    end
+
     def run
       @keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       while true
-        connect && process_incoming_requests
+        connect_and_process_incoming_requests
+        sleep 5
       end
     ensure
       @keep_alive_timer.stop
     end
 
-    def connect
+    def connect_and_process_incoming_requests
       log 'Connecting...'
       @socket = Polyphony::Net.tcp_connect(@host, @port)
       @last_recv = @last_send = Time.now
 
-      log 'Connected to server'
-
       df_upgrade
-      true
-    rescue IOError, Errno::ECONNREFUSED
-      log 'Disconnected' if @socket
-      sleep 5
-      false
+      @connected = true
+      
+      process_incoming_requests
+    rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE, TimeoutError
+      log 'Disconnected' if @connected
+      @connected = nil
     end
 
     UPGRADE_REQUEST = <<~HTTP
@@ -44,10 +47,9 @@ module Tipi::DigitalFabric
     Upgrade: df
     DF-Mount: %s
   
-  HTTP
+    HTTP
   
     def df_upgrade
-      log 'Upgrading connection'
       @socket << format(UPGRADE_REQUEST, mount_point)
       while (line = @socket.gets)
         break if line.chomp.empty?
@@ -74,21 +76,21 @@ module Tipi::DigitalFabric
         msg = JSON.parse(line) rescue nil
         recv_df_message(msg) if msg
       end
-    rescue IOError
+    rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE, TimeoutError
       @socket = nil
       return
     end
 
     def keep_alive
-      return unless @socket
+      return unless @connected
 
       now = Time.now
       if now - @last_send >= Protocol::SEND_TIMEOUT
         send_df_message(Protocol.ping)
       end
-      if now - @last_recv >= Protocol::RECV_TIMEOUT
-        raise TimeoutError
-      end
+      # if now - @last_recv >= Protocol::RECV_TIMEOUT
+      #   raise TimeoutError
+      # end
     end
 
     def recv_df_message(msg)
