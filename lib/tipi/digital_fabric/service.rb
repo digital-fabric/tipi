@@ -71,9 +71,10 @@ module Tipi::DigitalFabric
       latency = Time.now - t0
       @http_latency_accumulator += latency
       @http_latency_counter += 1
-    rescue IOError
-      # ignore
+    rescue IOError, SystemCallError
+      @counters[:errors] += 1
     rescue => e
+      @counters[:errors] += 1
       req.respond(e.inspect, ':status' => 500)
     ensure
       @current_request_count -= 1

@@ -40,7 +40,7 @@ module Tipi
       adapter = protocol_adapter(client, opts)
       adapter.each(&handler)
     ensure
-      client.close
+      client.close rescue nil
     end
     
     def protocol_adapter(socket, opts)
