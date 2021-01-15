@@ -54,7 +54,7 @@ def spin_agent(id)
   end
 end
 
-(1..1).each { |i| spin_agent(i); sleep 0.1 }
+(1..400).each { |i| spin_agent(i); sleep 0.1 }
 
 trap('SIGINT') do
   Fiber.current.shutdown_all_children
