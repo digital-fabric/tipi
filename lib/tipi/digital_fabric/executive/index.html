@@ -41,6 +41,8 @@
         console.log("error", e);
         document.querySelector('#status').innerText = 'disconnected';
         document.querySelector('#stats').className = 'hidden';
+        window.eventSource.close();
+        window.eventSource = null;
         setTimeout(connect, 5000);
       }
     };
