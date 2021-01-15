@@ -22,6 +22,8 @@ class Client
 
   def connect
     @socket = Polyphony::Net.tcp_connect(@host, @port)
+  rescue SystemCallError
+    false
   end
 
   REQUEST = <<~HTTP
