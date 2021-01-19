@@ -33,8 +33,7 @@ class MiniTest::Test
 
   def teardown
     # puts "* teardown #{self.name.inspect} Fiber.current: #{Fiber.current.inspect}"
-    Fiber.current.terminate_all_children
-    Fiber.current.await_all_children
+    Fiber.current.shutdown_all_children
   rescue => e
     puts e
     puts e.backtrace.join("\n")

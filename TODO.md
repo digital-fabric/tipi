@@ -1,3 +1,11 @@
+# Digital Fabric
+
+Problems to fix:
+
+- Memory leak (in server? multi agent? multi client?)
+- 
+
+
 # Roadmap
 
 - Update README (get rid of non-http stuff)
