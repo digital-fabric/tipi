@@ -26,7 +26,7 @@ class DevAgent
   end
 end
 
-df_service = Tipi::DigitalFabric::Service.new
+df_service = Tipi::DigitalFabric::Service.new(token: 'foobar')
 Tipi::DigitalFabric::Executive.new(df_service, { host: 'executive.realiteq.net' })
 df_service.mount({ host: 'dev.realiteq.net' }, DevAgent.new)
 df_service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health checks

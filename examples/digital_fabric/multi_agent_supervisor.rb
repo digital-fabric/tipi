@@ -11,7 +11,7 @@ Protocol = Tipi::DigitalFabric::Protocol
 class SampleAgent < Tipi::DigitalFabric::Agent
   def initialize(id, host, port)
     @id = id
-    super(host, port, { host: "#{id}.realiteq.net" })
+    super(host, port, { host: "#{id}.realiteq.net" }, 'foobar')
     @name = "agent-#{@id}"
   end
 

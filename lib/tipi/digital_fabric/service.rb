@@ -5,7 +5,10 @@ require_relative './agent_proxy'
 
 module Tipi::DigitalFabric
   class Service
-    def initialize
+    attr_reader :token
+
+    def initialize(token: )
+      @token = token
       @agents = {}
       @routes = {}
       @counters = {
@@ -96,6 +99,8 @@ module Tipi::DigitalFabric
     end
   
     def df_upgrade(req)
+      return req.respond(nil, ':status' => 403) if req.headers['DF-Token'] != @token
+
       req.adapter.conn << Protocol.df_upgrade_response
       AgentProxy.new(self, req)
     end

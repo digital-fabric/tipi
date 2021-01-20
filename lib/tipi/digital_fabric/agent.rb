@@ -6,10 +6,11 @@ require 'tipi/websocket'
 
 module Tipi::DigitalFabric
   class Agent
-    def initialize(host, port, route)
+    def initialize(host, port, route, token)
       @host = host
       @port = port
       @route = route
+      @token = token
       @requests = {}
       @name = '<unknown>'
     end
@@ -45,12 +46,13 @@ module Tipi::DigitalFabric
     GET / HTTP/1.1
     Host: localhost
     Upgrade: df
+    DF-Token: %s
     DF-Mount: %s
   
     HTTP
   
     def df_upgrade
-      @socket << format(UPGRADE_REQUEST, mount_point)
+      @socket << format(UPGRADE_REQUEST, @token, mount_point)
       while (line = @socket.gets)
         break if line.chomp.empty?
       end
