@@ -7,9 +7,11 @@ module Tipi
   # Manages an HTTP 2 stream
   class HTTP2StreamHandler
     attr_accessor :__next__
+    attr_reader :conn
     
-    def initialize(stream, &block)
+    def initialize(stream, conn, &block)
       @stream = stream
+      @conn = conn
       @connection_fiber = Fiber.current
       @stream_fiber = spin { |req| handle_request(req, &block) }
       

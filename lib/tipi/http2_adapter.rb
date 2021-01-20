@@ -57,7 +57,7 @@ module Tipi
     end
     
     def start_stream(stream, &block)
-      stream = HTTP2StreamHandler.new(stream, &block)
+      stream = HTTP2StreamHandler.new(stream, @conn, &block)
       @streams[stream] = true
     end
     
