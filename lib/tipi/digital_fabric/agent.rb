@@ -45,6 +45,7 @@ module Tipi::DigitalFabric
     UPGRADE_REQUEST = <<~HTTP
     GET / HTTP/1.1
     Host: localhost
+    Connection: upgrade
     Upgrade: df
     DF-Token: %s
     DF-Mount: %s

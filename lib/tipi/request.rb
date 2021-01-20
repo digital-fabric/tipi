@@ -8,8 +8,12 @@ module Tipi
       @headers['Host']
     end
 
+    def connection
+      @headers['Connection']
+    end
+
     def upgrade_protocol
-      @headers['Upgrade'] && @headers['Upgrade'].downcase
+      connection == 'upgrade' && @headers['Upgrade']&.downcase
     end
 
     def protocol
