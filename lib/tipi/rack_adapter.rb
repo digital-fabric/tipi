@@ -62,7 +62,7 @@ module Tipi
         when 'REQUEST_METHOD' then request.method
         when 'PATH_INFO'      then request.path
         when 'QUERY_STRING'   then request.query_string || ''
-        when 'SERVER_NAME'    then request.headers['Host']
+        when 'SERVER_NAME'    then request.headers['host']
         when 'rack.input'     then InputStream.new(request)
         when HTTP_HEADER_RE   then request.headers[$1.downcase]
         else                       RACK_ENV[key]

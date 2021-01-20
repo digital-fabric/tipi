@@ -85,10 +85,10 @@ module Tipi::DigitalFabric
     end
 
     def inject_request_headers(req)
-      req.headers['X-Request-ID'] = SecureRandom.uuid
+      req.headers['x-request-id'] = SecureRandom.uuid
       conn = req.adapter.conn
-      req.headers['X-Forwarded-For'] = conn.peeraddr(false)[2]
-      req.headers['X-Forwarded-Proto'] = conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
+      req.headers['x-forwarded-for'] = conn.peeraddr(false)[2]
+      req.headers['x-forwarded-proto'] = conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
     end
   
     def upgrade_request(req)
@@ -107,7 +107,7 @@ module Tipi::DigitalFabric
     end
   
     def df_upgrade(req)
-      return req.respond(nil, ':status' => 403) if req.headers['DF-Token'] != @token
+      return req.respond(nil, ':status' => 403) if req.headers['df-token'] != @token
 
       req.adapter.conn << Protocol.df_upgrade_response
       AgentProxy.new(self, req)
@@ -131,7 +131,7 @@ module Tipi::DigitalFabric
     def find_agent(req)
       compile_agent_routes if @routing_changed
 
-      host = req.headers['Host'] || INVALID_HOST
+      host = req.headers['host'] || INVALID_HOST
       path = req.headers[':path']
       default_agent = nil
 

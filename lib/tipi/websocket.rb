@@ -28,8 +28,8 @@ module Tipi
     HTTP
     
     def setup(headers)
-      key = headers['Sec-WebSocket-Key']
-      @version = headers['Sec-WebSocket-Version'].to_i
+      key = headers['sec-websocket-key']
+      @version = headers['sec-websocket-version'].to_i
       accept = Digest::SHA1.base64digest([key, S_WS_GUID].join)
       @conn << format(UPGRADE_RESPONSE, accept: accept)
       

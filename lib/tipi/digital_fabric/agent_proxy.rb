@@ -49,7 +49,7 @@ module Tipi::DigitalFabric
     end
 
     def route
-      case @req.headers['DF-Mount']
+      case @req.headers['df-mount']
       when /^\s*host\s*=\s*([^\s]+)/
         { host: Regexp.last_match(1) }
       when /^\s*path\s*=\s*([^\s]+)/

@@ -5,15 +5,15 @@ require 'uri'
 module Tipi
   module RequestHeaders
     def host
-      @headers['Host']
+      @headers['host']
     end
 
     def connection
-      @headers['Connection']
+      @headers['connection']
     end
 
     def upgrade_protocol
-      connection == 'upgrade' && @headers['Upgrade']&.downcase
+      connection == 'upgrade' && @headers['upgrade']&.downcase
     end
 
     def protocol

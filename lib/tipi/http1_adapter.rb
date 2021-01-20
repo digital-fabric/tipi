@@ -79,9 +79,23 @@ module Tipi
     end
     
     def on_headers_complete(headers)
+      headers = normalize_headers(headers)
       headers[':path'] = @parser.request_url
-      headers[':method'] = @parser.http_method
+      headers[':method'] = @parser.http_method.downcase
       queue_request(Request.new(headers, self))
+    end
+
+    def normalize_headers(headers)
+      headers.each_with_object({}) do |(k, v), h|
+        k = k.downcase
+        hk = h[k]
+        if hk
+          hk = h[k] = [hk] unless hk.is_a?(Array)
+          v.is_a?(Array) ? hk.concat(v) : hk << v
+        else
+          h[k] = v
+        end
+      end
     end
     
     def queue_request(request)
@@ -122,7 +136,7 @@ module Tipi
     # @param headers [Hash] request headers
     # @return [boolean] truthy if the connection has been upgraded
     def upgrade_connection(headers, &block)
-      upgrade_protocol = headers['Upgrade']
+      upgrade_protocol = headers['upgrade']
       return nil unless upgrade_protocol
       
       upgrade_protocol = upgrade_protocol.downcase.to_sym
@@ -151,7 +165,7 @@ module Tipi
     def http2_upgraded_headers(headers)
       headers.merge(
         ':scheme'    => 'http',
-        ':authority' => headers['Host']
+        ':authority' => headers['host']
       )
     end
     

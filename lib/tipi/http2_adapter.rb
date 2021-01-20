@@ -37,7 +37,7 @@ module Tipi
     
     def upgrade
       @conn << UPGRADE_MESSAGE
-      settings = @upgrade_headers['HTTP2-Settings']
+      settings = @upgrade_headers['http2-settings']
       Fiber.current.schedule(nil)
       @interface.upgrade(settings, @upgrade_headers, '')
     ensure
