@@ -43,6 +43,8 @@ def spin_agent(id)
     while true
       Polyphony::Process.watch do
         puts "Agent #{id} pid: #{Process.pid}"
+
+        spin_loop(interval: 60) { GC.start }
       
         agent = SampleAgent.new(id, '127.0.0.1', 4411)
         agent.run

@@ -31,6 +31,7 @@ Tipi::DigitalFabric::Executive.new(df_service, { host: 'executive.realiteq.net' 
 df_service.mount({ host: 'dev.realiteq.net' }, DevAgent.new)
 df_service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health checks
 
+spin_loop(interval: 60) { GC.start }
 
 Tipi.serve('0.0.0.0', 4411, opts) do |req|
   if req.headers[':path'] == '/foo'

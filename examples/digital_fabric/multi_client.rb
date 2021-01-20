@@ -11,6 +11,7 @@ class Client
     @port = port
     @http_host = http_host
     @interval = interval.to_f
+    @interval_delta = @interval / 2
   end
 
   def run
@@ -39,10 +40,12 @@ class Client
 
     while true
       do_request
-      sleep rand((@interval - 5)..(@interval + 5))
+      sleep rand((@interval - @interval_delta)..(@interval + @interval_delta))
     end
   rescue IOError, Errno::EPIPE, Errno::ECONNRESET, Errno::ECONNREFUSED => e
     # fail quitely
+  ensure
+    @parser = nil
   end
 
   def do_request
@@ -67,6 +70,8 @@ def spin_client(id, host)
     client.run
   end
 end
+
+spin_loop(interval: 60) { GC.start }
 
 4000.times { |id| spin_client(id, "#{rand(1..400)}.realiteq.net") }
 
