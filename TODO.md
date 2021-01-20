@@ -3,8 +3,6 @@
 Problems to fix:
 
 - Memory leak (in server? multi agent? multi client?)
-- 
-
 
 # Roadmap
 

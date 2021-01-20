@@ -70,6 +70,7 @@ module Tipi::DigitalFabric
         return req.respond(nil, ':status' => 503)
       end
 
+      inject_request_headers(req)
       agent.http_request(req)
       latency = Time.now - t0
       @http_latency_accumulator += latency
@@ -81,6 +82,13 @@ module Tipi::DigitalFabric
       req.respond(e.inspect, ':status' => 500)
     ensure
       @current_request_count -= 1
+    end
+
+    def inject_request_headers(req)
+      req.headers['X-Request-ID'] = SecureRandom.uuid
+      conn = req.adapter.conn
+      req.headers['X-Forwarded-For'] = conn.peeraddr(false)[2]
+      req.headers['X-Forwarded-Proto'] = conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
     end
   
     def upgrade_request(req)
