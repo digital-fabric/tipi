@@ -16,6 +16,8 @@ class SampleAgent < DigitalFabric::Agent
   end
 
   def http_request(req)
+    puts '*' * 40
+    puts "http_request #{req.inspect}"
     send_df_message(Protocol.http_response(
       req['id'],
       nil,
@@ -40,6 +42,9 @@ class SampleAgent < DigitalFabric::Agent
       nil,
       true
     ))
+  rescue Exception => e
+    p e
+    puts e.backtrace.join("\n")
   end
 
   def do_some_activity

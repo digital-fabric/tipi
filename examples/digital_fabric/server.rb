@@ -5,6 +5,8 @@ require 'tipi'
 require 'tipi/digital_fabric'
 require 'tipi/digital_fabric/executive'
 require 'json'
+require 'fileutils'
+FileUtils.cd(__dir__)
 
 opts = {
   reuse_addr:  true,
@@ -26,8 +28,33 @@ class DevAgent
   end
 end
 
+class MyExecutive < DigitalFabric::Executive
+  def agent_missing(req)
+    return nil unless req.host =~ /^(.+)\.realiteq\.net$/
+
+    agent_id = Regexp.last_match(1)
+    return nil unless (1..400).include?(agent_id.to_i)
+
+    @service.with_loading_agent({ host: req.host }) do
+      start_agent(agent_id)
+    end
+  end
+
+  def start_agent(agent_id)
+    Thread.current.main_fiber.spin do
+      while true
+        puts "Start watching agent"
+        Polyphony::Process.watch("ruby agent.rb #{agent_id}")
+        puts "Agent process terminated"
+        sleep 1
+      end
+    end
+  end
+end
+
 service = DigitalFabric::Service.new(token: 'foobar')
-DigitalFabric::Executive.new(service, { host: 'executive.realiteq.net' })
+
+executive = MyExecutive.new(service, { host: 'executive.realiteq.net' })
 service.mount({ host: 'dev.realiteq.net' }, DevAgent.new)
 service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health checks
 

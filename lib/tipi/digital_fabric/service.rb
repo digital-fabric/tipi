@@ -81,6 +81,8 @@ module DigitalFabric
       @counters[:errors] += 1
     rescue => e
       @counters[:errors] += 1
+      p e
+      puts e.backtrace.join("\n")
       req.respond(e.inspect, ':status' => 500)
     ensure
       @current_request_count -= 1
@@ -119,35 +121,42 @@ module DigitalFabric
       if route[:path]
         route[:path_regexp] = path_regexp(route[:path])
       end
+      @executive = agent if route[:executive]
       @agents[agent] = route
       @routing_changed = true
     end
   
     def unmount(agent)
+      route = @agents[agent]
+      @executive = nil if route[:executive]
       @agents.delete(agent)
       @routing_changed = true
     end
 
     INVALID_HOST = 'INVALID_HOST'
+    class AgentPlaceholder
+    end
 
     def find_agent(req)
       compile_agent_routes if @routing_changed
 
       host = req.headers['host'] || INVALID_HOST
       path = req.headers[':path']
-      default_agent = nil
 
-      @routes.each do |agent, route|
-        if route.nil?
-          default_agent = agent
-          next
+      @routes.each do |route, agent|
+        if (host == route[:host]) || (path =~ route[:path_regexp])
+          if agent.is_a?(AgentPlaceholder)
+            return wait_for_agent(route)
+          end
+          return agent
         end
-
-        return agent if host == route[:host]
-        return agent if path =~ route[:path_regexp]
       end
 
-      return default_agent
+      if @executive
+        agent = @executive.agent_missing(req) if @executive.respond_to?(:agent_missing)
+        agent
+      end
+      # return @executive&.agent_missing(req)
     end
 
     def compile_agent_routes
@@ -155,8 +164,45 @@ module DigitalFabric
 
       @routes.clear
       @agents.keys.reverse.each do |agent|
-        @routes[agent] = @agents[agent]
+        route = @agents[agent]
+        @routes[route] ||= agent
       end
+    end
+
+    def wait_for_agent(route)
+      move_on_after(10) do
+        loop do
+          sleep 0.25
+          compile_agent_routes if @routing_changed
+          agent = @routes[route]
+          if agent && !agent.is_a?(AgentPlaceholder)
+            sleep 0.25
+            return agent
+          end
+        end
+      end
+    end
+
+    def with_loading_agent(route)
+      placeholder = AgentPlaceholder.new
+      @agents[placeholder] = route
+      compile_agent_routes
+
+      yield
+
+      move_on_after(10) do
+        loop do
+          compile_agent_routes if @routing_changed
+          agent = @routes[route]
+          if agent && !agent.is_a?(AgentPlaceholder)
+            sleep 0.25
+            return agent
+          end
+          sleep 0.25
+        end
+      end
+    ensure
+      @agents.delete(placeholder)
     end
 
     def path_regexp(path)

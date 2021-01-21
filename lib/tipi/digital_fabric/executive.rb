@@ -10,6 +10,7 @@ module DigitalFabric
 
     def initialize(service, route = { path: '/executive' })
       @service = service
+      route[:executive] = true
       @service.mount(route, self)
       @current_request_count = 0
     end
