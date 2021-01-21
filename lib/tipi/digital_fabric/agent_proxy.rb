@@ -67,7 +67,7 @@ module Tipi::DigitalFabric
 
       handler = @pending_requests[message['id']]
       if !handler
-        puts "Unknown request id in #{message}"
+        # puts "Unknown request id in #{message}"
         return
       end
 
@@ -102,9 +102,15 @@ module Tipi::DigitalFabric
     end
 
     def http_request(req)
+      t0 = Time.now
+      t1 = nil
       with_request do |id|
         send_df_message(Protocol.http_request(id, req))
         while (message = receive)
+          unless t1
+            t1 = Time.now
+            @df_service.record_latency_measurement(t1 - t0)
+          end
           return if http_request_message(id, req, message)
         end
       end

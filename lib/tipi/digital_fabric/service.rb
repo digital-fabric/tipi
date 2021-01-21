@@ -2,6 +2,7 @@
 
 require_relative './protocol'
 require_relative './agent_proxy'
+require 'securerandom'
 
 module Tipi::DigitalFabric
   class Service
@@ -56,10 +57,14 @@ module Tipi::DigitalFabric
       end
       count
     end
+
+    def record_latency_measurement(latency)
+      @http_latency_accumulator += latency
+      @http_latency_counter += 1
+    end
   
     def http_request(req)
       @current_request_count += 1
-      t0 = Time.now
       @counters[:http_requests] += 1
       return upgrade_request(req) if req.upgrade_protocol
   
@@ -72,9 +77,6 @@ module Tipi::DigitalFabric
 
       inject_request_headers(req)
       agent.http_request(req)
-      latency = Time.now - t0
-      @http_latency_accumulator += latency
-      @http_latency_counter += 1
     rescue IOError, SystemCallError
       @counters[:errors] += 1
     rescue => e
