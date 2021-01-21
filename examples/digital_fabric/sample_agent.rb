@@ -6,9 +6,9 @@ require 'json'
 require 'tipi/digital_fabric/protocol'
 require 'tipi/digital_fabric/agent'
 
-Protocol = Tipi::DigitalFabric::Protocol
+Protocol = DigitalFabric::Protocol
 
-class SampleAgent < Tipi::DigitalFabric::Agent
+class SampleAgent < DigitalFabric::Agent
   HTML_WS = IO.read(File.join(__dir__, 'ws_page.html'))
   HTML_SSE = IO.read(File.join(__dir__, 'sse_page.html'))
 

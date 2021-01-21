@@ -4,7 +4,7 @@ require_relative './protocol'
 require 'json'
 require 'tipi/websocket'
 
-module Tipi::DigitalFabric
+module DigitalFabric
   class Agent
     def initialize(host, port, route, token)
       @host = host
@@ -136,7 +136,7 @@ module Tipi::DigitalFabric
         http_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
-      rescue Tipi::DigitalFabric::Agent::GracefulShutdown
+      rescue DigitalFabric::Agent::GracefulShutdown
 
         send_df_message(Protocol.http_response(
           req['id'],

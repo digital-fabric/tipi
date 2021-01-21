@@ -4,7 +4,7 @@ require_relative './protocol'
 require_relative './agent_proxy'
 require 'securerandom'
 
-module Tipi::DigitalFabric
+module DigitalFabric
   class Service
     attr_reader :token
 

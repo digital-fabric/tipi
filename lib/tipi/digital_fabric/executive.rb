@@ -3,14 +3,14 @@
 require 'tipi/digital_fabric'
 require 'json'
 
-module Tipi::DigitalFabric
+module DigitalFabric
   # agent for managing DF service
   class Executive
     INDEX_HTML = IO.read(File.join(__dir__, 'executive/index.html'))
 
-    def initialize(df_service, route = { path: '/executive' })
-      @df_service = df_service
-      @df_service.mount(route, self)
+    def initialize(service, route = { path: '/executive' })
+      @service = service
+      @service.mount(route, self)
       @current_request_count = 0
     end
 
@@ -54,7 +54,7 @@ module Tipi::DigitalFabric
 
     def service_stats_response
       {
-        service: @df_service.stats,
+        service: @service.stats,
         machine: machine_stats
       }
     end

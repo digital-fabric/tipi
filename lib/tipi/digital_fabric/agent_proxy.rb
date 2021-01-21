@@ -4,10 +4,10 @@ require_relative './protocol'
 require 'json'
 require 'tipi/websocket'
 
-module Tipi::DigitalFabric
+module DigitalFabric
   class AgentProxy
-    def initialize(df_service, req)
-      @df_service = df_service
+    def initialize(service, req)
+      @service = service
       @req = req
       @conn = req.adapter.conn
       @pending_requests = {}
@@ -29,14 +29,14 @@ module Tipi::DigitalFabric
 
     def run
       @fiber = Fiber.current
-      @df_service.mount(route, self)
+      @service.mount(route, self)
       keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       process_incoming_messages(false)
     rescue GracefulShutdown
       process_incoming_messages(true)
     ensure
       keep_alive_timer.stop
-      @df_service.unmount(self)
+      @service.unmount(self)
     end
 
     def process_incoming_messages(shutdown = false)
@@ -127,7 +127,7 @@ module Tipi::DigitalFabric
         while (message = receive)
           unless t1
             t1 = Time.now
-            @df_service.record_latency_measurement(t1 - t0)
+            @service.record_latency_measurement(t1 - t0)
           end
           return if http_request_message(id, req, message)
         end

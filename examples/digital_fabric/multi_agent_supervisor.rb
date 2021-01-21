@@ -6,9 +6,9 @@ require 'json'
 require 'tipi/digital_fabric/protocol'
 require 'tipi/digital_fabric/agent'
 
-# Protocol = Tipi::DigitalFabric::Protocol
+# Protocol = DigitalFabric::Protocol
 
-# class SampleAgent < Tipi::DigitalFabric::Agent
+# class SampleAgent < DigitalFabric::Agent
 #   def initialize(id, host, port)
 #     @id = id
 #     super(host, port, { host: "#{id}.realiteq.net" }, 'foobar')

@@ -11,7 +11,7 @@ class FakeAgent
 end
 
 def setup_df_service_with_agents(agent_count)
-  server = Tipi::DigitalFabric::Service.new
+  server = DigitalFabric::Service.new
   agent_count.times do |i|
     server.mount({path: "/#{i}"}, FakeAgent.new(i))
   end

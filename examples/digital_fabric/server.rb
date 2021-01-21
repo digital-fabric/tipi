@@ -26,10 +26,10 @@ class DevAgent
   end
 end
 
-df_service = Tipi::DigitalFabric::Service.new(token: 'foobar')
-Tipi::DigitalFabric::Executive.new(df_service, { host: 'executive.realiteq.net' })
-df_service.mount({ host: 'dev.realiteq.net' }, DevAgent.new)
-df_service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health checks
+service = DigitalFabric::Service.new(token: 'foobar')
+DigitalFabric::Executive.new(service, { host: 'executive.realiteq.net' })
+service.mount({ host: 'dev.realiteq.net' }, DevAgent.new)
+service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health checks
 
 spin_loop(interval: 60) { GC.start }
 
@@ -39,9 +39,9 @@ begin
       req.respond('bar')
       next
     end
-    df_service.http_request(req)
+    service.http_request(req)
   end
 rescue Interrupt
   puts "Got SIGINT, shutting down gracefully"
-  df_service.graceful_shutdown
+  service.graceful_shutdown
 end
