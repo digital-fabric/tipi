@@ -119,6 +119,8 @@ module Tipi::DigitalFabric
       spin do
         @requests[req['id']] = Fiber.current
         http_request(req)
+      rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
+        # ignore
       ensure
         @requests.delete(req['id'])
       end
@@ -128,6 +130,8 @@ module Tipi::DigitalFabric
       spin do
         @requests[req['id']] = Fiber.current
         ws_request(req)
+      rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
+        # ignore
       ensure
         @requests.delete(req['id'])
       end
