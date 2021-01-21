@@ -162,5 +162,20 @@ module Tipi::DigitalFabric
     def path_regexp(path)
       /^#{path}/
     end
+
+    def graceful_shutdown
+      @agents.keys.each do |agent|
+        if agent.respond_to?(:shutdown)
+          agent.shutdown
+        else
+          @agents.delete(agent)
+        end
+      end
+      move_on_after(5) do
+        while !@agents.empty?
+          sleep 0.25
+        end
+      end
+    end
   end
 end

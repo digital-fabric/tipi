@@ -131,5 +131,9 @@ module Tipi
       
       @adapter.finish
     end
+
+    def headers_sent?
+      @headers_sent
+    end
   end
 end

@@ -18,10 +18,14 @@ module Tipi::DigitalFabric
     class TimeoutError < RuntimeError
     end
 
+    class GracefulShutdown < RuntimeError
+    end
+
     def run
       @keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       while true
         connect_and_process_incoming_requests
+        return if @shutdown
         sleep 5
       end
     ensure
@@ -78,6 +82,8 @@ module Tipi::DigitalFabric
       while (line = @socket.gets)
         msg = JSON.parse(line) rescue nil
         recv_df_message(msg) if msg
+
+        return if @shutdown
       end
     rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE, TimeoutError
       @socket = nil
@@ -99,6 +105,8 @@ module Tipi::DigitalFabric
     def recv_df_message(msg)
       @last_recv = Time.now
       case msg['kind']
+      when Protocol::SHUTDOWN
+        recv_shutdown
       when Protocol::HTTP_REQUEST
         recv_http_request(msg)
       when Protocol::WS_REQUEST
@@ -115,12 +123,27 @@ module Tipi::DigitalFabric
       @socket.puts(msg.to_json)
     end
 
+    def recv_shutdown
+      puts "Received shutdown message (#{@requests.size} pending requests)"
+      @shutdown = true
+      exception = GracefulShutdown.new
+      @requests.values.each { |f| f.raise exception }
+    end
+
     def recv_http_request(req)
       spin do
         @requests[req['id']] = Fiber.current
         http_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
+      rescue Tipi::DigitalFabric::Agent::GracefulShutdown
+
+        send_df_message(Protocol.http_response(
+          req['id'],
+          nil,
+          { ':status' => 503 },
+          true
+        ))
       ensure
         @requests.delete(req['id'])
       end

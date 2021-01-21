@@ -24,18 +24,35 @@ module Tipi::DigitalFabric
     class TimeoutError < RuntimeError
     end
 
+    class GracefulShutdown < RuntimeError
+    end
+
     def run
+      @fiber = Fiber.current
       @df_service.mount(route, self)
       keep_alive_timer = spin_loop(interval: 5) { keep_alive }
-      while (line = @conn.gets)
-        msg = JSON.parse(line) rescue nil
-        recv_df_message(msg) if msg
-      end
-    rescue TimeoutError, IOError
-      # go out quietly
+      process_incoming_messages(false)
+    rescue GracefulShutdown
+      process_incoming_messages(true)
     ensure
       keep_alive_timer.stop
       @df_service.unmount(self)
+    end
+
+    def process_incoming_messages(shutdown = false)
+      return if shutdown && @pending_requests.empty?
+      while (line = @conn.gets)
+        msg = JSON.parse(line) rescue nil
+        recv_df_message(msg) if msg
+
+        return if shutdown && @pending_requests.empty?
+      end
+    rescue TimeoutError, IOError
+    end
+
+    def shutdown
+      send_df_message(Protocol.shutdown)
+      @fiber.raise GracefulShutdown.new
     end
 
     def keep_alive
@@ -46,6 +63,7 @@ module Tipi::DigitalFabric
       # if now - @last_recv >= Protocol::RECV_TIMEOUT
       #   raise TimeoutError
       # end
+    rescue TimeoutError, IOError
     end
 
     def route
@@ -128,7 +146,7 @@ module Tipi::DigitalFabric
         headers = message['headers']
         body = message['body']
         done = message['complete']
-        req.send_headers(headers) if headers
+        req.send_headers(headers) if headers && !req.headers_sent?
         req.send_chunk(body, done: done) if body or done
         done
       else

@@ -33,10 +33,15 @@ df_service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health c
 
 spin_loop(interval: 60) { GC.start }
 
-Tipi.serve('0.0.0.0', 4411, opts) do |req|
-  if req.headers[':path'] == '/foo'
-    req.respond('bar')
-    next
+begin
+  Tipi.serve('0.0.0.0', 4411, opts) do |req|
+    if req.headers[':path'] == '/foo'
+      req.respond('bar')
+      next
+    end
+    df_service.http_request(req)
   end
-  df_service.http_request(req)
+rescue Interrupt
+  puts "Got SIGINT, shutting down gracefully"
+  df_service.graceful_shutdown
 end

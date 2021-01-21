@@ -4,6 +4,7 @@ module Tipi
   module DigitalFabric
     module Protocol
       PING = 'ping'
+      SHUTDOWN = 'shutdown'
 
       HTTP_REQUEST = 'http_request'
       HTTP_RESPONSE = 'http_response'
@@ -23,6 +24,10 @@ module Tipi
       class << self
         def ping
           { kind: PING }
+        end
+
+        def shutdown
+          { kind: SHUTDOWN }
         end
 
         DF_UPGRADE_RESPONSE = <<~HTTP.gsub("\n", "\r\n")
