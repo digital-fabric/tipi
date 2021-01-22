@@ -16,8 +16,18 @@ class SampleAgent < DigitalFabric::Agent
   end
 
   def http_request(req)
-    puts '*' * 40
-    puts "http_request #{req.inspect}"
+    return streaming_http_request(req) if req['headers'][':path'] == '/streaming'
+
+    sleep 10
+    send_df_message(Protocol.http_response(
+        req['id'],
+        { id: @id, time: Time.now.to_i }.to_json,
+        nil,
+        true
+      ))
+  end
+
+  def streaming_http_request(req)
     send_df_message(Protocol.http_response(
       req['id'],
       nil,
@@ -25,7 +35,7 @@ class SampleAgent < DigitalFabric::Agent
       false
     ))
 
-    10.times do
+    60.times do
       sleep 1
       do_some_activity
       send_df_message(Protocol.http_response(
@@ -42,6 +52,13 @@ class SampleAgent < DigitalFabric::Agent
       nil,
       true
     ))
+  rescue Polyphony::Terminate
+    send_df_message(Protocol.http_response(
+      req['id'],
+      ' * shutting down *',
+      nil,
+      true
+    )) if Fiber.current.graceful_shutdown?
   rescue Exception => e
     p e
     puts e.backtrace.join("\n")
@@ -59,6 +76,9 @@ end
 
 id = ARGV[0]
 puts "Starting agent #{id} pid: #{Process.pid}"
+
+# ignore SIGINT
+trap("SIGINT") { }
 
 spin_loop(interval: 60) { GC.start }
 SampleAgent.new(id, '127.0.0.1', 4411).run

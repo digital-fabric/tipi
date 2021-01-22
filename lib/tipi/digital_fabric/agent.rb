@@ -12,6 +12,7 @@ module DigitalFabric
       @route = route
       @token = token
       @requests = {}
+      @long_running_requests = {}
       @name = '<unknown>'
     end
 
@@ -22,6 +23,7 @@ module DigitalFabric
     end
 
     def run
+      @fiber = Fiber.current
       @keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       while true
         connect_and_process_incoming_requests
@@ -83,11 +85,12 @@ module DigitalFabric
         msg = JSON.parse(line) rescue nil
         recv_df_message(msg) if msg
 
-        return if @shutdown
+        return if @shutdown && @requests.empty?
       end
+    rescue Polyphony::Terminate
+      # ignore
     rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE, TimeoutError
-      @socket = nil
-      return
+      # ignore
     end
 
     def keep_alive
@@ -119,44 +122,65 @@ module DigitalFabric
     end
 
     def send_df_message(msg)
+      # we mark long-running requests by applying simple heuristics to sent DF
+      # messages. This is so we can correctly stop long-running requests
+      # upon graceful shutdown
+      if is_long_running_request_response?(msg)
+        id = msg[:id]
+        @long_running_requests[id] = @requests[id]
+      end
       @last_send = Time.now
       @socket.puts(msg.to_json)
     end
 
+    def is_long_running_request_response?(msg)
+      case msg[:kind]
+      when Protocol::HTTP_UPGRADE
+        true
+      when Protocol::HTTP_RESPONSE
+        msg[:body] && !msg[:complete]
+      end
+    end
+
     def recv_shutdown
       puts "Received shutdown message (#{@requests.size} pending requests)"
+      puts "  (Long running requests: #{@long_running_requests.size})"
       @shutdown = true
-      exception = GracefulShutdown.new
-      @requests.values.each { |f| f.raise exception }
+      @long_running_requests.values.each { |f| f.terminate(true) }
     end
 
     def recv_http_request(req)
+      id = req['id']
       spin do
-        @requests[req['id']] = Fiber.current
+        @requests[id] = Fiber.current
         http_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
-      rescue DigitalFabric::Agent::GracefulShutdown
-
+      rescue Polyphony::Terminate
         send_df_message(Protocol.http_response(
-          req['id'],
+          id,
           nil,
           { ':status' => 503 },
           true
-        ))
+        )) if Fiber.current.graceful_shutdown?
       ensure
-        @requests.delete(req['id'])
+        @requests.delete(id)
+        @long_running_requests.delete(id)
+        @fiber.terminate if @shutdown && @requests.empty?
       end
     end
 
     def recv_ws_request(req)
+      id = req['id']
       spin do
-        @requests[req['id']] = Fiber.current
+        @requests[id] = @long_running_requests[id] = Fiber.current
         ws_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
       ensure
-        @requests.delete(req['id'])
+        @requests.delete(id)
+        @long_running_requests.delete(id)
+        @fiber.terminate if @shutdown && @requests.empty?
       end
     end
 

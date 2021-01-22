@@ -60,6 +60,8 @@ service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health chec
 
 spin_loop(interval: 60) { GC.start }
 
+trap("SIGINT") { raise Interrupt }
+
 begin
   Tipi.serve('0.0.0.0', 4411, opts) do |req|
     if req.headers[':path'] == '/foo'
@@ -71,4 +73,5 @@ begin
 rescue Interrupt
   puts "Got SIGINT, shutting down gracefully"
   service.graceful_shutdown
+  puts "post graceful shutdown"
 end

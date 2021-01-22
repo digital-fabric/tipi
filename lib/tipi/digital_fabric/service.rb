@@ -217,7 +217,7 @@ module DigitalFabric
           @agents.delete(agent)
         end
       end
-      move_on_after(5) do
+      move_on_after(60) do
         while !@agents.empty?
           sleep 0.25
         end

@@ -10,7 +10,7 @@ module DigitalFabric
       @service = service
       @req = req
       @conn = req.adapter.conn
-      @pending_requests = {}
+      @requests = {}
       @current_request_count = 0
       @last_request_id = 0
       @last_recv = @last_send = Time.now
@@ -33,6 +33,7 @@ module DigitalFabric
       keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       process_incoming_messages(false)
     rescue GracefulShutdown
+      puts "Proxy got graceful shutdown, left: #{@requests.size} requests"
       process_incoming_messages(true)
     ensure
       keep_alive_timer.stop
@@ -40,12 +41,13 @@ module DigitalFabric
     end
 
     def process_incoming_messages(shutdown = false)
-      return if shutdown && @pending_requests.empty?
+      return if shutdown && @requests.empty?
+
       while (line = @conn.gets)
         msg = JSON.parse(line) rescue nil
         recv_df_message(msg) if msg
 
-        return if shutdown && @pending_requests.empty?
+        return if shutdown && @requests.empty?
       end
     rescue TimeoutError, IOError
     end
@@ -83,7 +85,7 @@ module DigitalFabric
       @last_recv = Time.now
       return if message['kind'] == Protocol::PING
 
-      handler = @pending_requests[message['id']]
+      handler = @requests[message['id']]
       if !handler
         # puts "Unknown request id in #{message}"
         return
@@ -101,22 +103,22 @@ module DigitalFabric
 
     def register_request_fiber
       id = (@last_request_id += 1)
-      @pending_requests[id] = Fiber.current
+      @requests[id] = Fiber.current
       id
     end
 
     def unregister_request_fiber(id)
-      @pending_requests.delete(id)
+      @requests.delete(id)
     end
 
     def with_request
       @current_request_count += 1
       id = (@last_request_id += 1)
-      @pending_requests[id] = Fiber.current
+      @requests[id] = Fiber.current
       yield id
     ensure
       @current_request_count -= 1
-      @pending_requests.delete(id)
+      @requests.delete(id)
     end
 
     def http_request(req)
