@@ -73,7 +73,7 @@ end
 
 spin_loop(interval: 60) { GC.start }
 
-4000.times { |id| spin_client(id, "#{rand(1..400)}.realiteq.net") }
+4.times { |id| spin_client(id, "#{rand(1..10)}.realiteq.net") }
 
 trap('SIGINT') { exit! }
 

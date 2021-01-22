@@ -18,7 +18,6 @@ class SampleAgent < DigitalFabric::Agent
   def http_request(req)
     return streaming_http_request(req) if req['headers'][':path'] == '/streaming'
 
-    sleep 10
     send_df_message(Protocol.http_response(
         req['id'],
         { id: @id, time: Time.now.to_i }.to_json,

@@ -143,20 +143,18 @@ module DigitalFabric
       host = req.headers['host'] || INVALID_HOST
       path = req.headers[':path']
 
-      @routes.each do |route, agent|
-        if (host == route[:host]) || (path =~ route[:path_regexp])
-          if agent.is_a?(AgentPlaceholder)
-            return wait_for_agent(route)
-          end
-          return agent
-        end
+      (route, agent) = @routes.find do |route, _|
+        (host == route[:host]) || (path =~ route[:path_regexp])
       end
 
-      if @executive
-        agent = @executive.agent_missing(req) if @executive.respond_to?(:agent_missing)
+      case agent
+      when AgentPlaceholder
+        wait_for_agent(route)
+      when nil
+        @executive.agent_missing(req) if @executive.respond_to?(:agent_missing)
+      else
         agent
       end
-      # return @executive&.agent_missing(req)
     end
 
     def compile_agent_routes
