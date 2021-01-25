@@ -9,9 +9,10 @@ module Tipi
     attr_accessor :__next__
     attr_reader :conn
     
-    def initialize(stream, conn, &block)
+    def initialize(stream, conn, first, &block)
       @stream = stream
       @conn = conn
+      @first = first
       @connection_fiber = Fiber.current
       @stream_fiber = spin { |req| handle_request(req, &block) }
       
@@ -46,6 +47,10 @@ module Tipi
     
     def on_headers(headers)
       @request = Request.new(headers.to_h, self)
+      if @first
+        @request.headers[':first'] = true
+        @first = false
+      end
       @stream_fiber.schedule @request
     end
     

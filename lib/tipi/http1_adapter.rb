@@ -13,6 +13,7 @@ module Tipi
     def initialize(conn, opts)
       @conn = conn
       @opts = opts
+      @first = true
       @parser = ::HTTP::Parser.new(self)
     end
     
@@ -30,6 +31,10 @@ module Tipi
     def handle_incoming_data(data, &block)
       @parser << data
       while (request = @requests_head)
+        if @first
+          request.headers[':first'] = true
+          @first = nil
+        end
         return true if upgrade_connection(request.headers, &block)
         
         @requests_head = request.__next__

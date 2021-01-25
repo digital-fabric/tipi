@@ -15,6 +15,7 @@ module Tipi
       @conn = conn
       @opts = opts
       @upgrade_headers = upgrade_headers
+      @first = true
       
       @interface = ::HTTP2::Server.new
       @connection_fiber = Fiber.current
@@ -57,7 +58,8 @@ module Tipi
     end
     
     def start_stream(stream, &block)
-      stream = HTTP2StreamHandler.new(stream, @conn, &block)
+      stream = HTTP2StreamHandler.new(stream, @conn, @first, &block)
+      @first = nil if @first
       @streams[stream] = true
     end
     
