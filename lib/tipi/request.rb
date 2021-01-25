@@ -3,7 +3,7 @@
 require 'uri'
 
 module Tipi
-  module RequestHeaders
+  module RequestInfo
     def host
       @headers['host']
     end
@@ -52,11 +52,19 @@ module Tipi
         h[k.to_sym] = URI.decode_www_form_component(v)
       end
     end
+
+    def request_id
+      @headers['x-request-id']
+    end
+
+    def forwarded_for
+      @headers['x-forwarded-for']
+    end
   end
 
   # HTTP request
   class Request
-    include RequestHeaders
+    include RequestInfo
 
     attr_reader :headers, :adapter
     attr_accessor :__next__
