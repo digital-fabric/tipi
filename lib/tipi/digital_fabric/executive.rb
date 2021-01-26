@@ -8,11 +8,15 @@ module DigitalFabric
   class Executive
     INDEX_HTML = IO.read(File.join(__dir__, 'executive/index.html'))
 
+    attr_reader :last_service_stats
+
     def initialize(service, route = { path: '/executive' })
       @service = service
       route[:executive] = true
       @service.mount(route, self)
       @current_request_count = 0
+      @updater = spin_loop(interval: 10) { update_service_stats }
+      update_service_stats
     end
 
     def current_request_count
@@ -25,7 +29,7 @@ module DigitalFabric
       when '/'
         req.respond(INDEX_HTML, 'Content-Type' => 'text/html')
       when '/stats'
-        message = service_stats_response
+        message = last_service_stats
         req.respond(message.to_json, { 'Content-Type' => 'text.json' })
       when '/stream/stats'
         stream_stats(req)
@@ -53,8 +57,8 @@ module DigitalFabric
       "data: #{data}\n\n"
     end
 
-    def service_stats_response
-      {
+    def update_service_stats
+      @last_service_stats = {
         service: @service.stats,
         machine: machine_stats
       }

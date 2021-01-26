@@ -43,7 +43,7 @@ module DigitalFabric
       @connected = true
       
       process_incoming_requests
-    rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE, TimeoutError
+    rescue IOError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EPIPE, TimeoutError
       log 'Disconnected' if @connected
       @connected = nil
     end
@@ -89,7 +89,7 @@ module DigitalFabric
       end
     rescue Polyphony::Terminate
       # ignore
-    rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE, TimeoutError
+    rescue IOError, SystemCallError, TimeoutError
       # ignore
     end
 
@@ -143,8 +143,8 @@ module DigitalFabric
     end
 
     def recv_shutdown
-      puts "Received shutdown message (#{@requests.size} pending requests)"
-      puts "  (Long running requests: #{@long_running_requests.size})"
+      # puts "Received shutdown message (#{@requests.size} pending requests)"
+      # puts "  (Long running requests: #{@long_running_requests.size})"
       @shutdown = true
       @long_running_requests.values.each { |f| f.terminate(true) }
     end

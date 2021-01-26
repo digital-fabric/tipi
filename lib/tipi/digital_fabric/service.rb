@@ -12,7 +12,9 @@ module DigitalFabric
       @token = token
       @agents = {}
       @routes = {}
+      @waiting_lists = {} # hash mapping routes to arrays of requests waiting for an agent to mount
       @counters = {
+        connections: 0,
         http_requests: 0,
         errors: 0
       }
@@ -20,6 +22,8 @@ module DigitalFabric
       @http_latency_counter = 0
       @last_counters = @counters.merge(stamp: Time.now.to_f - 1)
       update_stats
+      @fiber = Fiber.current
+      @timer = Polyphony::Timer.new(resolution: 1)
       stats_updater = spin_loop(interval: 10) { update_stats }
       @current_request_count = 0
     end
@@ -27,6 +31,7 @@ module DigitalFabric
     def update_stats
       now = Time.now.to_f
       elapsed = now - @last_counters[:stamp]
+      connections = @counters[:connections] - @last_counters[:connections]
       http_requests = @counters[:http_requests] - @last_counters[:http_requests]
       errors = @counters[:errors] - @last_counters[:errors]
       @last_counters = @counters.merge(stamp: now)
@@ -38,6 +43,7 @@ module DigitalFabric
       @http_latency_counter = 0
 
       @stats = {
+        connection_rate: connections / elapsed,
         http_request_rate: http_requests / elapsed,
         error_rate: errors / elapsed,
         average_latency: average_latency,
@@ -66,16 +72,17 @@ module DigitalFabric
     def http_request(req)
       @current_request_count += 1
       @counters[:http_requests] += 1
+      @counters[:connections] += 1 if req.headers[':first']
+
       return upgrade_request(req) if req.upgrade_protocol
-  
+ 
+      inject_request_headers(req)
       agent = find_agent(req)
       unless agent
         @counters[:errors] += 1
-        # puts "Couldn't find agent for #{req.headers}"
         return req.respond(nil, ':status' => 503)
       end
 
-      inject_request_headers(req)
       agent.http_request(req)
     rescue IOError, SystemCallError
       @counters[:errors] += 1
@@ -86,6 +93,7 @@ module DigitalFabric
       req.respond(e.inspect, ':status' => 500)
     ensure
       @current_request_count -= 1
+      req.adapter.conn.close if @shutdown
     end
 
     def inject_request_headers(req)
@@ -124,6 +132,11 @@ module DigitalFabric
       @executive = agent if route[:executive]
       @agents[agent] = route
       @routing_changed = true
+
+      if (waiting = @waiting_lists[route])
+        waiting.each { |f| f.schedule(agent) }
+        @waiting_lists.delete(route)
+      end
     end
   
     def unmount(agent)
@@ -131,12 +144,12 @@ module DigitalFabric
       @executive = nil if route[:executive]
       @agents.delete(agent)
       @routing_changed = true
+
+      @waiting_lists[route] ||= []
     end
 
     INVALID_HOST = 'INVALID_HOST'
-    class AgentPlaceholder
-    end
-
+    
     def find_agent(req)
       compile_agent_routes if @routing_changed
 
@@ -146,15 +159,15 @@ module DigitalFabric
       (route, agent) = @routes.find do |route, _|
         (host == route[:host]) || (path =~ route[:path_regexp])
       end
+      return agent if agent
 
-      case agent
-      when AgentPlaceholder
-        wait_for_agent(route)
-      when nil
-        @executive.agent_missing(req) if @executive.respond_to?(:agent_missing)
-      else
-        agent
+      # search for a known route for an agent that recently unmounted
+      route, wait_list = @waiting_lists.find do |route, _|
+        (host == route[:host]) || (path =~ route[:path_regexp])
       end
+      return wait_for_agent(wait_list) if route
+
+      nil
     end
 
     def compile_agent_routes
@@ -167,40 +180,11 @@ module DigitalFabric
       end
     end
 
-    def wait_for_agent(route)
-      move_on_after(10) do
-        loop do
-          sleep 0.25
-          compile_agent_routes if @routing_changed
-          agent = @routes[route]
-          if agent && !agent.is_a?(AgentPlaceholder)
-            sleep 0.25
-            return agent
-          end
-        end
-      end
-    end
-
-    def with_loading_agent(route)
-      placeholder = AgentPlaceholder.new
-      @agents[placeholder] = route
-      compile_agent_routes
-
-      yield
-
-      move_on_after(10) do
-        loop do
-          compile_agent_routes if @routing_changed
-          agent = @routes[route]
-          if agent && !agent.is_a?(AgentPlaceholder)
-            sleep 0.25
-            return agent
-          end
-          sleep 0.25
-        end
-      end
+    def wait_for_agent(wait_list)
+      wait_list << Fiber.current
+      @timer.move_on_after(10) { suspend }
     ensure
-      @agents.delete(placeholder)
+      wait_list.delete(self)
     end
 
     def path_regexp(path)
@@ -208,6 +192,7 @@ module DigitalFabric
     end
 
     def graceful_shutdown
+      @shutdown = true
       @agents.keys.each do |agent|
         if agent.respond_to?(:shutdown)
           agent.shutdown

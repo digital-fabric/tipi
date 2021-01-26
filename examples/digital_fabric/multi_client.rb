@@ -53,6 +53,9 @@ class Client
     @response = nil
     @socket << format(REQUEST, @http_host)
     wait_for_response
+    if @parser.status_code != 200
+      puts "Got status code #{@parser.status_code} from #{@http_host} => #{@parser.headers && @parser.headers['X-Request-ID']}"
+    end
     # puts "#{Time.now} [client-#{@id}] #{@http_host} => #{@response || '<error>'}"
   end
 
@@ -61,7 +64,7 @@ class Client
       @parser << data
       return @response if @got_reply
     end
-  end   
+  end
 end
 
 def spin_client(id, host)
@@ -73,7 +76,7 @@ end
 
 spin_loop(interval: 60) { GC.start }
 
-4.times { |id| spin_client(id, "#{rand(1..10)}.realiteq.net") }
+100.times { |id| spin_client(id, "#{rand(1..1)}.realiteq.net") }
 
 trap('SIGINT') { exit! }
 
