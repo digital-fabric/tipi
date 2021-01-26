@@ -9,13 +9,14 @@ opts = {
 }
 
 spin do
-  Tipi.serve('0.0.0.0', 1234, opts) do |req|
+  Tipi.serve('0.0.0.0', 4411, opts) do |req|
     req.respond("Hello world!\n")
   rescue Exception => e
     p e
   end
+  p 'done...'
 end
 
 puts "pid: #{Process.pid}"
-puts 'Listening on port 1234...'
+puts 'Listening on port 4411...'
 suspend
