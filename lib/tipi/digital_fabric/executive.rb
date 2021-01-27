@@ -43,12 +43,11 @@ module DigitalFabric
     def stream_stats(req)
       req.send_headers({ 'Content-Type' => 'text/event-stream' })
       throttled_loop(interval: 10) do
-        message = service_stats_response
+        message = last_service_stats
         req.send_chunk(format_sse_event(message.to_json))
       end
-    rescue Polyphony::Cancel, Polyphony::Terminate => e
-      req.finish rescue nil
-      raise e
+    # rescue Polyphony::Cancel, Polyphony::Terminate => e
+    #   req.finish rescue nil
     rescue IOError, SystemCallError
       # ignore
     end

@@ -9,9 +9,9 @@ require 'tipi/digital_fabric/agent'
 Protocol = DigitalFabric::Protocol
 
 class SampleAgent < DigitalFabric::Agent
-  def initialize(id, host, port)
+  def initialize(id, server_url)
     @id = id
-    super(host, port, { host: "#{id}.realiteq.net" }, 'foobar')
+    super(server_url, { host: "#{id}.realiteq.net" }, 'foobar')
     @name = "agent-#{@id}"
   end
 
@@ -76,8 +76,8 @@ end
 id = ARGV[0]
 puts "Starting agent #{id} pid: #{Process.pid}"
 
-# ignore SIGINT
-trap("SIGINT") { }
+# # ignore SIGINT
+# trap("SIGINT") { }
 
 spin_loop(interval: 60) { GC.start }
-SampleAgent.new(id, '127.0.0.1', 4411).run
+SampleAgent.new(id, '/tmp/df.sock').run

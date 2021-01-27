@@ -8,28 +8,17 @@ require 'json'
 require 'fileutils'
 FileUtils.cd(__dir__)
 
-class DevAgent
-  def http_request(req)
-    response = {
-      result: 'OK',
-      time: Time.now.to_f,
-      machine: 'dev',
-      process: 'DF1'
-    }
-    req.respond(response.to_json, { 'Content-Type' => 'text/json' })
-  end
-end
-
 service = DigitalFabric::Service.new(token: 'foobar')
-executive = DigitalFabric::Executive.new(service, { host: 'executive.realiteq.net' })
-# service.mount({ host: 'dev.realiteq.net' }, DevAgent.new)
-# service.mount({ host: '172.31.41.85:4411' }, DevAgent.new) # for ELB health checks
+# executive = DigitalFabric::Executive.new(service, { host: 'executive.realiteq.net' })
 
 # spin_loop(interval: 60) { GC.start }
 # spin_loop(interval: 10) { puts "#{Time.now} #{executive.last_service_stats}" }
 
 trap("SIGINT") { raise Interrupt }
 
+class Polyphony::BaseException
+  attr_reader :caller_backtrace
+end
 
 puts "pid: #{Process.pid}"
 
@@ -42,12 +31,20 @@ tcp_listener = spin do
   Tipi.serve('0.0.0.0', 4411, opts) do |req|
     service.http_request(req)
   end
+# rescue Polyphony::Terminate => e
+#   puts 'Got Polyphony::Terminate'
+#   p({
+#     raising_fiber: e.raising_fiber,
+#     caller_backtrace: e.caller_backtrace
+#   })
+#   exit!
 end
 
 UNIX_SOCKET_PATH = '/tmp/df.sock'
 
 unix_listener = spin do
   puts "Listening on #{UNIX_SOCKET_PATH}"
+  FileUtils.rm(UNIX_SOCKET_PATH) if File.exists?(UNIX_SOCKET_PATH)
   socket = UNIXServer.new(UNIX_SOCKET_PATH)
   Tipi.accept_loop(socket, {}) do |req|
     service.http_request(req)

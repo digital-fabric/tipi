@@ -6,9 +6,8 @@ require 'tipi/websocket'
 
 module DigitalFabric
   class Agent
-    def initialize(host, port, route, token)
-      @host = host
-      @port = port
+    def initialize(server_url, route, token)
+      @server_url = server_url
       @route = route
       @token = token
       @requests = {}
@@ -35,8 +34,8 @@ module DigitalFabric
     end
 
     def connect_and_process_incoming_requests
-      log 'Connecting...'
-      @socket = Polyphony::Net.tcp_connect(@host, @port)
+      # log 'Connecting...'
+      @socket = connect_to_server
       @last_recv = @last_send = Time.now
 
       df_upgrade
@@ -46,6 +45,16 @@ module DigitalFabric
     rescue IOError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EPIPE, TimeoutError
       log 'Disconnected' if @connected
       @connected = nil
+    end
+
+    def connect_to_server
+      if @server_url =~ /^([^\:])\:(\d+)$/
+        host = Regexp.last_match(1)
+        port = Regexp.last_match(2)
+        Polyphony::Net.tcp_connect(host, port)
+      else
+        UNIXSocket.new(@server_url)
+      end
     end
 
     UPGRADE_REQUEST = <<~HTTP
@@ -63,7 +72,7 @@ module DigitalFabric
       while (line = @socket.gets)
         break if line.chomp.empty?
       end
-      log 'Connection upgraded'
+      # log 'Connection upgraded'
     end
 
     def mount_point
@@ -87,8 +96,6 @@ module DigitalFabric
 
         return if @shutdown && @requests.empty?
       end
-    rescue Polyphony::Terminate
-      # ignore
     rescue IOError, SystemCallError, TimeoutError
       # ignore
     end

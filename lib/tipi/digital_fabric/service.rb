@@ -79,6 +79,8 @@ module DigitalFabric
       inject_request_headers(req)
       agent = find_agent(req)
       unless agent
+        return req.respond('pong') if req.query[:q] == 'ping'
+
         @counters[:errors] += 1
         return req.respond(nil, ':status' => 503)
       end

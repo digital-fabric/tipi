@@ -3,67 +3,78 @@
 require 'bundler/setup'
 require 'polyphony'
 require 'json'
-require 'tipi/digital_fabric/protocol'
-require 'tipi/digital_fabric/agent'
-
-# Protocol = DigitalFabric::Protocol
-
-# class SampleAgent < DigitalFabric::Agent
-#   def initialize(id, host, port)
-#     @id = id
-#     super(host, port, { host: "#{id}.realiteq.net" }, 'foobar')
-#     @name = "agent-#{@id}"
-#   end
-
-#   def http_request(req)
-#     response = { id: @id, time: Time.now.to_i }
-#     do_some_activity
-#     # log "request: #{req.inspect}"
-#     send_df_message(Protocol.http_response(
-#       req['id'],
-#       response.to_json,
-#       { 'Content-Type': 'text/json' },
-#       true
-#     ))
-#   end
-
-#   def do_some_activity
-#     @data = generate_data(2 ** 10)
-#     File.open('/tmp/df-test.log', 'a+') { |f| sleep rand; f.puts "#{Time.now} #{@name} #{generate_data(20)}" }
-#   end
-
-#   def generate_data(length)
-#     charset = Array('A'..'Z') + Array('a'..'z') + Array('0'..'9')
-#     Array.new(length) { charset.sample }.join
-#   end
-# end
 
 require 'fileutils'
 FileUtils.cd(__dir__)
 
-def spin_agent(id)
-  spin do
-    while true
-      Polyphony::Process.watch("ruby agent.rb #{id}")
-      # Polyphony::Process.watch do
-      #   puts "Agent #{id} pid: #{Process.pid}"
+class AgentManager
+  def initialize
+    @running_agents = {}
+    @pending_actions = Queue.new
+    @processor = spin_loop { process_pending_action }
+  end
 
-      #   spin_loop(interval: 60) { GC.start }
-      
-      #   agent = SampleAgent.new(id, '127.0.0.1', 4411)
-      #   agent.run
-      # rescue Interrupt
-      #   # die quietly
-      # end
-      sleep 1
+  def process_pending_action
+    action = @pending_actions.shift
+    case action[:kind]
+    when :start
+      start_agent(action[:spec])
+    when :stop
+      stop_agent(action[:spec])
     end
+    sleep 0.2
+  end
+
+  def start_agent(spec)
+    return if @running_agents[spec]
+
+    @running_agents[spec] = spin do
+      while true
+        launch_agent_from_spec(spec)
+        sleep 1
+      end
+    ensure
+      @running_agents.delete(spec)
+    end
+  end
+
+  def stop_agent(spec)
+    fiber = @running_agents[spec]
+    return unless fiber
+
+    fiber.terminate
+    fiber.await
+  end
+
+  def update
+    return unless @pending_actions.empty?
+
+    current_specs = @running_agents.keys
+    updated_specs = agent_specs
+
+    to_start = updated_specs - current_specs
+    to_stop = current_specs - current_specs
+
+    to_start.each { |s| @pending_actions << { kind: :start, spec: s } }
+    to_stop.each { |s| @pending_actions << { kind: :stop, spec: s } }
+  end
+
+  def run
+    every(2) { update }
   end
 end
 
-(1..400).each { |i| spin_agent(i); sleep 0.1 }
+class RealityAgentManager < AgentManager
+  def agent_specs
+    (1..400).map { |i| { id: i } }
+  end
 
-trap('SIGINT') do
-  Fiber.current.shutdown_all_children
-  exit!
+  def launch_agent_from_spec(spec)
+    Polyphony::Process.watch("ruby agent.rb #{spec[:id]}")
+  end
 end
-sleep
+
+puts "Agent manager pid: #{Process.pid}"
+
+manager = RealityAgentManager.new
+manager.run
