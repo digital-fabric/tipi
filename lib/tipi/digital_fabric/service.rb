@@ -7,6 +7,7 @@ require 'securerandom'
 module DigitalFabric
   class Service
     attr_reader :token
+    attr_reader :timer
 
     def initialize(token: )
       @token = token
@@ -18,13 +19,16 @@ module DigitalFabric
         http_requests: 0,
         errors: 0
       }
+      @connection_count = 0
       @http_latency_accumulator = 0
       @http_latency_counter = 0
       @last_counters = @counters.merge(stamp: Time.now.to_f - 1)
-      update_stats
       @fiber = Fiber.current
       @timer = Polyphony::Timer.new(resolution: 1)
-      stats_updater = spin_loop(interval: 10) { update_stats }
+
+      stats_updater = spin { @timer.every(10) { update_stats } }
+      @stats = {}
+
       @current_request_count = 0
     end
 
@@ -48,8 +52,17 @@ module DigitalFabric
         error_rate: errors / elapsed,
         average_latency: average_latency,
         agent_count: @agents.size,
+        connection_count: @connection_count,
         concurrent_requests: @current_request_count
       }
+    end
+
+    def incr_connection_count
+      @connection_count += 1
+    end
+
+    def decr_connection_count
+      @connection_count -= 1
     end
 
     attr_reader :stats
@@ -158,10 +171,10 @@ module DigitalFabric
       host = req.headers['host'] || INVALID_HOST
       path = req.headers[':path']
 
-      (route, agent) = @routes.find do |route, _|
+      route = @route_keys.find do |route|
         (host == route[:host]) || (path =~ route[:path_regexp])
       end
-      return agent if agent
+      return @routes[route] if route
 
       # search for a known route for an agent that recently unmounted
       route, wait_list = @waiting_lists.find do |route, _|
@@ -180,6 +193,7 @@ module DigitalFabric
         route = @agents[agent]
         @routes[route] ||= agent
       end
+      @route_keys = @routes.keys
     end
 
     def wait_for_agent(wait_list)

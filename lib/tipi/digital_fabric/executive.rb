@@ -42,14 +42,15 @@ module DigitalFabric
 
     def stream_stats(req)
       req.send_headers({ 'Content-Type' => 'text/event-stream' })
-      throttled_loop(interval: 10) do
+
+      @service.timer.every(10) do
         message = last_service_stats
         req.send_chunk(format_sse_event(message.to_json))
       end
-    # rescue Polyphony::Cancel, Polyphony::Terminate => e
-    #   req.finish rescue nil
     rescue IOError, SystemCallError
       # ignore
+    ensure
+      req.send_chunk("retry: 0\n\n", true) rescue nil
     end
 
     def format_sse_event(data)
@@ -70,7 +71,7 @@ module DigitalFabric
     LOADAVG_REGEXP = /^([\d\.]+)/.freeze
 
     def machine_stats
-      top = `top -bn1`
+      top = `top -bn1 | head -n4`
       unless top =~ TOP_CPU_REGEXP && Regexp.last_match(1) =~ TOP_CPU_IDLE_REGEXP
         p top =~ TOP_CPU_REGEXP
         p Regexp.last_match(1)

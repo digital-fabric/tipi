@@ -73,11 +73,9 @@ class SampleAgent < DigitalFabric::Agent
   end
 end
 
-id = ARGV[0]
-puts "Starting agent #{id} pid: #{Process.pid}"
+# id = ARGV[0]
+# puts "Starting agent #{id} pid: #{Process.pid}"
 
-# # ignore SIGINT
-# trap("SIGINT") { }
-
-spin_loop(interval: 60) { GC.start }
-SampleAgent.new(id, '/tmp/df.sock').run
+# spin_loop(interval: 60) { GC.start }
+# SampleAgent.new(id, '/tmp/df.sock').run
+# SampleAgent.new(id, 'localhost:4411').run

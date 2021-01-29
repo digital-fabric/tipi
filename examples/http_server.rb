@@ -10,9 +10,7 @@ opts = {
 
 puts "pid: #{Process.pid}"
 puts 'Listening on port 4411...'
-# suspend
 
-# spin do
 spin do
   Tipi.serve('0.0.0.0', 4411, opts) do |req|
     req.respond("Hello world!\n")
@@ -21,4 +19,3 @@ spin do
   end
   p 'done...'
 end.await
-# end

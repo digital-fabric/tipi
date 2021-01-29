@@ -7,6 +7,8 @@ require 'json'
 require 'fileutils'
 FileUtils.cd(__dir__)
 
+require_relative 'agent'
+
 class AgentManager
   def initialize
     @running_agents = {}
@@ -22,7 +24,7 @@ class AgentManager
     when :stop
       stop_agent(action[:spec])
     end
-    sleep 0.2
+    sleep 0.05
   end
 
   def start_agent(spec)
@@ -70,7 +72,13 @@ class RealityAgentManager < AgentManager
   end
 
   def launch_agent_from_spec(spec)
-    Polyphony::Process.watch("ruby agent.rb #{spec[:id]}")
+    # Polyphony::Process.watch("ruby agent.rb #{spec[:id]}")
+    Polyphony::Process.watch do
+      spin_loop(interval: 60) { GC.start }
+      agent = SampleAgent.new(spec[:id], '/tmp/df.sock')
+      puts "Starting agent #{spec[:id]} pid: #{Process.pid}"
+      agent.run
+    end
   end
 end
 

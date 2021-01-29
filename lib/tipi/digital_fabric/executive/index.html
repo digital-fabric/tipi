@@ -34,6 +34,7 @@
       }
 
       window.eventSource.onmessage = function(e) {
+        console.log("message", e.data);
         updateStats(JSON.parse(e.data));
       }
 
@@ -56,6 +57,7 @@
     <p>Error rate: <span id="error_rate"></span></p>
     <p>Average Latency: <span id="average_latency"></span>s</p>
     <p>Connected agents: <span id="agent_count"></span></p>
+    <p>Connected clients: <span id="connection_count"></span></p>
     <p>Concurrent requests: <span id="concurrent_requests"></span></p>
 
     <h2>Machine</h2>

@@ -33,7 +33,7 @@ module DigitalFabric
       keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       process_incoming_messages(false)
     rescue GracefulShutdown
-      puts "Proxy got graceful shutdown, left: #{@requests.size} requests"
+      puts "Proxy got graceful shutdown, left: #{@requests.size} requests" if @requests.size > 0
       process_incoming_messages(true)
     ensure
       keep_alive_timer.stop
