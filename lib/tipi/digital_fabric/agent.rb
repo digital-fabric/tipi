@@ -48,7 +48,7 @@ module DigitalFabric
     end
 
     def connect_to_server
-      if @server_url =~ /^([^\:])\:(\d+)$/
+      if @server_url =~ /^([^\:]+)\:(\d+)$/
         host = Regexp.last_match(1)
         port = Regexp.last_match(2)
         Polyphony::Net.tcp_connect(host, port)
