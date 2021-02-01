@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'uri'
+require 'escape_utils'
 
 module Tipi
   module RequestInfoInstanceMethods
@@ -119,7 +120,23 @@ module Tipi
       [part, headers]
     end
 
+    PARAMETER_RE = /^(.+)=(.*)$/.freeze
+    MAX_PARAMETER_NAME_SIZE = 256
+    MAX_PARAMETER_VALUE_SIZE = 2**20 # 1MB
+
     def parse_urlencoded_form_data(body)
+      body.force_encoding(UTF_8) unless body.encoding == Encoding::UTF_8
+      body.split('&').each_with_object({}) do |i, m|
+        raise 'Invalid parameter format' unless i =~ PARAMETER_RE
+  
+        k = Regexp.last_match(1)
+        raise 'Invalid parameter size' if k.size > MAX_PARAMETER_NAME_SIZE
+  
+        v = Regexp.last_match(2)
+        raise 'Invalid parameter size' if v.size > MAX_PARAMETER_VALUE_SIZE
+  
+        m[EscapeUtils.unescape_uri(k)] = EscapeUtils.unescape_uri(v)
+      end
     end
   end
 

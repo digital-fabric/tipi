@@ -2,6 +2,7 @@ PATH
   remote: .
   specs:
     tipi (0.33)
+      escape_utils (~> 1.2.1)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
       polyphony (~> 0.50.0)
@@ -14,6 +15,7 @@ GEM
     ansi (1.5.0)
     builder (3.2.4)
     docile (1.3.2)
+    escape_utils (1.2.1)
     http-2 (0.10.2)
     http_parser.rb (0.6.0)
     json (2.3.1)
@@ -24,7 +26,7 @@ GEM
       builder
       minitest (>= 5.0)
       ruby-progressbar
-    polyphony (0.50.0)
+    polyphony (0.50.1)
     rack (2.2.3)
     rake (12.3.3)
     ruby-progressbar (1.10.1)
