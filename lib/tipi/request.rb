@@ -78,17 +78,29 @@ module Tipi
       @buffered_body_chunks ||= []
       @buffered_body_chunks << chunk
     end
-    
-    def each_chunk(&block)
+
+    def next_chunk
       if @buffered_body_chunks
-        @buffered_body_chunks.each(&block)
+        chunk = @buffered_body_chunks.shift
+        @buffered_body_chunks = nil if @buffered_body_chunks.empty?
+        return chunk
+      end
+
+      @message_complete ? nil : @adapter.get_body_chunk
+    end
+    
+    def each_chunk
+      if @buffered_body_chunks
+        while (chunk = @buffered_body_chunks.shift)
+          yield chunk
+        end
         @buffered_body_chunks = nil
       end
       while !@message_complete && (chunk = @adapter.get_body_chunk)
         yield chunk
       end
     end
-    
+
     def complete!(keep_alive = nil)
       @message_complete = true
       @keep_alive = keep_alive
@@ -107,10 +119,11 @@ module Tipi
     end
     
     def read
-      buf = @buffered_body_chunks ? @buffered_body_chunks.join : +''
+      buf = @buffered_body_chunks ? @buffered_body_chunks.join : nil
       while (chunk = @adapter.get_body_chunk)
-        buf << chunk
+        (buf ||= +'') << chunk
       end
+      @buffered_body_chunks = nil
       buf
     end
     alias_method :body, :read
