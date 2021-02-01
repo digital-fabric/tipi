@@ -16,51 +16,33 @@ class SampleAgent < DigitalFabric::Agent
   end
 
   def http_request(req)
-    return streaming_http_request(req) if req['headers'][':path'] == '/streaming'
+    return streaming_http_request(req) if req.path == '/streaming'
+    return form_http_request(req) if req.path == '/form'
 
-    send_df_message(Protocol.http_response(
-        req['id'],
-        { id: @id, time: Time.now.to_i }.to_json,
-        nil,
-        true
-      ))
+    req.respond({ id: @id, time: Time.now.to_i }.to_json)
   end
 
   def streaming_http_request(req)
-    send_df_message(Protocol.http_response(
-      req['id'],
-      nil,
-      { 'Content-Type': 'text/json' },
-      false
-    ))
+    req.send_headers({ 'Content-Type': 'text/json' })
 
     60.times do
       sleep 1
       do_some_activity
-      send_df_message(Protocol.http_response(
-        req['id'],
-        { id: @id, time: Time.now.to_i }.to_json,
-        nil,
-        false
-      ))
+      req.send_chunk({ id: @id, time: Time.now.to_i }.to_json)
     end
   
-    send_df_message(Protocol.http_response(
-      req['id'],
-      nil,
-      nil,
-      true
-    ))
+    req.finish
   rescue Polyphony::Terminate
-    send_df_message(Protocol.http_response(
-      req['id'],
-      ' * shutting down *',
-      nil,
-      true
-    )) if Fiber.current.graceful_shutdown?
+    req.respond(' * shutting down *') if Fiber.current.graceful_shutdown?
   rescue Exception => e
     p e
     puts e.backtrace.join("\n")
+  end
+
+  def form_http_request(req)
+    body = req.read
+    form_data = Tipi::Request.parse_form_data(body, req.headers)
+    req.respond({ form_data: form_data, headers: req.headers }.to_json, { 'Content-Type': 'text/json' })
   end
 
   def do_some_activity

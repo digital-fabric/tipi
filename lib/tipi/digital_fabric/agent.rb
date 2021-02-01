@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require_relative './protocol'
+require_relative './request_adapter'
+
 require 'json'
 require 'tipi/websocket'
+require 'tipi/request'
 
 module DigitalFabric
   class Agent
@@ -119,6 +122,8 @@ module DigitalFabric
         recv_shutdown
       when Protocol::HTTP_REQUEST
         recv_http_request(msg)
+      when Protocol::HTTP_REQUEST_BODY
+        recv_http_request_body(msg)
       when Protocol::WS_REQUEST
         recv_ws_request(msg)
       when Protocol::CONN_DATA, Protocol::CONN_CLOSE,
@@ -156,20 +161,15 @@ module DigitalFabric
       @long_running_requests.values.each { |f| f.terminate(true) }
     end
 
-    def recv_http_request(req)
-      id = req['id']
-      spin do
-        @requests[id] = Fiber.current
+    def recv_http_request(msg)
+      req = prepare_http_request(msg)
+      id = msg['id']
+      @requests[id] = spin do
         http_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
       rescue Polyphony::Terminate
-        send_df_message(Protocol.http_response(
-          id,
-          nil,
-          { ':status' => 503 },
-          true
-        )) if Fiber.current.graceful_shutdown?
+        req.respond(nil, { ':status' => 503 }) if Fiber.current.graceful_shutdown?
       ensure
         @requests.delete(id)
         @long_running_requests.delete(id)
@@ -177,10 +177,29 @@ module DigitalFabric
       end
     end
 
-    def recv_ws_request(req)
-      id = req['id']
-      spin do
-        @requests[id] = @long_running_requests[id] = Fiber.current
+    def prepare_http_request(msg)
+      req = Tipi::Request.new(msg['headers'], RequestAdapter.new(self, msg))
+      req.buffer_body_chunk(msg['body']) if msg['body']
+      req.complete! if msg['complete']
+      req
+    end
+
+    def recv_http_request_body(msg)
+      fiber = @requests[msg['id']]
+      return unless fiber
+
+      fiber << msg['body']
+    end
+
+    def get_http_request_body(id, limit)
+      send_df_message(Protocol.http_get_request_body(id, limit))
+      receive
+    end
+
+    def recv_ws_request(msg)
+      req = Tipi::Request.new(msg['headers'], RequestAdapter.new(self, msg))
+      id = msg['id']
+      @requests[id] = @long_running_requests[id] = spin do
         ws_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
@@ -191,16 +210,14 @@ module DigitalFabric
       end
     end
 
+    # default handler for HTTP request
     def http_request(req)
-      send_df_message(Protocol.http_response(
-        req['id'], nil, { ':status': 501 }, true
-      ))
+      req.respond(nil, { ':status': 501 })
     end
 
+    # default handler for WS request
     def ws_request(req)
-      send_df_message(Protocol.ws_response(
-        req['id'], { ':status': 501 }
-      ))
+      req.respond(nil, { ':status': 501 })
     end
   end
 end

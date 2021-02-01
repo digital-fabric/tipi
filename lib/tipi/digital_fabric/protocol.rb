@@ -8,6 +8,8 @@ module DigitalFabric
     HTTP_REQUEST = 'http_request'
     HTTP_RESPONSE = 'http_response'
     HTTP_UPGRADE = 'http_upgrade'
+    HTTP_GET_REQUEST_BODY = 'http_get_request_body'
+    HTTP_REQUEST_BODY = 'http_get_request_body'
 
     CONN_DATA = 'conn_data'
     CONN_CLOSE = 'conn_close'
@@ -41,7 +43,7 @@ module DigitalFabric
       end
 
       def http_request(id, req)
-        { kind: HTTP_REQUEST, id: id, headers: req.headers, body: req.body }
+        { kind: HTTP_REQUEST, id: id, headers: req.headers, body: req.next_chunk, complete: req.complete? }
       end
 
       def http_response(id, body, headers, complete)
@@ -50,6 +52,14 @@ module DigitalFabric
 
       def http_upgrade(id, headers)
         { kind: HTTP_UPGRADE, id: id }
+      end
+
+      def http_get_request_body(id, limit = nil)
+        { kind: HTTP_GET_REQUEST_BODY, id: id, limit: limit }
+      end
+
+      def http_request_body(id, body)
+        { kind: HTTP_REQUEST_BODY, id: id, body: body }
       end
 
       def connection_data(id, data)

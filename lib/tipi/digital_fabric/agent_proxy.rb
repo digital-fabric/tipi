@@ -144,6 +144,9 @@ module DigitalFabric
       when Protocol::HTTP_UPGRADE
         http_custom_upgrade(id, req, message)
         true
+      when Protocol::HTTP_GET_REQUEST_BODY
+        http_get_request_body(id, req, message)
+        false
       when Protocol::HTTP_RESPONSE
         headers = message['headers']
         body = message['body']
@@ -190,6 +193,21 @@ module DigitalFabric
         # invalid message
         true
       end
+    end
+
+    def http_get_request_body(id, req, message)
+      case (limit = message['limit'])
+      when nil
+        body = req.read
+      else
+        limit = limit.to_i
+        body = nil
+        req.each_chunk do |chunk|
+          (body ||= +'') << chunk
+          break if body.bytesize >= limit
+        end
+      end
+      send_df_message(Protocol.http_request_body(id, body))
     end
 
     def http_upgrade(req, protocol)
