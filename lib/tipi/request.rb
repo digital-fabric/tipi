@@ -3,7 +3,7 @@
 require 'uri'
 
 module Tipi
-  module RequestInfo
+  module RequestInfoInstanceMethods
     def host
       @headers['host']
     end
@@ -62,9 +62,71 @@ module Tipi
     end
   end
 
+  module RequestInfoClassMethods
+    def parse_form_data(body, headers)
+      case (content_type = headers['content-type'])
+      when /multipart\/form\-data; boundary=([^\s]+)/
+        boundary = "--#{Regexp.last_match(1)}"
+        parse_multipart_form_data(body, boundary)
+      when 'application/x-www-form-urlencoded'
+        parse_urlencoded_form_data(body)
+      else
+        raise "Unsupported form data content type: #{content_type}"
+      end
+    end
+
+    def parse_multipart_form_data(body, boundary)
+      parts = body.split(boundary)
+      parts.each_with_object({}) do |p, h|
+        next if p.empty? || p == "--\r\n"
+
+        # remove post-boundary \r\n
+        p.slice!(0, 2)
+        parse_multipart_form_data_part(p, h)
+      end
+    end
+
+    def parse_multipart_form_data_part(part, hash)
+      body, headers = parse_multipart_form_data_part_headers(part)
+      disposition = headers['content-disposition'] || ''
+
+      name = (disposition =~ /name="([^"]+)"/) ? Regexp.last_match(1) : nil
+      filename = (disposition =~ /filename="([^"]+)"/) ? Regexp.last_match(1) : nil
+
+      if filename
+        hash[name] = { filename: filename, content_type: headers['content-type'], data: body }
+      else
+        hash[name] = body
+      end
+    end
+
+    def parse_multipart_form_data_part_headers(part)
+      headers = {}
+      while true
+        idx = part.index("\r\n")
+        break unless idx
+
+        header = part[0, idx]
+        part.slice!(0, idx + 2)
+        break if header.empty?
+
+        next unless header =~ /^([^\:]+)\:\s?(.+)$/
+        
+        headers[Regexp.last_match(1).downcase] = Regexp.last_match(2)
+      end
+      # remove trailing \r\n
+      part.slice!(part.size - 2, 2)
+      [part, headers]
+    end
+
+    def parse_urlencoded_form_data(body)
+    end
+  end
+
   # HTTP request
   class Request
-    include RequestInfo
+    include RequestInfoInstanceMethods
+    extend RequestInfoClassMethods
 
     attr_reader :headers, :adapter
     attr_accessor :__next__
