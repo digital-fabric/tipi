@@ -5,7 +5,8 @@ PATH
       escape_utils (~> 1.2.1)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
-      polyphony (~> 0.50.0)
+      msgpack (~> 1.4.2)
+      polyphony (~> 0.51.0)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)
 
@@ -26,7 +27,8 @@ GEM
       builder
       minitest (>= 5.0)
       ruby-progressbar
-    polyphony (0.50.1)
+    msgpack (1.4.2)
+    polyphony (0.51.0)
     rack (2.2.3)
     rake (12.3.3)
     ruby-progressbar (1.10.1)

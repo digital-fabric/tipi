@@ -3,7 +3,7 @@
 require_relative './protocol'
 require_relative './request_adapter'
 
-require 'json'
+require 'msgpack'
 require 'tipi/websocket'
 require 'tipi/request'
 
@@ -43,6 +43,7 @@ module DigitalFabric
 
       df_upgrade
       @connected = true
+      @msgpack_reader = MessagePack::Unpacker.new
       
       process_incoming_requests
     rescue IOError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EPIPE, TimeoutError
@@ -93,10 +94,8 @@ module DigitalFabric
     end
 
     def process_incoming_requests
-      while (line = @socket.gets)
-        msg = JSON.parse(line) rescue nil
-        recv_df_message(msg) if msg
-
+      @socket.feed_loop(@msgpack_reader, :feed_each) do |msg|
+        recv_df_message(msg)
         return if @shutdown && @requests.empty?
       end
     rescue IOError, SystemCallError, TimeoutError
@@ -113,6 +112,9 @@ module DigitalFabric
       # if now - @last_recv >= Protocol::RECV_TIMEOUT
       #   raise TimeoutError
       # end
+    rescue IOError, SystemCallError => e
+      # transmit exception to fiber running the agent
+      @fiber.raise(e)
     end
 
     def recv_df_message(msg)
@@ -142,7 +144,7 @@ module DigitalFabric
         @long_running_requests[id] = @requests[id]
       end
       @last_send = Time.now
-      @socket.puts(msg.to_json)
+      @socket << msg.to_msgpack
     end
 
     def is_long_running_request_response?(msg)

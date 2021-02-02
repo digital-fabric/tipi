@@ -9,7 +9,7 @@ module DigitalFabric
     HTTP_RESPONSE = 'http_response'
     HTTP_UPGRADE = 'http_upgrade'
     HTTP_GET_REQUEST_BODY = 'http_get_request_body'
-    HTTP_REQUEST_BODY = 'http_get_request_body'
+    HTTP_REQUEST_BODY = 'http_request_body'
 
     CONN_DATA = 'conn_data'
     CONN_CLOSE = 'conn_close'
@@ -58,8 +58,8 @@ module DigitalFabric
         { kind: HTTP_GET_REQUEST_BODY, id: id, limit: limit }
       end
 
-      def http_request_body(id, body)
-        { kind: HTTP_REQUEST_BODY, id: id, body: body }
+      def http_request_body(id, body, complete)
+        { kind: HTTP_REQUEST_BODY, id: id, body: body, complete: complete }
       end
 
       def connection_data(id, data)

@@ -156,6 +156,8 @@ module DigitalFabric
   
     def unmount(agent)
       route = @agents[agent]
+      return unless route
+
       @executive = nil if route[:executive]
       @agents.delete(agent)
       @routing_changed = true

@@ -69,7 +69,7 @@ end
 
 def spin_client(id, host)
   spin do
-    client = Client.new(id, 'localhost', 4411, host, 10)
+    client = Client.new(id, 'localhost', 4411, host, 30)
     client.run
   end
 end

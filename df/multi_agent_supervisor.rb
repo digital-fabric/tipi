@@ -24,7 +24,6 @@ class AgentManager
     when :stop
       stop_agent(action[:spec])
     end
-    sleep 0.05
   end
 
   def start_agent(spec)

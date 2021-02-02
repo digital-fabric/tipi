@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative './protocol'
-require 'json'
+require 'msgpack'
 require 'tipi/websocket'
 
 module DigitalFabric
@@ -10,6 +10,7 @@ module DigitalFabric
       @service = service
       @req = req
       @conn = req.adapter.conn
+      @msgpack_reader = MessagePack::Unpacker.new
       @requests = {}
       @current_request_count = 0
       @last_request_id = 0
@@ -36,17 +37,15 @@ module DigitalFabric
       puts "Proxy got graceful shutdown, left: #{@requests.size} requests" if @requests.size > 0
       process_incoming_messages(true)
     ensure
-      keep_alive_timer.stop
+      keep_alive_timer&.stop
       @service.unmount(self)
     end
 
     def process_incoming_messages(shutdown = false)
       return if shutdown && @requests.empty?
 
-      while (line = @conn.gets)
-        msg = JSON.parse(line) rescue nil
-        recv_df_message(msg) if msg
-
+      @conn.feed_loop(@msgpack_reader, :feed_each) do |msg|
+        recv_df_message(msg)
         return if shutdown && @requests.empty?
       end
     rescue TimeoutError, IOError
@@ -96,7 +95,7 @@ module DigitalFabric
 
     def send_df_message(message)
       @last_send = Time.now
-      @conn.puts(message.to_json)
+      @conn << message.to_msgpack
     end
 
     # HTTP / WebSocket
@@ -207,7 +206,7 @@ module DigitalFabric
           break if body.bytesize >= limit
         end
       end
-      send_df_message(Protocol.http_request_body(id, body))
+      send_df_message(Protocol.http_request_body(id, body, req.complete?))
     end
 
     def http_upgrade(req, protocol)
