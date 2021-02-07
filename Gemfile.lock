@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    tipi (0.33)
+    tipi (0.34)
       escape_utils (~> 1.2.1)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)

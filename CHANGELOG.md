@@ -1,3 +1,13 @@
+## 0.34 2021-02-07
+
+* Implement digital fabric service and agents
+* Add multipart and urlencoded form data parsing
+* Improve request body reading behaviour
+* Add more `Request` information methods
+* Add access to connection for HTTP2 requests
+* Allow calling `Request#send_chunk` with empty chunk
+* Add support for handling protocol upgrades from within request handler
+
 ## 0.33 2020-11-20
 
 * Update code for Polyphony 0.47.5
