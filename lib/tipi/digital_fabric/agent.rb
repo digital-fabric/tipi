@@ -180,7 +180,7 @@ module DigitalFabric
     end
 
     def prepare_http_request(msg)
-      req = Tipi::Request.new(msg['headers'], RequestAdapter.new(self, msg))
+      req = QNA::Request.new(msg['headers'], RequestAdapter.new(self, msg))
       req.buffer_body_chunk(msg['body']) if msg['body']
       req.complete! if msg['complete']
       req
@@ -199,7 +199,7 @@ module DigitalFabric
     end
 
     def recv_ws_request(msg)
-      req = Tipi::Request.new(msg['headers'], RequestAdapter.new(self, msg))
+      req = QNA::Request.new(msg['headers'], RequestAdapter.new(self, msg))
       id = msg['id']
       @requests[id] = @long_running_requests[id] = spin do
         ws_request(req)
