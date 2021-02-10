@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'http/2'
-require_relative './request'
+require 'qna/request'
 
 module Tipi
   # Manages an HTTP 2 stream
@@ -46,7 +46,7 @@ module Tipi
     end
     
     def on_headers(headers)
-      @request = Request.new(headers.to_h, self)
+      @request = QNA::Request.new(headers.to_h, self)
       if @first
         @request.headers[':first'] = true
         @first = false

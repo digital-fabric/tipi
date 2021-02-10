@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require 'http/parser'
-require_relative './request'
 require_relative './http2_adapter'
+require 'qna/request'
 
 module Tipi
   # HTTP1 protocol implementation
@@ -87,7 +87,7 @@ module Tipi
       headers = normalize_headers(headers)
       headers[':path'] = @parser.request_url
       headers[':method'] = @parser.http_method.downcase
-      queue_request(Request.new(headers, self))
+      queue_request(QNA::Request.new(headers, self))
     end
 
     def normalize_headers(headers)

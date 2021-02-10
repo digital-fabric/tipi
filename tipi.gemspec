@@ -20,12 +20,12 @@ Gem::Specification.new do |s|
   s.executables   = ['tipi']
 
   s.add_runtime_dependency      'polyphony',          '~>0.51.0'
+  s.add_runtime_dependency      'qna',                '~>0.1'
   
   s.add_runtime_dependency      'http_parser.rb',     '~>0.6.0'
   s.add_runtime_dependency      'http-2',             '~>0.10.0'
   s.add_runtime_dependency      'rack',               '>=2.0.8', '<2.3.0'
   s.add_runtime_dependency      'websocket',          '~>1.2.8'
-  s.add_runtime_dependency      'escape_utils',       '~>1.2.1'
 
   # for digital fabric
   s.add_runtime_dependency      'msgpack',            '~>1.4.2'
