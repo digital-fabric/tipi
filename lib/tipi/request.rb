@@ -4,7 +4,7 @@ require 'uri'
 require 'escape_utils'
 
 module Tipi
-  module RequestInfoInstanceMethods
+  module InfoInstanceMethods
     def host
       @headers['host']
     end
@@ -22,7 +22,7 @@ module Tipi
     end
     
     def method
-      @method ||= @headers[':method']
+      @method ||= @headers[':method'].downcase
     end
     
     def scheme
@@ -63,7 +63,7 @@ module Tipi
     end
   end
 
-  module RequestInfoClassMethods
+  module InfoClassMethods
     def parse_form_data(body, headers)
       case (content_type = headers['content-type'])
       when /multipart\/form\-data; boundary=([^\s]+)/
@@ -140,10 +140,60 @@ module Tipi
     end
   end
 
+  module RoutingInstanceMethods
+    def route(&block)
+      res = catch(:stop) { yield self }
+      return if res == :found
+  
+      respond(nil, ':status' => 404)
+    end
+
+    @@regexp_cache = {}
+  
+    def on(route, &block)
+      @__routing_path__ ||= path
+
+      regexp = (@@regexp_cache[route] ||= /^\/#{route}(\/.*)?/)
+      return unless @__routing_path__ =~ regexp
+  
+      @__routing_path__ = Regexp.last_match(1)
+      catch(:stop, &block)
+      throw :stop, :found
+    end
+
+    def root(&block)
+      return unless path == '/'
+
+      catch(:stop, &block)
+      throw :stop, :found
+    end
+  
+    def get(route = nil, &block)
+      return unless method == 'get'
+  
+      on(route, &block)
+    end
+  
+    def post(route = nil, &block)
+      return unless method == 'post'
+  
+      on(route, &block)
+    end
+  end
+
+  module ResponseInstanceMethods
+    def redirect(url)
+      respond(nil, ':status' => 302, 'Location' => url)
+    end
+  end
+
   # HTTP request
   class Request
-    include RequestInfoInstanceMethods
-    extend RequestInfoClassMethods
+    include InfoInstanceMethods
+    extend InfoClassMethods
+
+    include RoutingInstanceMethods
+    include ResponseInstanceMethods
 
     attr_reader :headers, :adapter
     attr_accessor :__next__

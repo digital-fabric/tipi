@@ -49,5 +49,9 @@ module Tipi
       klass = use_http2 ? HTTP2Adapter : HTTP1Adapter
       klass.new(socket, opts)
     end
+
+    def route(&block)
+      proc { |req| req.route(&block) }
+    end
   end
 end
