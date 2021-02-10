@@ -1,3 +1,7 @@
+## 0.35 2021-02-10
+
+* Extract Request class into separate [qna](https://github.com/digital-fabric/qna) gem
+
 ## 0.34 2021-02-07
 
 * Implement digital fabric service and agents
