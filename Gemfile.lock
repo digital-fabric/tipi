@@ -6,7 +6,7 @@ PATH
       http_parser.rb (~> 0.6.0)
       msgpack (~> 1.4.2)
       polyphony (~> 0.51.0)
-      qna (~> 0.1)
+      qeweney (~> 0.2)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)
 
@@ -29,7 +29,7 @@ GEM
       ruby-progressbar
     msgpack (1.4.2)
     polyphony (0.51.0)
-    qna (0.1)
+    qeweney (0.2)
       escape_utils (~> 1.2.1)
     rack (2.2.3)
     rake (12.3.3)

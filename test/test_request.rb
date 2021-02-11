@@ -62,7 +62,7 @@ class RequestHeadersTest < MiniTest::Test
 
     snooze
 
-    assert_kind_of QNA::Request, req
+    assert_kind_of Qeweney::Request, req
     assert_equal 'blah.com', req.headers['host']
     assert_equal 'bar', req.headers['foo']
     assert_equal ['1', '3', '2'], req.headers['hi']

@@ -1,6 +1,6 @@
 ## 0.35 2021-02-10
 
-* Extract Request class into separate [qna](https://github.com/digital-fabric/qna) gem
+* Extract Request class into separate [qeweney](https://github.com/digital-fabric/qeweney) gem
 
 ## 0.34 2021-02-07
 
