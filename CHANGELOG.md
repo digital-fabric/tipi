@@ -1,3 +1,7 @@
+## 0.36 2021-02-12
+
+* Use `Qeweney::Status` constants
+
 ## 0.35 2021-02-10
 
 * Extract Request class into separate [qeweney](https://github.com/digital-fabric/qeweney) gem
