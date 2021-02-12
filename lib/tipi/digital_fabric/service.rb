@@ -95,7 +95,7 @@ module DigitalFabric
         return req.respond('pong') if req.query[:q] == 'ping'
 
         @counters[:errors] += 1
-        return req.respond(nil, ':status' => 503)
+        return req.respond(nil, ':status' => Qeweney::Status::SERVICE_UNAVAILABLE)
       end
 
       agent.http_request(req)
@@ -105,7 +105,7 @@ module DigitalFabric
       @counters[:errors] += 1
       p e
       puts e.backtrace.join("\n")
-      req.respond(e.inspect, ':status' => 500)
+      req.respond(e.inspect, ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)
     ensure
       @current_request_count -= 1
       req.adapter.conn.close if @shutdown
@@ -126,7 +126,7 @@ module DigitalFabric
         agent = find_agent(req)
         unless agent
           @counters[:errors] += 1
-          return req.respond(nil, ':status' => 503)
+          return req.respond(nil, ':status' => Qeweney::Status::SERVICE_UNAVAILABLE)
         end
 
         agent.http_upgrade(req, protocol)
@@ -134,7 +134,9 @@ module DigitalFabric
     end
   
     def df_upgrade(req)
-      return req.respond(nil, ':status' => 403) if req.headers['df-token'] != @token
+      if req.headers['df-token'] != @token
+        return req.respond(nil, ':status' => Qeweney::Status::FORBIDDEN)
+      end
 
       req.adapter.conn << Protocol.df_upgrade_response
       AgentProxy.new(self, req)

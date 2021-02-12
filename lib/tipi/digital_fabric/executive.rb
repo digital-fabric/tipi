@@ -34,7 +34,7 @@ module DigitalFabric
       when '/stream/stats'
         stream_stats(req)
       else
-        req.respond('Invalid path', { ':status' => 404 })
+        req.respond('Invalid path', { ':status' => Qeweney::Status::NOT_FOUND })
       end
     ensure
       @current_request_count -= 1

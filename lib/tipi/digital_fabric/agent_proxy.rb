@@ -134,7 +134,7 @@ module DigitalFabric
         end
       end
     rescue => e
-      req.respond("Error: #{e.inspect}", ':status' => 500)
+      req.respond("Error: #{e.inspect}", ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)
     end
 
     # @return [Boolean] true if response is complete
@@ -159,7 +159,7 @@ module DigitalFabric
       end
     end
 
-    HTTP_RESPONSE_UPGRADE_HEADERS = { ':status' => '101 Switching Protocols' }
+    HTTP_RESPONSE_UPGRADE_HEADERS = { ':status' => Qeweney::Status::SWITCHING_PROTOCOLS }
 
     def http_custom_upgrade(id, req, message)
       # send upgrade response
@@ -228,15 +228,15 @@ module DigitalFabric
         case response['kind']
         when Protocol::WS_RESPONSE
           headers = response['headers'] || {} 
-          status = headers[':status'] || 101
-          if status != 101
+          status = headers[':status'] || Qeweney::Status::SWITCHING_PROTOCOLS
+          if status != Qeweney::Status::SWITCHING_PROTOCOLS
             req.respond(nil, headers)
             return
           end
           ws = Tipi::Websocket.new(req.adapter.conn, req.headers)
           run_websocket_connection(id, ws)
         else
-          req.respond(nil, ':status' => 503)
+          req.respond(nil, ':status' => Qeweney::Status::SERVICE_UNAVAILABLE)
         end
       end
     end

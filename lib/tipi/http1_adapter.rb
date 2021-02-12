@@ -243,7 +243,8 @@ module Tipi
     # @param empty_response [boolean] whether a response body will be sent
     # @return [String] formatted response headers
     def format_headers(headers, body)
-      status = headers[':status'] || (body ? 200 : 204)
+      status = headers[':status']
+      status ||= (body ? Qeweney::Status::OK : Qeweney::Status::NO_CONTENT)
       lines = [format_status_line(body, status)]
       headers.each do |k, v|
         next if k =~ /^:/

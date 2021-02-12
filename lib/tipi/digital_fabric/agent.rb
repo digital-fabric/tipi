@@ -171,7 +171,7 @@ module DigitalFabric
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
       rescue Polyphony::Terminate
-        req.respond(nil, { ':status' => 503 }) if Fiber.current.graceful_shutdown?
+        req.respond(nil, { ':status' => Qeweney::Status::SERVICE_UNAVAILABLE }) if Fiber.current.graceful_shutdown?
       ensure
         @requests.delete(id)
         @long_running_requests.delete(id)
@@ -214,12 +214,12 @@ module DigitalFabric
 
     # default handler for HTTP request
     def http_request(req)
-      req.respond(nil, { ':status': 501 })
+      req.respond(nil, { ':status': Qeweney::Status::SERVICE_UNAVAILABLE })
     end
 
     # default handler for WS request
     def ws_request(req)
-      req.respond(nil, { ':status': 501 })
+      req.respond(nil, { ':status': Qeweney::Status::SERVICE_UNAVAILABLE })
     end
   end
 end

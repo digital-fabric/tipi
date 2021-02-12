@@ -103,7 +103,7 @@ module Tipi
     
     # response API
     def respond(chunk, headers)
-      headers[':status'] ||= '200'
+      headers[':status'] ||= Qeweney::Status::OK
       @stream.headers(headers, end_stream: false)
       @stream.data(chunk, end_stream: true)
       @headers_sent = true
@@ -112,7 +112,7 @@ module Tipi
     def send_headers(headers, empty_response = false)
       return if @headers_sent
       
-      headers[':status'] ||= (empty_response ? 204 : 200).to_s
+      headers[':status'] ||= (empty_response ? Qeweney::Status::NO_CONTENT : Qeweney::Status::OK).to_s
       @stream.headers(headers, end_stream: false)
       @headers_sent = true
     end
@@ -131,7 +131,7 @@ module Tipi
       if @headers_sent
         @stream.close
       else
-        headers[':status'] ||= '204'
+        headers[':status'] ||= Qeweney::Status::NO_CONTENT
         @stream.headers(headers, end_stream: true)
       end
     end
