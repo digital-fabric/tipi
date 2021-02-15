@@ -210,7 +210,8 @@ class HTTP1ServerTest < MiniTest::Test
 
     opts = {
       upgrade: {
-        echo: lambda do |conn, _headers|
+        echo: lambda do |adapter, _headers|
+          conn = adapter.conn
           conn << <<~HTTP.http_lines
             HTTP/1.1 101 Switching Protocols
             Upgrade: echo
