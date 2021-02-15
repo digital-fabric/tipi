@@ -7,32 +7,17 @@ module Tipi
   # Websocket connection
   class Websocket
     def self.handler(&block)
-      proc { |conn, headers|
-        block.(new(conn, headers))
-      }
-    end  
+      proc do |adapter, headers|
+        req = Qeweney::Request.new(headers, adapter)
+        websocket = req.upgrade_to_websocket
+        block.(websocket)
+      end
+    end
 
     def initialize(conn, headers)
       @conn = conn
       @headers = headers
-      setup(headers)
-    end
-    
-    S_WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
-    UPGRADE_RESPONSE = <<~HTTP.gsub("\n", "\r\n")
-    HTTP/1.1 101 Switching Protocols
-    Upgrade: websocket
-    Connection: Upgrade
-    Sec-WebSocket-Accept: %<accept>s
-    
-    HTTP
-    
-    def setup(headers)
-      key = headers['sec-websocket-key']
       @version = headers['sec-websocket-version'].to_i
-      accept = Digest::SHA1.base64digest([key, S_WS_GUID].join)
-      @conn << format(UPGRADE_RESPONSE, accept: accept)
-      
       @reader = ::WebSocket::Frame::Incoming::Server.new(version: @version)
     end
     
@@ -64,8 +49,10 @@ module Tipi
       end
     end
     
+    OutgoingFrame = ::WebSocket::Frame::Outgoing::Server
+
     def send(data)
-      frame = ::WebSocket::Frame::Outgoing::Server.new(
+      frame = OutgoingFrame.new(
         version: @version, data: data, type: :text
       )
       @conn << frame.to_s

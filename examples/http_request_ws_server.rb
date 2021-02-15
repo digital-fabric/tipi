@@ -27,7 +27,8 @@ puts 'Listening on port 4411...'
 
 Tipi.serve('0.0.0.0', 4411, opts) do |req|
   if req.upgrade_protocol == 'websocket'
-    ws_handler(Tipi::Websocket.new(req.adapter.conn, req.headers))
+    conn = req.upgrade_to_websocket
+    ws_handler(conn)
   else
     req.respond(HTML, 'Content-Type' => 'text/html')
   end

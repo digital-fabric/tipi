@@ -131,6 +131,14 @@ module Tipi
     # protocols, notably WebSocket, can be specified by passing a hash to the
     # :upgrade option when starting a server:
     #
+    #     def ws_handler(conn)
+    #       conn << 'hi'
+    #       msg = conn.recv
+    #       conn << "You said #{msg}"
+    #       conn << 'bye'
+    #       conn.close
+    #     end
+    #
     #     opts = {
     #       upgrade: {
     #         websocket: Tipi::Websocket.handler(&method(:ws_handler))
@@ -154,7 +162,7 @@ module Tipi
     
     def upgrade_with_handler(handler, headers)
       @parser = @requests_head = @requests_tail = nil
-      handler.(@conn, headers)
+      handler.(self, headers)
       true
     end
     
@@ -172,6 +180,10 @@ module Tipi
         ':scheme'    => 'http',
         ':authority' => headers['host']
       )
+    end
+
+    def websocket_connection(req)
+      Tipi::Websocket.new(@conn, req.headers)
     end
     
     # response API
