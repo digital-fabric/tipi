@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Tipi
-  VERSION = '0.36'
+  VERSION = '0.37'
 end

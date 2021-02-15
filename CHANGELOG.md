@@ -1,3 +1,7 @@
+## 0.37 2021-02-15
+
+* Update upgrade mechanism to work with updated Qeweney API
+
 ## 0.36 2021-02-12
 
 * Use `Qeweney::Status` constants
