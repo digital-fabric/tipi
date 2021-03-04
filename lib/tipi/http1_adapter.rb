@@ -197,15 +197,17 @@ module Tipi
     # @param headers
     def respond(body, headers)
       consume_request if @parsing
-      data = format_headers(headers, body)
+      data = [format_headers(headers, body)]
       if body
         if @parser.http_minor == 0
           data << body
         else
-          data << body.bytesize.to_s(16) << CRLF << body << CRLF_ZERO_CRLF_CRLF
+          # data << body.bytesize.to_s(16) << CRLF << body << CRLF_ZERO_CRLF_CRLF
+          data << "#{body.bytesize.to_s(16)}\r\n#{body}\r\n0\r\n\r\n"
         end
       end
-      @conn.write(data.join)
+      # Polyphony.backend_sendv(@conn, data, 0)
+      @conn.write(*data)
     end
       
     DEFAULT_HEADERS_OPTS = {
@@ -220,7 +222,7 @@ module Tipi
     # @return [void]
     def send_headers(headers, opts = DEFAULT_HEADERS_OPTS)
       data = format_headers(headers, true)
-      @conn.write(data.join)
+      @conn.write(data)
     end
     
     # Sends a response body chunk. If no headers were sent, default headers are
@@ -233,7 +235,7 @@ module Tipi
       data = []
       data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n" if chunk
       data << "0\r\n\r\n" if done
-      @conn.write(data.join)
+      @conn.write(data.join) unless data.empty?
     end
     
     # Finishes the response to the current request. If no headers were sent,
@@ -257,7 +259,7 @@ module Tipi
     def format_headers(headers, body)
       status = headers[':status']
       status ||= (body ? Qeweney::Status::OK : Qeweney::Status::NO_CONTENT)
-      lines = [format_status_line(body, status)]
+      lines = format_status_line(body, status)
       headers.each do |k, v|
         next if k =~ /^:/
         
