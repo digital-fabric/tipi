@@ -1,8 +1,6 @@
-# Digital Fabric
+For immediate execution:
 
-Problems to fix:
 
-- Memory leak (in server? multi agent? multi client?)
 
 # Roadmap
 
@@ -14,7 +12,7 @@ Problems to fix:
   - https://gitlab.com/honeyryderchuck/http-2-next
   - Open an issue there, ask what's the difference between the two gems?
 
-## 0.35
+## 0.38
 
 - Add more poly CLI commands and options:
 
@@ -26,7 +24,7 @@ Problems to fix:
   - set port to bind to
   - set forking process count
 
-## 0.36 Working Sinatra application
+## 0.39 Working Sinatra application
 
 - app with database access (postgresql)
 - benchmarks!

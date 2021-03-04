@@ -62,7 +62,7 @@ module Tipi
         @request.buffer_body_chunk(data)
       end
     end
-    
+
     def on_half_close
       if @waiting_for_body_chunk
         @waiting_for_body_chunk = nil
