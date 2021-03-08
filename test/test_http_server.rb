@@ -130,7 +130,7 @@ class HTTP1ServerTest < MiniTest::Test
     end
 
     connection << "GET / HTTP/1.1\r\n\r\nGET / HTTP/1.1\r\nFoo: bar\r\n\r\n"
-    2.times { snooze }
+    sleep 0.01
     response = connection.readpartial(8192)
 
     expected = <<~HTTP.http_lines
@@ -172,22 +172,22 @@ class HTTP1ServerTest < MiniTest::Test
       6
       foobar
     HTTP
-    20.times { snooze }
+    sleep 0.01
     assert request
     assert_equal %w[foobar], chunks
     assert !request.complete?
 
     connection << "6\r\nbazbud\r\n"
-    20.times { snooze }
+    sleep 0.01
     assert_equal %w[foobar bazbud], chunks
     assert !request.complete?
 
     connection << "0\r\n\r\n"
-    20.times { snooze }
+    sleep 0.01
     assert_equal %w[foobar bazbud], chunks
     assert request.complete?
 
-    2.times { snooze }
+    sleep 0.01
 
     response = connection.readpartial(8192)
 
@@ -272,7 +272,7 @@ class HTTP1ServerTest < MiniTest::Test
     connection.close
     assert !done
     
-    12.times { snooze }
+    sleep 0.01
     assert done
   end
 

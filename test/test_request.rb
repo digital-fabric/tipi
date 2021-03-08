@@ -78,7 +78,7 @@ class RequestHeadersTest < MiniTest::Test
     end
 
     connection << "GET /titi HTTP/1.1\nHost: blah.com\nFoo: bar\nhi: 1\nHi: 2\nhi: 3\n\n"
-    snooze
+    sleep 0.01
     assert_equal 'blah.com', req.host
   end
 
@@ -90,7 +90,7 @@ class RequestHeadersTest < MiniTest::Test
     end
 
     connection << "GET /titi HTTP/1.1\nConnection: keep-alive\nFoo: bar\nhi: 1\nHi: 2\nhi: 3\n\n"
-    snooze
+    2.times { snooze }
     assert_equal 'keep-alive', req.connection
   end
 
@@ -102,7 +102,7 @@ class RequestHeadersTest < MiniTest::Test
     end
 
     connection << "GET /titi HTTP/1.1\nConnection: upgrade\nUpgrade: foobar\n\n"
-    snooze
+    sleep 0.01
     assert_equal 'foobar', req.upgrade_protocol
   end
 end
