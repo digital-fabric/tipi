@@ -1,3 +1,7 @@
+## 0.37.2 2021-03-08
+
+* Fix header formatting when header value is an array
+
 ## 0.37 2021-02-15
 
 * Update upgrade mechanism to work with updated Qeweney API

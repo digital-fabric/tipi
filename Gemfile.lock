@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    tipi (0.37.1)
+    tipi (0.37.2)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
       msgpack (~> 1.4.2)
@@ -29,7 +29,7 @@ GEM
       ruby-progressbar
     msgpack (1.4.2)
     polyphony (0.52.0)
-    qeweney (0.6)
+    qeweney (0.7.5)
       escape_utils (~> 1.2.1)
     rack (2.2.3)
     rake (12.3.3)
