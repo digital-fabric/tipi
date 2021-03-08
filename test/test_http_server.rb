@@ -60,8 +60,8 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.0\r\n\r\n"
 
     response = connection.readpartial(8192)
-    expected = <<~HTTP.chomp.http_lines
-      HTTP/1.0 200
+    expected = <<~HTTP.chomp.http_lines.chomp
+      HTTP/1.1 200
       Content-Length: 13
 
       Hello, world!
@@ -78,14 +78,11 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.1\r\n\r\n"
 
     response = connection.readpartial(8192)
-    expected = <<~HTTP.http_lines
+    expected = <<~HTTP.http_lines.chomp
       HTTP/1.1 200
-      Transfer-Encoding: chunked
+      Content-Length: 13
 
-      d
       Hello, world!
-      0
-
     HTTP
     assert_equal(expected, response)
   end
@@ -98,26 +95,23 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n"
     response = connection.readpartial(8192)
     assert !connection.eof?
-    assert_equal("HTTP/1.0 200\r\nContent-Length: 2\r\n\r\nHi", response)
+    assert_equal("HTTP/1.1 200\r\nContent-Length: 2\r\n\r\nHi", response)
 
     connection << "GET / HTTP/1.1\r\n\r\n"
     response = connection.readpartial(8192)
     assert !connection.eof?
-    expected = <<~HTTP.http_lines
+    expected = <<~HTTP.http_lines.chomp
       HTTP/1.1 200
-      Transfer-Encoding: chunked
+      Content-Length: 2
 
-      2
       Hi
-      0
-
     HTTP
     assert_equal(expected, response)
 
     connection << "GET / HTTP/1.0\r\n\r\n"
     response = connection.readpartial(8192)
     assert connection.eof?
-    assert_equal("HTTP/1.0 200\r\nContent-Length: 2\r\n\r\nHi", response)
+    assert_equal("HTTP/1.1 200\r\nContent-Length: 2\r\n\r\nHi", response)
   end
 
   def test_pipelining_client
@@ -133,21 +127,14 @@ class HTTP1ServerTest < MiniTest::Test
     sleep 0.01
     response = connection.readpartial(8192)
 
-    expected = <<~HTTP.http_lines
+    expected = <<~HTTP.http_lines.chomp
       HTTP/1.1 200
-      Transfer-Encoding: chunked
+      Content-Length: 13
 
-      d
-      Hello, world!
-      0
+      Hello, world!HTTP/1.1 200
+      Content-Length: 14
 
-      HTTP/1.1 200
-      Transfer-Encoding: chunked
-
-      e
       Hello, foobar!
-      0
-
     HTTP
     assert_equal(expected, response)
   end
@@ -232,14 +219,11 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.1\r\n\r\n"
     response = connection.readpartial(8192)
     assert !connection.eof?
-    expected = <<~HTTP.http_lines
+    expected = <<~HTTP.http_lines.chomp
       HTTP/1.1 200
-      Transfer-Encoding: chunked
+      Content-Length: 2
 
-      2
       Hi
-      0
-
     HTTP
     assert_equal(expected, response)
 

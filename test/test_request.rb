@@ -60,7 +60,7 @@ class RequestHeadersTest < MiniTest::Test
 
     connection << "GET /titi HTTP/1.1\r\nHost: blah.com\r\nFoo: bar\r\nhi: 1\r\nHi: 2\r\nhi: 3\r\n\r\n"
 
-    snooze
+    sleep 0.01
 
     assert_kind_of Qeweney::Request, req
     assert_equal 'blah.com', req.headers['host']
@@ -90,7 +90,7 @@ class RequestHeadersTest < MiniTest::Test
     end
 
     connection << "GET /titi HTTP/1.1\nConnection: keep-alive\nFoo: bar\nhi: 1\nHi: 2\nhi: 3\n\n"
-    2.times { snooze }
+    sleep 0.01
     assert_equal 'keep-alive', req.connection
   end
 

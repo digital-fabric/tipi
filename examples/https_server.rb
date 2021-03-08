@@ -16,7 +16,17 @@ opts = {
 puts "pid: #{Process.pid}"
 puts 'Listening on port 1234...'
 Tipi.serve('0.0.0.0', 1234, opts) do |req|
-  req.respond("Hello world!\n")
+  p path: req.path
+  if req.path == '/stream'
+    req.send_headers('Foo' => 'Bar')
+    sleep 1
+    req.send_chunk("foo\n")
+    sleep 1
+    req.send_chunk("bar\n")
+    req.finish
+  else
+    req.respond("Hello world!\n")
+  end
   # req.send_headers
   # req.send_chunk("Method: #{req.method}\n")
   # req.send_chunk("Path: #{req.path}\n")

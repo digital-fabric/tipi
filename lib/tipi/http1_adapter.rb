@@ -204,31 +204,28 @@ module Tipi
     # @param headers
     def respond(body, headers)
       consume_request if @parsing
-      data = [format_headers(headers, body)]
-      if body
-        if @parser.http_minor == 0
-          data << body
-        else
-          # data << body.bytesize.to_s(16) << CRLF << body << CRLF_ZERO_CRLF_CRLF
-          data << "#{body.bytesize.to_s(16)}\r\n#{body}\r\n0\r\n\r\n"
-        end
-      end
+      data = [format_headers(headers, body, false), body]
+
+      # if body
+      #   if @parser.http_minor == 0
+      #     data << body
+      #   else
+      #     # data << body.bytesize.to_s(16) << CRLF << body << CRLF_ZERO_CRLF_CRLF
+      #     data << "#{body.bytesize.to_s(16)}\r\n#{body}\r\n0\r\n\r\n"
+      #   end
+      # end
       # Polyphony.backend_sendv(@conn, data, 0)
       @conn.write(*data)
     end
       
-    DEFAULT_HEADERS_OPTS = {
-      empty_response:  false,
-      consume_request: true
-    }.freeze
-    
     # Sends response headers. If empty_response is truthy, the response status
     # code will default to 204, otherwise to 200.
     # @param headers [Hash] response headers
     # @param empty_response [boolean] whether a response body will be sent
+    # @param chunked [boolean] whether to use chunked transfer encoding
     # @return [void]
-    def send_headers(headers, opts = DEFAULT_HEADERS_OPTS)
-      data = format_headers(headers, true)
+    def send_headers(headers, empty_response: false, chunked: true)
+      data = format_headers(headers, !empty_response, @parser.http_minor == 1 && chunked)
       @conn.write(data)
     end
     
@@ -261,12 +258,13 @@ module Tipi
     # Formats response headers into an array. If empty_response is true(thy),
     # the response status code will default to 204, otherwise to 200.
     # @param headers [Hash] response headers
-    # @param empty_response [boolean] whether a response body will be sent
+    # @param body [boolean] whether a response body will be sent
+    # @param chunked [boolean] whether to use chunked transfer encoding
     # @return [String] formatted response headers
-    def format_headers(headers, body)
+    def format_headers(headers, body, chunked)
       status = headers[':status']
       status ||= (body ? Qeweney::Status::OK : Qeweney::Status::NO_CONTENT)
-      lines = format_status_line(body, status)
+      lines = format_status_line(body, status, chunked)
       headers.each do |k, v|
         next if k =~ /^:/
         
@@ -276,11 +274,11 @@ module Tipi
       lines
     end
     
-    def format_status_line(body, status)
+    def format_status_line(body, status, chunked)
       if !body
         empty_status_line(status)
       else
-        with_body_status_line(status, body)
+        with_body_status_line(status, body, chunked)
       end
     end
     
@@ -292,11 +290,11 @@ module Tipi
       end
     end
     
-    def with_body_status_line(status, body)
-      if @parser.http_minor == 0
-        +"HTTP/1.0 #{status}\r\nContent-Length: #{body.bytesize}\r\n"
-      else
+    def with_body_status_line(status, body, chunked)
+      if chunked
         +"HTTP/1.1 #{status}\r\nTransfer-Encoding: chunked\r\n"
+      else
+        +"HTTP/1.1 #{status}\r\nContent-Length: #{body.bytesize}\r\n"
       end
     end
 
