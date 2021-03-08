@@ -302,7 +302,7 @@ module Tipi
 
     def collect_header_lines(lines, key, value)
       if value.is_a?(Array)
-        value.inject(lines) { |lines, item| data << "#{key}: #{item}\r\n" }
+        value.inject(lines) { |_, item| lines << "#{key}: #{item}\r\n" }
       else
         lines << "#{key}: #{value}\r\n"
       end
