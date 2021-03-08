@@ -115,7 +115,7 @@ module DigitalFabric
       req.headers['x-request-id'] = SecureRandom.uuid
       conn = req.adapter.conn
       req.headers['x-forwarded-for'] = conn.peeraddr(false)[2]
-      req.headers['x-forwarded-proto'] = conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
+      req.headers['x-forwarded-proto'] ||= conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
     end
   
     def upgrade_request(req)

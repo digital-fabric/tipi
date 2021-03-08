@@ -87,6 +87,9 @@ module Tipi
       headers = normalize_headers(headers)
       headers[':path'] = @parser.request_url
       headers[':method'] = @parser.http_method.downcase
+      scheme = (proto = headers['x-forwarded-proto']) ?
+                proto.downcase : scheme_from_connection
+      headers[':scheme'] = scheme
       queue_request(Qeweney::Request.new(headers, self))
     end
 
@@ -184,6 +187,10 @@ module Tipi
 
     def websocket_connection(req)
       Tipi::Websocket.new(@conn, req.headers)
+    end
+
+    def scheme_from_connection
+      @conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
     end
     
     # response API
