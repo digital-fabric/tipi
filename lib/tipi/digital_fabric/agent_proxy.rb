@@ -150,9 +150,14 @@ module DigitalFabric
         headers = message['headers']
         body = message['body']
         done = message['complete']
-        req.send_headers(headers) if headers && !req.headers_sent?
-        req.send_chunk(body, done: done) if body or done
-        done
+        if !req.headers_sent? && done
+          req.respond(body, headers|| {})
+          true
+        else
+          req.send_headers(headers) if headers && !req.headers_sent?
+          req.send_chunk(body, done: done) if body or done
+          done
+        end
       else
         # invalid message
         true
