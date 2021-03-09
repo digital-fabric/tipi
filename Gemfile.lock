@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    tipi (0.37.2)
+    tipi (0.38)
       http-2 (~> 0.10.0)
       http_parser.rb (~> 0.6.0)
       msgpack (~> 1.4.2)
