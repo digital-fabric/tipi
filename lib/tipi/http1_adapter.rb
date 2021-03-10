@@ -224,7 +224,7 @@ module Tipi
     def send_headers(request, headers, empty_response: false, chunked: true)
       formatted_headers = format_headers(headers, !empty_response, @parser.http_minor == 1 && chunked)
       request.tx_incr(formatted_headers.bytesize)
-      @conn.write(data)
+      @conn.write(formatted_headers)
     end
     
     # Sends a response body chunk. If no headers were sent, default headers are
