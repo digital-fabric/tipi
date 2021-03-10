@@ -29,8 +29,10 @@ module Tipi
     
     # return [Boolean] true if client loop should stop
     def handle_incoming_data(data, &block)
+      rx = data.bytesize
       @parser << data
       while (request = @requests_head)
+        request.headers[':rx'] = rx
         if @first
           request.headers[':first'] = true
           @first = nil
@@ -53,10 +55,11 @@ module Tipi
     
     # Reads a body chunk for the current request. Transfers control to the parse
     # loop, and resumes once the parse_loop has fired the on_body callback
-    def get_body_chunk
+    def get_body_chunk(request)
       @waiting_for_body_chunk = true
       @next_chunk = nil
       while !@requests_tail.complete? && (data = @conn.readpartial(8192))
+        request.rx_incr(data.bytesize)
         @parser << data
         return @next_chunk if @next_chunk
         
@@ -70,9 +73,10 @@ module Tipi
     # Waits for the current request to complete. Transfers control to the parse
     # loop, and resumes once the parse_loop has fired the on_message_complete
     # callback
-    def consume_request
+    def consume_request(request)
       request = @requests_head
       @conn.recv_loop do |data|
+        request.rx_incr(data.bytesize)
         @parser << data
         return if request.complete?
       end
@@ -185,8 +189,8 @@ module Tipi
       )
     end
 
-    def websocket_connection(req)
-      Tipi::Websocket.new(@conn, req.headers)
+    def websocket_connection(request)
+      Tipi::Websocket.new(@conn, request.headers)
     end
 
     def scheme_from_connection
@@ -200,52 +204,51 @@ module Tipi
 
     # Sends response including headers and body. Waits for the request to complete
     # if not yet completed. The body is sent using chunked transfer encoding.
+    # @param request [Qeweney::Request] HTTP request
     # @param body [String] response body
     # @param headers
-    def respond(body, headers)
-      consume_request if @parsing
-      data = [format_headers(headers, body, false), body]
-
-      # if body
-      #   if @parser.http_minor == 0
-      #     data << body
-      #   else
-      #     # data << body.bytesize.to_s(16) << CRLF << body << CRLF_ZERO_CRLF_CRLF
-      #     data << "#{body.bytesize.to_s(16)}\r\n#{body}\r\n0\r\n\r\n"
-      #   end
-      # end
-      # Polyphony.backend_sendv(@conn, data, 0)
-      @conn.write(*data)
+    def respond(request, body, headers)
+      consume_request(request) if @parsing
+      formatted_headers = format_headers(headers, body, false)
+      request.tx_incr(formatted_headers.bytesize + (body ? body.bytesize : 0))
+      @conn.write(formatted_headers, body)
     end
       
     # Sends response headers. If empty_response is truthy, the response status
     # code will default to 204, otherwise to 200.
+    # @param request [Qeweney::Request] HTTP request
     # @param headers [Hash] response headers
     # @param empty_response [boolean] whether a response body will be sent
     # @param chunked [boolean] whether to use chunked transfer encoding
     # @return [void]
-    def send_headers(headers, empty_response: false, chunked: true)
-      data = format_headers(headers, !empty_response, @parser.http_minor == 1 && chunked)
+    def send_headers(request, headers, empty_response: false, chunked: true)
+      formatted_headers = format_headers(headers, !empty_response, @parser.http_minor == 1 && chunked)
+      request.tx_incr(formatted_headers.bytesize)
       @conn.write(data)
     end
     
     # Sends a response body chunk. If no headers were sent, default headers are
     # sent using #send_headers. if the done option is true(thy), an empty chunk
     # will be sent to signal response completion to the client.
+    # @param request [Qeweney::Request] HTTP request
     # @param chunk [String] response body chunk
     # @param done [boolean] whether the response is completed
     # @return [void]
-    def send_chunk(chunk, done: false)
-      data = []
+    def send_chunk(request, chunk, done: false)
+      data = +''
       data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n" if chunk
       data << "0\r\n\r\n" if done
-      @conn.write(data.join) unless data.empty?
+      return if data.empty?
+
+      request.tx_incr(data.bytesize)
+      @conn.write(data)
     end
     
     # Finishes the response to the current request. If no headers were sent,
     # default headers are sent using #send_headers.
     # @return [void]
-    def finish
+    def finish(request)
+      request.tx_incr(5)
       @conn << "0\r\n\r\n"
     end
     

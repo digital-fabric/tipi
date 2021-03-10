@@ -13,7 +13,6 @@ puts 'Listening on port 4411...'
 
 spin do
   Tipi.serve('0.0.0.0', 4411, opts) do |req|
-    p path: req.path
     if req.path == '/stream'
       req.send_headers('Foo' => 'Bar')
       sleep 1
@@ -24,6 +23,7 @@ spin do
     else
       req.respond("Hello world!\n")
     end
+    p req.transfer_counts
   end
   p 'done...'
 end.await

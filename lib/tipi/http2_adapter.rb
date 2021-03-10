@@ -16,7 +16,9 @@ module Tipi
       @opts = opts
       @upgrade_headers = upgrade_headers
       @first = true
-      
+      @rx = upgrade_headers[':rx'] || 0
+      @tx = upgrade_headers[':tx'] || 0
+
       @interface = ::HTTP2::Server.new
       @connection_fiber = Fiber.current
       @interface.on(:frame, &method(:send_frame))
@@ -24,6 +26,9 @@ module Tipi
     end
     
     def send_frame(data)
+      if @transfer_count_request
+        @transfer_count_request.tx_incr(data.bytesize)
+      end
       @conn << data
     rescue Exception => e
       @connection_fiber.transfer e
@@ -38,6 +43,7 @@ module Tipi
     
     def upgrade
       @conn << UPGRADE_MESSAGE
+      @tx += UPGRADE_MESSAGE.bytesize
       settings = @upgrade_headers['http2-settings']
       Fiber.current.schedule(nil)
       @interface.upgrade(settings, @upgrade_headers, '')
@@ -49,16 +55,34 @@ module Tipi
     def each(&block)
       @interface.on(:stream) { |stream| start_stream(stream, &block) }
       upgrade if @upgrade_headers
-      
-      @conn.recv_loop(&@interface.method(:<<))
+
+      @conn.recv_loop do |data|
+        @rx += data.bytesize
+        @interface << data
+      end
     rescue SystemCallError, IOError
       # ignore
+    rescue Exception => e
+      p e
+      puts e.backtrace.join("\n")
     ensure
       finalize_client_loop
     end
+
+    def get_rx_count
+      count = @rx
+      @rx = 0
+      count
+    end
+    
+    def get_tx_count
+      count = @tx
+      @tx = 0
+      count
+    end
     
     def start_stream(stream, &block)
-      stream = HTTP2StreamHandler.new(stream, @conn, @first, &block)
+      stream = HTTP2StreamHandler.new(self, stream, @conn, @first, &block)
       @first = nil if @first
       @streams[stream] = true
     end
@@ -71,6 +95,16 @@ module Tipi
     
     def close
       @conn.close
+    end
+
+    def set_request_for_transfer_count(request)
+      @transfer_count_request = request
+    end
+
+    def unset_request_for_transfer_count(request)
+      return unless @transfer_count_request == request
+
+      @transfer_count_request = nil
     end
   end
 end

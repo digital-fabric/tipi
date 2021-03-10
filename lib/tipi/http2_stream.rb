@@ -9,13 +9,15 @@ module Tipi
     attr_accessor :__next__
     attr_reader :conn
     
-    def initialize(stream, conn, first, &block)
+    def initialize(adapter, stream, conn, first, &block)
+      @adapter = adapter
       @stream = stream
       @conn = conn
       @first = first
       @connection_fiber = Fiber.current
       @stream_fiber = spin { |req| handle_request(req, &block) }
-      
+      Thread.current.fiber_unschedule(@stream_fiber)
+
       # Stream callbacks occur on the connection fiber (see HTTP2Adapter#each).
       # The request handler is run on a separate fiber for each stream, allowing
       # concurrent handling of incoming requests on the same HTTP/2 connection.
@@ -47,13 +49,15 @@ module Tipi
     
     def on_headers(headers)
       @request = Qeweney::Request.new(headers.to_h, self)
+      @request.rx_incr(@adapter.get_rx_count)
+      @request.tx_incr(@adapter.get_tx_count)
       if @first
         @request.headers[':first'] = true
         @first = false
       end
       @stream_fiber.schedule @request
     end
-    
+
     def on_data(data)
       if @waiting_for_body_chunk
         @waiting_for_body_chunk = nil
@@ -78,61 +82,81 @@ module Tipi
     def protocol
       'h2'
     end
+
+    def with_transfer_count(request)
+      @adapter.set_request_for_transfer_count(request)
+      yield
+    ensure
+      @adapter.unset_request_for_transfer_count(request)
+    end
     
-    def get_body_chunk
+    def get_body_chunk(request)
       # called in the context of the stream fiber
       return nil if @request.complete?
       
-      @waiting_for_body_chunk = true
-      # the chunk (or an exception) will be returned once the stream fiber is
-      # resumed
-      suspend
+      with_transfer_count(request) do
+        @waiting_for_body_chunk = true
+        # the chunk (or an exception) will be returned once the stream fiber is
+        # resumed 
+        suspend
+      end
     ensure
       @waiting_for_body_chunk = nil
     end
     
     # Wait for request to finish
-    def consume_request
+    def consume_request(request)
       return if @request.complete?
       
-      @waiting_for_half_close = true
-      suspend
+      with_transfer_count(request) do
+        @waiting_for_half_close = true
+        suspend
+      end
     ensure
       @waiting_for_half_close = nil
     end
     
     # response API
-    def respond(chunk, headers)
+    def respond(request, chunk, headers)
       headers[':status'] ||= Qeweney::Status::OK
-      @stream.headers(headers, end_stream: false)
-      @stream.data(chunk, end_stream: true)
+      headers[':status'] = headers[':status'].to_s
+      with_transfer_count(request) do
+        @stream.headers(headers, end_stream: false)
+        @stream.data(chunk, end_stream: true)
+      end
       @headers_sent = true
     end
     
-    def send_headers(headers, empty_response = false)
+    def send_headers(request, headers, empty_response = false)
       return if @headers_sent
       
       headers[':status'] ||= (empty_response ? Qeweney::Status::NO_CONTENT : Qeweney::Status::OK).to_s
-      @stream.headers(headers, end_stream: false)
+      with_transfer_count(request) do
+        @stream.headers(headers, end_stream: false)
+      end
       @headers_sent = true
     end
     
-    def send_chunk(chunk, done: false)
+    def send_chunk(request, chunk, done: false)
       send_headers({}, false) unless @headers_sent
       
       if chunk
-        @stream.data(chunk, end_stream: done)
+        with_transfer_count(request) do
+          @stream.data(chunk, end_stream: done)
+        end
       elsif done
         @stream.close
       end
     end
     
-    def finish
+    def finish(request)
       if @headers_sent
         @stream.close
       else
         headers[':status'] ||= Qeweney::Status::NO_CONTENT
-        @stream.headers(headers, end_stream: true)
+        with_transfer_count(request) do
+          @stream.headers(headers, end_stream: true)
+        end
       end
     end
     

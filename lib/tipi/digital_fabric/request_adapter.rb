@@ -13,33 +13,33 @@ module DigitalFabric
       'df'
     end
 
-    def get_body_chunk
+    def get_body_chunk(request)
       @agent.get_http_request_body(@id, 1)
     end
 
-    def consume_request
+    def consume_request(request)
       @agent.get_http_request_body(@id, nil)
     end
 
-    def respond(body, headers)
+    def respond(request, body, headers)
       @agent.send_df_message(
         Protocol.http_response(@id, body, headers, true)
       )
     end
 
-    def send_headers(headers, opts = {})
+    def send_headers(request, headers, opts = {})
       @agent.send_df_message(
         Protocol.http_response(@id, nil, headers, false)
       )
   end
 
-    def send_chunk(body, done: )
+    def send_chunk(request, body, done: )
       @agent.send_df_message(
         Protocol.http_response(@id, body, nil, done)
       )
     end
 
-    def finish
+    def finish(request)
       @agent.send_df_message(
         Protocol.http_response(@id, nil, nil, true)
       )

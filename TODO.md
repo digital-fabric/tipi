@@ -1,6 +1,10 @@
 For immediate execution:
 
-
+- rx/tx counters:
+  - Change adapter interface:
+    - Add request as first parameter of all response methods (#get_body_chunk,
+      #respond, #send_headers, #send_chunk, #finish, #consume_request)
+  - Update Reality DF adapter
 
 # Roadmap
 
