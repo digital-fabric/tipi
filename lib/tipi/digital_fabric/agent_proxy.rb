@@ -134,7 +134,7 @@ module DigitalFabric
         end
       end
     rescue => e
-      req.respond("Error: #{e.inspect}", ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)
+      req.respond("Error: #{e.inspect}\n#{e.backtrace.join("\n")}", ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)
     end
 
     # @return [Boolean] true if response is complete
