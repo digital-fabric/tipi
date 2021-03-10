@@ -19,6 +19,8 @@ module DigitalFabric
     WS_DATA = 'ws_data'
     WS_CLOSE = 'ws_close'
 
+    TRANSFER_COUNT = 'transfer_count'
+
     SEND_TIMEOUT = 15
     RECV_TIMEOUT = SEND_TIMEOUT + 5
 
@@ -43,11 +45,13 @@ module DigitalFabric
       end
 
       def http_request(id, req)
-        { kind: HTTP_REQUEST, id: id, headers: req.headers, body: req.next_chunk, complete: req.complete? }
+        { kind: HTTP_REQUEST, id: id, headers: req.headers,
+          body: req.next_chunk, complete: req.complete? }
       end
 
-      def http_response(id, body, headers, complete)
-        { kind: HTTP_RESPONSE, id: id, body: body, headers: headers, complete: complete }
+      def http_response(id, body, headers, complete, transfer_count_key = nil)
+        { kind: HTTP_RESPONSE, id: id, body: body, headers: headers,
+          complete: complete, transfer_count_key: transfer_count_key }
       end
 
       def http_upgrade(id, headers)
@@ -84,6 +88,10 @@ module DigitalFabric
         
       def ws_close(id)
         { id: id, kind: WS_CLOSE }
+      end
+
+      def transfer_count(key, rx, tx)
+        { kind: TRANSFER_COUNT, key: key, rx: rx, tx: tx }
       end
     end
   end

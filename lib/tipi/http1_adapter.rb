@@ -258,6 +258,8 @@ module Tipi
     
     private
 
+    INTERNAL_HEADER_REGEXP = /^:/.freeze
+
     # Formats response headers into an array. If empty_response is true(thy),
     # the response status code will default to 204, otherwise to 200.
     # @param headers [Hash] response headers
@@ -269,7 +271,7 @@ module Tipi
       status ||= (body ? Qeweney::Status::OK : Qeweney::Status::NO_CONTENT)
       lines = format_status_line(body, status, chunked)
       headers.each do |k, v|
-        next if k =~ /^:/
+        next if k =~ INTERNAL_HEADER_REGEXP
         
         collect_header_lines(lines, k, v)
       end

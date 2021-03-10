@@ -150,18 +150,31 @@ module DigitalFabric
         headers = message['headers']
         body = message['body']
         done = message['complete']
+        transfer_count_key = message['transfer_count_key']
         if !req.headers_sent? && done
           req.respond(body, headers|| {})
+          if transfer_count_key
+            rx, tx = req.transfer_counts
+            send_transfer_count(transfer_count_key, rx, tx)
+          end
           true
         else
           req.send_headers(headers) if headers && !req.headers_sent?
           req.send_chunk(body, done: done) if body or done
+          if done && transfer_count_key
+            rx, tx = req.transfer_counts
+            send_transfer_count(transfer_count_key, rx, tx)
+          end
           done
         end
       else
         # invalid message
         true
       end
+    end
+
+    def send_transfer_count(key, rx, tx)
+      send_df_message(Protocol.transfer_count(key, rx, tx))
     end
 
     HTTP_RESPONSE_UPGRADE_HEADERS = { ':status' => Qeweney::Status::SWITCHING_PROTOCOLS }
