@@ -31,6 +31,7 @@ module DigitalFabric
     def run
       @fiber = Fiber.current
       @service.mount(route, self)
+      @mounted = true
       keep_alive_timer = spin_loop(interval: 5) { keep_alive }
       process_incoming_messages(false)
     rescue GracefulShutdown
@@ -38,7 +39,7 @@ module DigitalFabric
       process_incoming_messages(true)
     ensure
       keep_alive_timer&.stop
-      @service.unmount(self)
+      unmount
     end
 
     def process_incoming_messages(shutdown = false)
@@ -49,6 +50,13 @@ module DigitalFabric
         return if shutdown && @requests.empty?
       end
     rescue TimeoutError, IOError
+    end
+
+    def unmount
+      return unless @mounted
+
+      @service.unmount(self) 
+      @mounted = nil
     end
 
     def shutdown
@@ -82,7 +90,14 @@ module DigitalFabric
 
     def recv_df_message(message)
       @last_recv = Time.now
-      return if message['kind'] == Protocol::PING
+      puts "<<< #{message.inspect}"
+
+      case message['kind']
+      when Protocol::PING
+        return
+      when Protocol::UNMOUNT
+        return unmount
+      end
 
       handler = @requests[message['id']]
       if !handler
@@ -94,6 +109,8 @@ module DigitalFabric
     end
 
     def send_df_message(message)
+      puts ">>> #{message.inspect}" unless message[:kind] == Protocol::PING
+
       @last_send = Time.now
       @conn << message.to_msgpack
     end
@@ -161,6 +178,7 @@ module DigitalFabric
         else
           req.send_headers(headers) if headers && !req.headers_sent?
           req.send_chunk(body, done: done) if body or done
+          
           if done && transfer_count_key
             rx, tx = req.transfer_counts
             send_transfer_count(transfer_count_key, rx, tx)

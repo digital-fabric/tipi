@@ -4,6 +4,7 @@ module DigitalFabric
   module Protocol
     PING = 'ping'
     SHUTDOWN = 'shutdown'
+    UNMOUNT = 'unmount'
 
     HTTP_REQUEST = 'http_request'
     HTTP_RESPONSE = 'http_response'
@@ -31,6 +32,10 @@ module DigitalFabric
 
       def shutdown
         { kind: SHUTDOWN }
+      end
+
+      def unmount
+        { kind: UNMOUNT }
       end
 
       DF_UPGRADE_RESPONSE = <<~HTTP.gsub("\n", "\r\n")
