@@ -119,7 +119,7 @@ module DigitalFabric
 
     def recv_df_message(msg)
       @last_recv = Time.now
-      case msg['kind']
+      case msg[Protocol::Attribute::KIND]
       when Protocol::SHUTDOWN
         recv_shutdown
       when Protocol::HTTP_REQUEST
@@ -130,7 +130,7 @@ module DigitalFabric
         recv_ws_request(msg)
       when Protocol::CONN_DATA, Protocol::CONN_CLOSE,
            Protocol::WS_DATA, Protocol::WS_CLOSE
-        fiber = @requests[msg['id']]
+        fiber = @requests[msg[Protocol::Attribute::ID]]
         fiber << msg if fiber
       end
     end
@@ -140,7 +140,7 @@ module DigitalFabric
       # messages. This is so we can correctly stop long-running requests
       # upon graceful shutdown
       if is_long_running_request_response?(msg)
-        id = msg[:id]
+        id = msg[Protocol::Attribute::ID]
         @long_running_requests[id] = @requests[id]
       end
       @last_send = Time.now
@@ -148,11 +148,11 @@ module DigitalFabric
     end
 
     def is_long_running_request_response?(msg)
-      case msg[:kind]
+      case msg[Protocol::Attribute::KIND]
       when Protocol::HTTP_UPGRADE
         true
       when Protocol::HTTP_RESPONSE
-        msg[:body] && !msg[:complete]
+        !msg[Protocol::Attribute::HttpResponse::COMPLETE]
       end
     end
 
@@ -165,7 +165,7 @@ module DigitalFabric
 
     def recv_http_request(msg)
       req = prepare_http_request(msg)
-      id = msg['id']
+      id = msg[Protocol::Attribute::ID]
       @requests[id] = spin do
         http_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
@@ -180,17 +180,20 @@ module DigitalFabric
     end
 
     def prepare_http_request(msg)
-      req = Qeweney::Request.new(msg['headers'], RequestAdapter.new(self, msg))
-      req.buffer_body_chunk(msg['body']) if msg['body']
-      req.complete! if msg['complete']
+      headers = msg[Protocol::Attribute::HttpRequest::HEADERS]
+      body_chunk = msg[Protocol::Attribute::HttpRequest::BODY_CHUNK]
+      complete = msg[Protocol::Attribute::HttpRequest::COMPLETE]
+      req = Qeweney::Request.new(headers, RequestAdapter.new(self, msg))
+      req.buffer_body_chunk(body_chunk) if body_chunk
+      req.complete! if complete
       req
     end
 
     def recv_http_request_body(msg)
-      fiber = @requests[msg['id']]
+      fiber = @requests[msg[Protocol::Attribute::ID]]
       return unless fiber
 
-      fiber << msg['body']
+      fiber << msg[Protocol::Attribute::HttpRequestBody::BODY]
     end
 
     def get_http_request_body(id, limit)
@@ -199,8 +202,8 @@ module DigitalFabric
     end
 
     def recv_ws_request(msg)
-      req = Qeweney::Request.new(msg['headers'], RequestAdapter.new(self, msg))
-      id = msg['id']
+      req = Qeweney::Request.new(msg[Protocol::Attribute::WS::HEADERS], RequestAdapter.new(self, msg))
+      id = msg[Protocol::Attribute::ID]
       @requests[id] = @long_running_requests[id] = spin do
         ws_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE

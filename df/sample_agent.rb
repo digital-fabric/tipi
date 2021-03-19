@@ -13,7 +13,7 @@ class SampleAgent < DigitalFabric::Agent
   HTML_SSE = IO.read(File.join(__dir__, 'sse_page.html'))
 
   def http_request(req)
-    path = req['headers'][':path']
+    path = req.headers[':path']
     case path
     when '/agent'
       send_df_message(Protocol.http_response(

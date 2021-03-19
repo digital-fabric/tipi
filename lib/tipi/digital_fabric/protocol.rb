@@ -25,17 +25,63 @@ module DigitalFabric
     SEND_TIMEOUT = 15
     RECV_TIMEOUT = SEND_TIMEOUT + 5
 
+    module Attribute
+      KIND = 0
+      ID = 1
+
+      module HttpRequest
+        HEADERS = 2
+        BODY_CHUNK = 3
+        COMPLETE = 4
+      end
+
+      module HttpResponse
+        BODY = 2
+        HEADERS = 3
+        COMPLETE = 4
+        TRANSFER_COUNT_KEY = 5
+      end
+
+      module HttpUpgrade
+        HEADERS = 2
+      end
+
+      module HttpGetRequestBody
+        LIMIT = 2
+      end
+
+      module HttpRequestBody
+        BODY = 2
+        COMPLETE = 3
+      end
+
+      module ConnectionData
+        DATA = 2
+      end
+
+      module WS
+        HEADERS = 2
+        DATA = 2
+      end
+
+      module TransferCount
+        KEY = 1
+        RX = 2
+        TX = 3
+      end
+    end
+
     class << self
       def ping
-        { kind: PING }
+        [ PING ]
       end
 
       def shutdown
-        { kind: SHUTDOWN }
+        [ SHUTDOWN ]
       end
 
       def unmount
-        { kind: UNMOUNT }
+        [ UNMOUNT ]
       end
 
       DF_UPGRADE_RESPONSE = <<~HTTP.gsub("\n", "\r\n")
@@ -50,53 +96,51 @@ module DigitalFabric
       end
 
       def http_request(id, req)
-        { kind: HTTP_REQUEST, id: id, headers: req.headers,
-          body: req.next_chunk, complete: req.complete? }
+        [ HTTP_REQUEST, id, req.headers, req.next_chunk, req.complete? ]
       end
 
       def http_response(id, body, headers, complete, transfer_count_key = nil)
-        { kind: HTTP_RESPONSE, id: id, body: body, headers: headers,
-          complete: complete, transfer_count_key: transfer_count_key }
+        [ HTTP_RESPONSE, id, body, headers, complete, transfer_count_key ]
       end
 
       def http_upgrade(id, headers)
-        { kind: HTTP_UPGRADE, id: id }
+        [ HTTP_UPGRADE, id, headers ]
       end
 
       def http_get_request_body(id, limit = nil)
-        { kind: HTTP_GET_REQUEST_BODY, id: id, limit: limit }
+        [ HTTP_GET_REQUEST_BODY, id, limit ]
       end
 
       def http_request_body(id, body, complete)
-        { kind: HTTP_REQUEST_BODY, id: id, body: body, complete: complete }
+        [ HTTP_REQUEST_BODY, id, body, complete ]
       end
 
       def connection_data(id, data)
-        { kind: CONN_DATA, id: id, data: data }
+        [ CONN_DATA, id, data ]
       end
 
       def connection_close(id)
-        { kind: CONN_CLOSE, id: id }
+        [ CONN_CLOSE, id ]
       end
 
       def ws_request(id, headers)
-        { kind: WS_REQUEST, id: id, headers: headers }
+        [ WS_REQUEST, id, headers ]
       end
 
       def ws_response(id, headers)
-        { kind: WS_RESPONSE, id: id, headers: headers }
+        [ WS_RESPONSE, id, headers ]
       end
 
       def ws_data(id, data)
-        { id: id, kind: WS_DATA, data: data }
+        [ WS_DATA, id, data ]
       end
         
       def ws_close(id)
-        { id: id, kind: WS_CLOSE }
+        [WS_CLOSE, id ]
       end
 
       def transfer_count(key, rx, tx)
-        { kind: TRANSFER_COUNT, key: key, rx: rx, tx: tx }
+        [ TRANSFER_COUNT, key, rx, tx ]
       end
     end
   end

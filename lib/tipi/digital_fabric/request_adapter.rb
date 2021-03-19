@@ -6,7 +6,7 @@ module DigitalFabric
   class RequestAdapter
     def initialize(agent, msg)
       @agent = agent
-      @id = msg['id']
+      @id = msg[Protocol::Attribute::ID]
     end
 
     def protocol

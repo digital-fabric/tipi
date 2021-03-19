@@ -92,14 +92,14 @@ module DigitalFabric
       @last_recv = Time.now
       puts "<<< #{message.inspect}"
 
-      case message['kind']
+      case message[Protocol::Attribute::KIND]
       when Protocol::PING
         return
       when Protocol::UNMOUNT
         return unmount
       end
 
-      handler = @requests[message['id']]
+      handler = @requests[message[Protocol::Attribute::ID]]
       if !handler
         # puts "Unknown request id in #{message}"
         return
@@ -109,7 +109,7 @@ module DigitalFabric
     end
 
     def send_df_message(message)
-      puts ">>> #{message.inspect}" unless message[:kind] == Protocol::PING
+      puts ">>> #{message.inspect}" unless message[Protocol::Attribute::KIND] == Protocol::PING
 
       @last_send = Time.now
       @conn << message.to_msgpack
@@ -147,7 +147,9 @@ module DigitalFabric
             t1 = Time.now
             @service.record_latency_measurement(t1 - t0)
           end
-          return if http_request_message(id, req, message)
+          kind = message[Protocol::Attribute::KIND]
+          attributes = message[Protocol::Attribute::HttpRequest::HEADERS..-1]
+          return if http_request_message(id, req, kind, attributes)
         end
       end
     rescue => e
@@ -155,36 +157,16 @@ module DigitalFabric
     end
 
     # @return [Boolean] true if response is complete
-    def http_request_message(id, req, message)
-      case message['kind']
+    def http_request_message(id, req, kind, message)
+      case kind
       when Protocol::HTTP_UPGRADE
-        http_custom_upgrade(id, req, message)
+        http_custom_upgrade(id, req, *message)
         true
       when Protocol::HTTP_GET_REQUEST_BODY
-        http_get_request_body(id, req, message)
+        http_get_request_body(id, req, *message)
         false
       when Protocol::HTTP_RESPONSE
-        headers = message['headers']
-        body = message['body']
-        done = message['complete']
-        transfer_count_key = message['transfer_count_key']
-        if !req.headers_sent? && done
-          req.respond(body, headers|| {})
-          if transfer_count_key
-            rx, tx = req.transfer_counts
-            send_transfer_count(transfer_count_key, rx, tx)
-          end
-          true
-        else
-          req.send_headers(headers) if headers && !req.headers_sent?
-          req.send_chunk(body, done: done) if body or done
-          
-          if done && transfer_count_key
-            rx, tx = req.transfer_counts
-            send_transfer_count(transfer_count_key, rx, tx)
-          end
-          done
-        end
+        http_response(id, req, *message)
       else
         # invalid message
         true
@@ -197,10 +179,10 @@ module DigitalFabric
 
     HTTP_RESPONSE_UPGRADE_HEADERS = { ':status' => Qeweney::Status::SWITCHING_PROTOCOLS }
 
-    def http_custom_upgrade(id, req, message)
+    def http_custom_upgrade(id, req, headers)
       # send upgrade response
-      upgrade_headers = message['headers'] ?
-        message['headers'].merge(HTTP_RESPONSE_UPGRADE_HEADERS) :
+      upgrade_headers = headers ?
+       headers.merge(HTTP_RESPONSE_UPGRADE_HEADERS) :
         HTTP_RESPONSE_UPGRADE_HEADERS
       req.send_headers(upgrade_headers, true)
 
@@ -218,9 +200,9 @@ module DigitalFabric
     end
 
     def http_custom_upgrade_message(conn, message)
-      case message['kind']
+      case message[Protocol::Attribute::KIND]
       when Protocol::CONN_DATA
-        conn << message['data']
+        conn << message[:Protocol::Attribute::ConnData::DATA]
         false
       when Protocol::CONN_CLOSE
         true
@@ -230,8 +212,28 @@ module DigitalFabric
       end
     end
 
-    def http_get_request_body(id, req, message)
-      case (limit = message['limit'])
+    def http_response(id, req, body, headers, complete, transfer_count_key)
+      if !req.headers_sent? && complete
+        req.respond(body, headers|| {})
+        if transfer_count_key
+          rx, tx = req.transfer_counts
+          send_transfer_count(transfer_count_key, rx, tx)
+        end
+        true
+      else
+        req.send_headers(headers) if headers && !req.headers_sent?
+        req.send_chunk(body, done: complete) if body or complete
+        
+        if complete && transfer_count_key
+          rx, tx = req.transfer_counts
+          send_transfer_count(transfer_count_key, rx, tx)
+        end
+        complete
+      end
+    end
+
+    def http_get_request_body(id, req, limit)
+      case limit
       when nil
         body = req.read
       else
@@ -261,9 +263,9 @@ module DigitalFabric
       with_request do |id|
         send_df_message(Protocol.ws_request(id, req.headers))
         response = receive
-        case response['kind']
+        case response[0]
         when Protocol::WS_RESPONSE
-          headers = response['headers'] || {} 
+          headers = response[2] || {} 
           status = headers[':status'] || Qeweney::Status::SWITCHING_PROTOCOLS
           if status != Qeweney::Status::SWITCHING_PROTOCOLS
             req.respond(nil, headers)
@@ -284,9 +286,9 @@ module DigitalFabric
         end
       end
       while (message = receive)
-        case message['kind']
+        case message[Protocol::Attribute::KIND]
         when Protocol::WS_DATA
-          websocket << message['data']
+          websocket << message[Protocol::Attribute::WS::DATA]
         when Protocol::WS_CLOSE
           return
         else
