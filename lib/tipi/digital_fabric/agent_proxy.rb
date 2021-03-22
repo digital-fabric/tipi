@@ -90,7 +90,7 @@ module DigitalFabric
 
     def recv_df_message(message)
       @last_recv = Time.now
-      puts "<<< #{message.inspect}"
+      # puts "<<< #{message.inspect}"
 
       case message[Protocol::Attribute::KIND]
       when Protocol::PING
@@ -109,7 +109,7 @@ module DigitalFabric
     end
 
     def send_df_message(message)
-      puts ">>> #{message.inspect}" unless message[Protocol::Attribute::KIND] == Protocol::PING
+      # puts ">>> #{message.inspect}" unless message[Protocol::Attribute::KIND] == Protocol::PING
 
       @last_send = Time.now
       @conn << message.to_msgpack
