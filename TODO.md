@@ -1,7 +1,18 @@
-For immediate execution:
+# DF
 
-- rx/tx counters:
-  - Update Reality DF adapter
+- Add attack protection for IP-address HTTP host:
+
+  ```ruby
+  IPV4_REGEXP = /^\d+\.\d+\.\d+\.\d+$/.freeze
+
+  def is_attack_request?(req)
+    return true if req.host =~ IPV4_REGEXP && req.query[:q] != 'ping'
+  end
+  ```
+
+- Add attack route to Qeweney routing API
+
+
 
 # Roadmap
 

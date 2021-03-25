@@ -103,6 +103,8 @@ module DigitalFabric
       @counters[:errors] += 1
     rescue => e
       @counters[:errors] += 1
+      puts '*' * 40
+      p req
       p e
       puts e.backtrace.join("\n")
       req.respond(e.inspect, ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)

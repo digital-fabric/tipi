@@ -33,6 +33,9 @@ tcp_listener = spin do
     ensure
       service.decr_connection_count
     end
+  rescue Exception => e
+    puts "TCP accept_loop error: #{e.inspect}"
+    puts e.backtrace.join("\n")
   end
 end
 
@@ -51,4 +54,8 @@ rescue Interrupt
   puts "Got SIGINT, shutting down gracefully"
   service.graceful_shutdown
   puts "post graceful shutdown"
+rescue Exception => e
+  puts '*' * 40
+  p e
+  puts e.backtrace.join("\n")
 end
