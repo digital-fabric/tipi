@@ -182,11 +182,11 @@ module DigitalFabric
       end
       return @routes[route] if route
 
-      # search for a known route for an agent that recently unmounted
-      route, wait_list = @waiting_lists.find do |route, _|
-        (host == route[:host]) || (path =~ route[:path_regexp])
-      end
-      return wait_for_agent(wait_list) if route
+      # # search for a known route for an agent that recently unmounted
+      # route, wait_list = @waiting_lists.find do |route, _|
+      #   (host == route[:host]) || (path =~ route[:path_regexp])
+      # end
+      # return wait_for_agent(wait_list) if route
 
       nil
     end
