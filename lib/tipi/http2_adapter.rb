@@ -16,8 +16,8 @@ module Tipi
       @opts = opts
       @upgrade_headers = upgrade_headers
       @first = true
-      @rx = upgrade_headers[':rx'] || 0
-      @tx = upgrade_headers[':tx'] || 0
+      @rx = (upgrade_headers && upgrade_headers[':rx']) || 0
+      @tx = (upgrade_headers && upgrade_headers[':tx']) || 0
 
       @interface = ::HTTP2::Server.new
       @connection_fiber = Fiber.current
@@ -62,9 +62,6 @@ module Tipi
       end
     rescue SystemCallError, IOError
       # ignore
-    rescue Exception => e
-      p e
-      puts e.backtrace.join("\n")
     ensure
       finalize_client_loop
     end

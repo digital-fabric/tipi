@@ -59,6 +59,7 @@ module Tipi
     end
 
     def on_data(data)
+      data = data.to_s # chunks might be wrapped in a HTTP2::Buffer
       if @waiting_for_body_chunk
         @waiting_for_body_chunk = nil
         @stream_fiber.schedule data
@@ -121,10 +122,22 @@ module Tipi
       headers[':status'] ||= Qeweney::Status::OK
       headers[':status'] = headers[':status'].to_s
       with_transfer_count(request) do
-        @stream.headers(headers, end_stream: false)
-        @stream.data(chunk, end_stream: true)
+        @stream.headers(transform_headers(headers))
+        @stream.data(chunk || '')
       end
       @headers_sent = true
+    rescue HTTP2::Error::StreamClosed
+      # ignore
+    end
+
+    def transform_headers(headers)
+      headers.each_with_object([]) do |(k, v), a|
+        if v.is_a?(Array)
+          v.each { |vv| a << [k, vv.to_s] }
+        else
+          a << [k, v.to_s]
+        end
+      end
     end
     
     def send_headers(request, headers, empty_response = false)
@@ -132,9 +145,11 @@ module Tipi
       
       headers[':status'] ||= (empty_response ? Qeweney::Status::NO_CONTENT : Qeweney::Status::OK).to_s
       with_transfer_count(request) do
-        @stream.headers(headers, end_stream: false)
+        @stream.headers(transform_headers(headers), end_stream: false)
       end
       @headers_sent = true
+    rescue HTTP2::Error::StreamClosed
+      # ignore
     end
     
     def send_chunk(request, chunk, done: false)
@@ -147,6 +162,8 @@ module Tipi
       elsif done
         @stream.close
       end
+    rescue HTTP2::Error::StreamClosed
+      # ignore
     end
     
     def finish(request)
@@ -155,9 +172,11 @@ module Tipi
       else
         headers[':status'] ||= Qeweney::Status::NO_CONTENT
         with_transfer_count(request) do
-          @stream.headers(headers, end_stream: true)
+          @stream.headers(transform_headers(headers), end_stream: true)
         end
       end
+    rescue HTTP2::Error::StreamClosed
+      # ignore
     end
     
     def stop
