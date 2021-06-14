@@ -153,6 +153,8 @@ module DigitalFabric
         end
       end
     rescue => e
+      p "Internal server error: #{e.inspect}"
+      puts e.backtrace.join("\n")
       req.respond("Error: #{e.inspect}\n#{e.backtrace.join("\n")}", ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)
     end
 
