@@ -174,7 +174,7 @@ module DigitalFabric
     def find_agent(req)
       compile_agent_routes if @routing_changed
 
-      host = req.headers['host'] || INVALID_HOST
+      host = req.headers[':authority'] || req.headers['host'] || INVALID_HOST
       path = req.headers[':path']
 
       route = @route_keys.find do |route|
