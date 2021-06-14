@@ -211,7 +211,11 @@ module Tipi
       consume_request(request) if @parsing
       formatted_headers = format_headers(headers, body, false)
       request.tx_incr(formatted_headers.bytesize + (body ? body.bytesize : 0))
-      @conn.write(formatted_headers, body)
+      if body
+        @conn.write(formatted_headers, body)
+      else
+        @conn.write(formatted_headers)
+      end
     end
       
     # Sends response headers. If empty_response is truthy, the response status
