@@ -22,6 +22,6 @@ jobs:
     - name: Install dependencies
       run: |
         gem install bundler
-        bundle install
+        POLYPHONY_USE_LIBEV=1 bundle install
     - name: Run tests
       run:  bundle exec rake test
