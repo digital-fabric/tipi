@@ -49,7 +49,8 @@ module DigitalFabric
         recv_df_message(msg)
         return if shutdown && @requests.empty?
       end
-    rescue TimeoutError, IOError
+    rescue TimeoutError, IOError, SystemCallError
+      # ignore and just return in order to terminate the proxy
     end
 
     def unmount
@@ -155,7 +156,14 @@ module DigitalFabric
     rescue => e
       p "Internal server error: #{e.inspect}"
       puts e.backtrace.join("\n")
-      req.respond("Error: #{e.inspect}\n#{e.backtrace.join("\n")}", ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)
+      http_request_send_error_response(e)
+    end
+
+    def http_request_send_error_response(error)
+      response = format("Error: %s\n%s", error.inspect, error.backtrace.join("\n"))
+      req.respond(response, ':status' => Qeweney::Status::INTERNAL_SERVER_ERROR)
+    rescue IOError, SystemCallError
+      # ignore
     end
 
     # @return [Boolean] true if response is complete
@@ -232,6 +240,8 @@ module DigitalFabric
         end
         complete
       end
+    rescue IOError, SystemCallError
+      # ignore error
     end
 
     def http_get_request_body(id, req, limit)
@@ -279,6 +289,8 @@ module DigitalFabric
           req.respond(nil, ':status' => Qeweney::Status::SERVICE_UNAVAILABLE)
         end
       end
+    rescue IOError, SystemCallError
+      # ignore
     end
 
     def run_websocket_connection(id, websocket)
