@@ -19,25 +19,6 @@ class Polyphony::BaseException
   attr_reader :caller_backtrace
 end
 
-class OpenSSL::SSL::SSLServer
-  def accept_loop
-    loop do
-      yield accept
-    rescue SystemCallError, OpenSSL::SSL::SSLError, RuntimeError => e
-      puts "Accept error: #{e.inspect}"
-    end
-  end
-end
-
-class OpenSSL::SSL::SSLSocket
-  alias_method :recv_loop, :read_loop
-
-  alias_method :orig_peeraddr, :peeraddr
-  def peeraddr(_ = nil)
-    orig_peeraddr
-  end
-end
-
 puts "pid: #{Process.pid}"
 
 http_listener = spin do
