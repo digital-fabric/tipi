@@ -41,12 +41,16 @@ http_listener = spin do
   end
 end
 
+CERTIFICATE_REGEXP = /(-----BEGIN CERTIFICATE-----\n[^-]+-----END CERTIFICATE-----\n)/.freeze
+
 https_listener = spin do
-  c = IO.read('../../reality/ssl/cacert.pem')
-  certificates = c.split("\n-----END CERTIFICATE-----\n").map { |c| OpenSSL::X509::Certificate.new(c + "\n-----END CERTIFICATE-----\n") }
   private_key = OpenSSL::PKey::RSA.new IO.read('../../reality/ssl/privkey.pem')
+  c = IO.read('../../reality/ssl/cacert.pem')
+  certificates = c.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
   ctx = OpenSSL::SSL::SSLContext.new
-  ctx.add_certificate(certificates.shift, private_key, certificates)
+  cert = certificates.shift
+  puts "Certificate expires: #{cert.not_after.inspect}"
+  ctx.add_certificate(cert, private_key, certificates)
   # ctx = Localhost::Authority.fetch.server_context
   opts = {
     reuse_addr:     true,
