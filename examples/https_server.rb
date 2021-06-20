@@ -19,11 +19,10 @@ Tipi.serve('0.0.0.0', 1234, opts) do |req|
   p path: req.path
   if req.path == '/stream'
     req.send_headers('Foo' => 'Bar')
-    sleep 1
+    sleep 0.5
     req.send_chunk("foo\n")
-    sleep 1
-    req.send_chunk("bar\n")
-    req.finish
+    sleep 0.5
+    req.send_chunk("bar\n", done: true)
   else
     req.respond("Hello world!\n")
   end

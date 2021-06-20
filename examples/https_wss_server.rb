@@ -2,6 +2,7 @@
 
 require 'bundler/setup'
 require 'tipi'
+require 'tipi/websocket'
 require 'localhost/authority'
 
 def ws_handler(conn)
@@ -26,7 +27,7 @@ opts = {
   dont_linger:    true,
   secure_context: authority.server_context,
   upgrade:        {
-    websocket: Polyphony::Websocket.handler(&method(:ws_handler))
+    websocket: Tipi::Websocket.handler(&method(:ws_handler))
   }
 }
 

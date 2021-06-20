@@ -25,4 +25,6 @@ end
 
 puts 'Listening on port 1234'
 
+trap('SIGINT') { exit! }
+
 child_pids.each { |pid| Thread.current.backend.waitpid(pid) }

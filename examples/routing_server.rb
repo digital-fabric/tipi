@@ -12,17 +12,18 @@ puts "pid: #{Process.pid}"
 puts 'Listening on port 4411...'
 
 app = Tipi.route do |r|
-  r.root do
+
+  r.on_root do
     r.redirect '/hello'
   end
   r.on 'hello' do
-    r.get 'world' do
+    r.on_get 'world' do
       r.respond 'Hello world'
     end
-    r.get do
+    r.on_get do
       r.respond 'Hello'
     end
-    r.post do
+    r.on_post do
       puts 'Someone said Hello'
       r.redirect '/'
     end
