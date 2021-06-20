@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
 
   s.executables   = ['tipi']
 
-  s.add_runtime_dependency      'polyphony',          '~>0.54.0'
+  s.add_runtime_dependency      'polyphony',          '~>0.55.0'
   s.add_runtime_dependency      'qeweney',            '~>0.9.1'
   
   s.add_runtime_dependency      'http_parser.rb',     '~>0.6.0'
