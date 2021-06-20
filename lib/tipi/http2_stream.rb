@@ -140,7 +140,7 @@ module Tipi
       end
     end
     
-    def send_headers(request, headers, empty_response = false)
+    def send_headers(request, headers, empty_response: false)
       return if @headers_sent
       
       headers[':status'] ||= (empty_response ? Qeweney::Status::NO_CONTENT : Qeweney::Status::OK).to_s
