@@ -1,3 +1,12 @@
+## 0.39 2021-06-20
+
+- More work on DF server
+- Fix HTTP2StreamHandler#send_headers
+- Various fixes to HTTP/2 adapter
+- Fix host detection for HTTP/2 connections
+- Fix HTTP/1 adapter #respond with nil body
+- Fix HTTP1Adapter#send_headers
+
 ## 0.38 2021-03-09
 
 - Don't use chunked transfer encoding for non-streaming responses
