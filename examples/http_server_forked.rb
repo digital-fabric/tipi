@@ -11,11 +11,13 @@ opts = {
   dont_linger: true
 }
 
+server = Tipi.listen('0.0.0.0', 1234, opts)
+
 child_pids = []
 8.times do
   pid = Polyphony.fork do
     puts "forked pid: #{Process.pid}"
-    Tipi.serve('0.0.0.0', 1234, opts) do |req|
+    server.each do |req|
       req.respond("Hello world! from pid: #{Process.pid}\n")
     end
   rescue Interrupt
