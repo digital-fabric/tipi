@@ -1,13 +1,7 @@
 # frozen_string_literal: true
 
-require 'bundler/inline'
-
-gemfile do
-  source 'https://rubygems.org'
-  gem 'polyphony', '~> 0.44'
-  gem 'tipi', '~> 0.31'
-end
-
+require 'bundler/setup'
+require 'tipi'
 require 'tipi/websocket'
 
 class WebsocketClient

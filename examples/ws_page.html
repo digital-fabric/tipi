@@ -6,7 +6,7 @@
 <body>
   <script>
     var connect = function () {
-      var exampleSocket = new WebSocket("wss://dev.realiteq.net/");
+      var exampleSocket = new WebSocket("ws://localhost:4411/");
 
       exampleSocket.onopen = function (event) {
         document.querySelector('#status').innerText = 'connected';
