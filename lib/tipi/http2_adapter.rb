@@ -87,10 +87,12 @@ module Tipi
     def finalize_client_loop
       @interface = nil
       @streams.each_key(&:stop)
+      @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close
     end
     
     def close
+      @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close
     end
 

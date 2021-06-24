@@ -50,6 +50,8 @@ module Tipi
       # release references to various objects
       @requests_head = @requests_tail = nil
       @parser = nil
+      @splicing_pipe = nil
+      @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close
     end
     
@@ -257,6 +259,7 @@ module Tipi
     end
     
     def close
+      @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close
     end
     
