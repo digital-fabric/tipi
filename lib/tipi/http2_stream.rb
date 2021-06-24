@@ -123,9 +123,23 @@ module Tipi
       headers[':status'] = headers[':status'].to_s
       with_transfer_count(request) do
         @stream.headers(transform_headers(headers))
+        @headers_sent = true
         @stream.data(chunk || '')
       end
-      @headers_sent = true
+    rescue HTTP2::Error::StreamClosed
+      # ignore
+    end
+
+    def respond_from_io(request, io, headers, chunk_size = 2**16)
+      headers[':status'] ||= Qeweney::Status::OK
+      headers[':status'] = headers[':status'].to_s
+      with_transfer_count(request) do
+        @stream.headers(transform_headers(headers))
+        @headers_sent = true
+        while (chunk = io.read(chunk_size))
+          @stream.data(chunk)
+        end
+      end
     rescue HTTP2::Error::StreamClosed
       # ignore
     end

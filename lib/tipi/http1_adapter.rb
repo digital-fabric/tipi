@@ -219,7 +219,25 @@ module Tipi
         @conn.write(formatted_headers)
       end
     end
+
+    def respond_from_io(request, io, headers, chunk_size = 2**14)
+      consume_request(request) if @parsing
+
+      formatted_headers = format_headers(headers, true, true)
+      request.tx_incr(formatted_headers.bytesize)
       
+      # assume chunked encoding
+      Thread.current.backend.splice_chunks(
+        io,
+        @conn,
+        formatted_headers,
+        "0\r\n\r\n",
+        ->(len) { "#{len.to_s(16)}\r\n" },
+        "\r\n",
+        16384    
+      )
+    end
+
     # Sends response headers. If empty_response is truthy, the response status
     # code will default to 204, otherwise to 200.
     # @param request [Qeweney::Request] HTTP request
@@ -250,6 +268,20 @@ module Tipi
       @conn.write(data)
     end
     
+    def send_chunk_from_io(request, io, r, w, chunk_size)
+      len = w.splice(io, chunk_size)
+      if len > 0
+        Thread.current.backend.chain(
+          [:write, @conn, "#{len.to_s(16)}\r\n"],
+          [:splice, r, @conn, len],
+          [:write, @conn, "\r\n"]
+        )
+      else
+        @conn.write("0\r\n\r\n")
+      end
+      len
+    end
+
     # Finishes the response to the current request. If no headers were sent,
     # default headers are sent using #send_headers.
     # @return [void]
@@ -306,7 +338,7 @@ module Tipi
       if chunked
         +"HTTP/1.1 #{status}\r\nTransfer-Encoding: chunked\r\n"
       else
-        +"HTTP/1.1 #{status}\r\nContent-Length: #{body.bytesize}\r\n"
+        +"HTTP/1.1 #{status}\r\nContent-Length: #{body.is_a?(String) ? body.bytesize : body.to_i}\r\n"
       end
     end
 
