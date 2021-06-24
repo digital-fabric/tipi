@@ -13,7 +13,10 @@ FileUtils.cd(__dir__)
 service = DigitalFabric::Service.new(token: 'foobar')
 executive = DigitalFabric::Executive.new(service, { host: 'executive.realiteq.net' })
 
-spin_loop(interval: 60) { GC.start }
+GC.disable
+Thread.current.backend.idle_gc_period = 60
+
+# spin_loop(interval: 60) { GC.start }
 
 class Polyphony::BaseException
   attr_reader :caller_backtrace
@@ -51,7 +54,12 @@ https_listener = spin do
   cert = certificates.shift
   puts "Certificate expires: #{cert.not_after.inspect}"
   ctx.add_certificate(cert, private_key, certificates)
-  # ctx = Localhost::Authority.fetch.server_context
+  ctx.ciphers = 'ECDH+aRSA'
+
+  # TODO: further limit ciphers
+  # ref: https://github.com/socketry/falcon/blob/3ec805b3ceda0a764a2c5eb68cde33897b6a35ff/lib/falcon/environments/tls.rb
+  # ref: https://github.com/socketry/falcon/blob/3ec805b3ceda0a764a2c5eb68cde33897b6a35ff/lib/falcon/tls.rb
+
   opts = {
     reuse_addr:     true,
     dont_linger:    true,
@@ -61,21 +69,28 @@ https_listener = spin do
 
   puts 'Listening for HTTPS on localhost:10443'
   server = Polyphony::Net.tcp_listen('0.0.0.0', 10443, opts)
-  server.accept_loop do |client|
+  loop do
+    client = server.accept
     spin do
       service.incr_connection_count
       Tipi.client_loop(client, opts) { |req| service.http_request(req) }
+    rescue Exception => e
+      puts "Exception: #{e.inspect}"
+      puts e.backtrace.join("\n")
     ensure
       service.decr_connection_count
     end
+  rescue Polyphony::BaseException
+    raise
+  rescue OpenSSL::SSL::SSLError => e
+    puts "HTTPS accept error: #{e.inspect}"
   rescue Exception => e
-    puts "HTTPS accept_loop error: #{e.inspect}"
+    puts "HTTPS accept error: #{e.inspect}"
     puts e.backtrace.join("\n")
   end
 end
 
 UNIX_SOCKET_PATH = '/tmp/df.sock'
-
 unix_listener = spin do
   puts "Listening on #{UNIX_SOCKET_PATH}"
   FileUtils.rm(UNIX_SOCKET_PATH) if File.exists?(UNIX_SOCKET_PATH)
