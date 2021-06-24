@@ -1,3 +1,10 @@
+## 0.40 2021-06-24
+
+- Implement serving static files using splice_chunks (nice performance boost for
+  files bigger than 1M)
+- Call shutdown before closing socket
+- Fix examples (thanks @timhatch!)
+
 ## 0.39 2021-06-20
 
 - More work on DF server
