@@ -82,7 +82,7 @@ https_listener = spin do
     end
   rescue Polyphony::BaseException
     raise
-  rescue OpenSSL::SSL::SSLError => e
+  rescue OpenSSL::SSL::SSLError, SystemCallError => e
     puts "HTTPS accept error: #{e.inspect}"
   rescue Exception => e
     puts "HTTPS accept error: #{e.inspect}"
