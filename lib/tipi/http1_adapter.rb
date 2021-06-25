@@ -234,7 +234,7 @@ module Tipi
         "0\r\n\r\n",
         ->(len) { "#{len.to_s(16)}\r\n" },
         "\r\n",
-        16384    
+        chunk_size
       )
     end
 
