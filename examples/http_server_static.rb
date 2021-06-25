@@ -16,25 +16,6 @@ root_path = FileUtils.pwd
 
 trap('INT') { exit! }
 
-app = Tipi.route do |req|
-  req.on('normal') do
-    path = File.join(root_path, req.route_relative_path)
-    if File.file?(path)
-      req.serve_file(path)
-    else
-      req.respond(nil, ':status' => Qeweney::Status::NOT_FOUND)
-    end
-  end
-  req.on('spliced') do
-    path = File.join(root_path, req.route_relative_path)
-    if File.file?(path)
-      req.serve_file(path, chunk_size: 2**12)
-    else
-      req.respond(nil, ':status' => Qeweney::Status::NOT_FOUND)
-    end
-  end
-end
-
 Tipi.serve('0.0.0.0', 4411, opts) do |req|
   path = File.join(root_path, req.path)
   if File.file?(path)
