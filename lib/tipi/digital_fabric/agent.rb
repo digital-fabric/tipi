@@ -24,9 +24,11 @@ module DigitalFabric
     class GracefulShutdown < RuntimeError
     end
 
+    @@id = 0
+
     def run
       @fiber = Fiber.current
-      @keep_alive_timer = spin_loop(interval: 5) { keep_alive }
+      @keep_alive_timer = spin_loop("#{@fiber.tag}-keep_alive", interval: 5) { keep_alive }
       while true
         connect_and_process_incoming_requests
         return if @shutdown
@@ -166,7 +168,7 @@ module DigitalFabric
     def recv_http_request(msg)
       req = prepare_http_request(msg)
       id = msg[Protocol::Attribute::ID]
-      @requests[id] = spin do
+      @requests[id] = spin("#{Fiber.current.tag}.#{id}") do
         http_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore
@@ -204,7 +206,7 @@ module DigitalFabric
     def recv_ws_request(msg)
       req = Qeweney::Request.new(msg[Protocol::Attribute::WS::HEADERS], RequestAdapter.new(self, msg))
       id = msg[Protocol::Attribute::ID]
-      @requests[id] = @long_running_requests[id] = spin do
+      @requests[id] = @long_running_requests[id] = spin("#{Fiber.current.tag}.#{id}-ws") do
         ws_request(req)
       rescue IOError, Errno::ECONNREFUSED, Errno::EPIPE
         # ignore

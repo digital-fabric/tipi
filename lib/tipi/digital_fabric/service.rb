@@ -24,9 +24,9 @@ module DigitalFabric
       @http_latency_counter = 0
       @last_counters = @counters.merge(stamp: Time.now.to_f - 1)
       @fiber = Fiber.current
-      @timer = Polyphony::Timer.new(resolution: 1)
+      @timer = Polyphony::Timer.new('service_timer', resolution: 5)
 
-      stats_updater = spin { @timer.every(10) { update_stats } }
+      stats_updater = spin(:stats_updater) { @timer.every(10) { update_stats } }
       @stats = {}
 
       @current_request_count = 0

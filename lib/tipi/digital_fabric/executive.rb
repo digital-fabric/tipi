@@ -15,8 +15,8 @@ module DigitalFabric
       route[:executive] = true
       @service.mount(route, self)
       @current_request_count = 0
-      @updater = spin_loop(interval: 10) { update_service_stats }
-      update_service_stats
+      # @updater = spin_loop(:executive_updater, interval: 10) { update_service_stats }
+      # update_service_stats
     end
 
     def current_request_count
