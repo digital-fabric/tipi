@@ -11,6 +11,8 @@ opts = {
 puts "pid: #{Process.pid}"
 puts 'Listening on port 4411...'
 
+spin_loop(interval: 10) { p Thread.current.fiber_scheduling_stats }
+
 spin do
   Tipi.serve('0.0.0.0', 4411, opts) do |req|
     if req.path == '/stream'

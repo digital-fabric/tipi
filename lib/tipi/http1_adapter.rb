@@ -19,7 +19,7 @@ module Tipi
     
     def each(&block)
       @conn.recv_loop do |data|
-        return if handle_incoming_data(data, &block)
+        return if handle_incoming_data(data, &block) 
       end
     rescue SystemCallError, IOError
       # ignore
