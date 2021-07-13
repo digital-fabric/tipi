@@ -8,6 +8,24 @@ require 'json'
 require 'fileutils'
 require 'localhost/authority'
 
+module ::Kernel
+  def trace(*args)
+    STDOUT.orig_write(format_trace(args))
+  end
+
+  def format_trace(args)
+    if args.first.is_a?(String)
+      if args.size > 1
+        format("%s: %p\n", args.shift, args)
+      else
+        format("%s\n", args.first)
+      end
+    else
+      format("%p\n", args.size == 1 ? args.first : args)
+    end
+  end
+end
+
 FileUtils.cd(__dir__)
 
 service = DigitalFabric::Service.new(token: 'foobar')
@@ -69,7 +87,7 @@ https_listener = spin('https_listener') do
   certificates = c.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
   ctx = OpenSSL::SSL::SSLContext.new
   cert = certificates.shift
-  puts "Certificate expires: #{cert.not_after.inspect}"
+  log "SSL Certificate expires: #{cert.not_after.inspect}"
   ctx.add_certificate(cert, private_key, certificates)
   ctx.ciphers = 'ECDH+aRSA'
 
@@ -123,10 +141,12 @@ unix_listener = spin('unix_listener') do
   end
 end
 
-Thread.backend.trace_proc = proc do |event, fiber, value|
+Thread.backend.trace_proc = proc do |event, fiber, value, pri|
   fiber_id = fiber.tag || fiber.inspect
   case event
-  when :fiber_schedule, :fiber_run
+  when :fiber_schedule
+    log format("=> %s %s %s %s", event, fiber_id, value.inspect, (pri == 0) ? '' : '(priority)')
+  when :fiber_run
     log format("=> %s %s %s", event, fiber_id, value.inspect)
   when :fiber_create, :fiber_terminate
     log format("=> %s %s", event, fiber_id)
@@ -134,6 +154,8 @@ Thread.backend.trace_proc = proc do |event, fiber, value|
     log format("=> %s", event)
   end
 end
+
+spin_loop(interval: 10) { log "Stats: #{Thread.current.fiber_scheduling_stats.inspect}" }
 
 begin
   log('Starting DF server')
