@@ -158,16 +158,16 @@ def listen_df
   end
 end
 
-Thread.backend.trace_proc = proc do |event, fiber, value, pri|
-  fiber_id = fiber.tag || fiber.inspect
-  case event
-  when :fiber_schedule
-    log format("=> %s %s %s %s", event, fiber_id, value.inspect, pri ? '' : '(priority)')
-  when :fiber_run
-    log format("=> %s %s %s", event, fiber_id, value.inspect)
-  when :fiber_create, :fiber_terminate
-    log format("=> %s %s", event, fiber_id)
-  else
-    log format("=> %s", event)
-  end
-end
+# Thread.backend.trace_proc = proc do |event, fiber, value, pri|
+#   fiber_id = fiber.tag || fiber.inspect
+#   case event
+#   when :fiber_schedule
+#     log format("=> %s %s %s %s", event, fiber_id, value.inspect, pri ? '' : '(priority)')
+#   when :fiber_run
+#     log format("=> %s %s %s", event, fiber_id, value.inspect)
+#   when :fiber_create, :fiber_terminate
+#     log format("=> %s %s", event, fiber_id)
+#   else
+#     log format("=> %s", event)
+#   end
+# end
