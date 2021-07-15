@@ -162,7 +162,7 @@ Thread.backend.trace_proc = proc do |event, fiber, value, pri|
   fiber_id = fiber.tag || fiber.inspect
   case event
   when :fiber_schedule
-    log format("=> %s %s %s %s", event, fiber_id, value.inspect, (pri == 0) ? '' : '(priority)')
+    log format("=> %s %s %s %s", event, fiber_id, value.inspect, pri ? '' : '(priority)')
   when :fiber_run
     log format("=> %s %s %s", event, fiber_id, value.inspect)
   when :fiber_create, :fiber_terminate
