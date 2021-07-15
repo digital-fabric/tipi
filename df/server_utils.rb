@@ -129,7 +129,7 @@ def listen_unix
     socket.accept_loop do |client|
       log('Accept Unix connection', client: client)
       spin("unix#{id += 1}") do
-        Tipi.client_loop(client, {}) { |req| @service.http_request(req) }
+        Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end
     rescue OpenSSL::SSL::SSLError
       # disregard
@@ -150,7 +150,7 @@ def listen_df
     server.accept_loop do |client|
       log('Accept DF connection', client: client)
       spin("df#{id += 1}") do
-        Tipi.client_loop(client, {}) { |req| @service.http_request(req) }
+        Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end
     rescue OpenSSL::SSL::SSLError
       # disregard

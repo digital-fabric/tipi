@@ -82,12 +82,12 @@ module DigitalFabric
       @http_latency_counter += 1
     end
   
-    def http_request(req)
+    def http_request(req, allow_df_upgrade = false)
       @current_request_count += 1
       @counters[:http_requests] += 1
       @counters[:connections] += 1 if req.headers[':first']
 
-      return upgrade_request(req) if req.upgrade_protocol
+      return upgrade_request(req, allow_df_upgrade) if req.upgrade_protocol
  
       inject_request_headers(req)
       agent = find_agent(req)
@@ -120,10 +120,14 @@ module DigitalFabric
       req.headers['x-forwarded-proto'] ||= conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
     end
   
-    def upgrade_request(req)
+    def upgrade_request(req, allow_df_upgrade)
       case (protocol = req.upgrade_protocol)
       when 'df'
-        df_upgrade(req)
+        if allow_df_upgrade
+          df_upgrade(req)
+        else
+          req.respond(nil, ':status' => Qeweney::Status::SERVICE_UNAVAILABLE)
+        end
       else
         agent = find_agent(req)
         unless agent
