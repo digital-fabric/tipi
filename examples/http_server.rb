@@ -9,12 +9,19 @@ opts = {
 }
 
 puts "pid: #{Process.pid}"
-puts 'Listening on port 4411...'
+puts 'Listening on port 10080...'
+
+# GC.disable
+# Thread.current.backend.idle_gc_period = 60
 
 spin_loop(interval: 10) { p Thread.current.fiber_scheduling_stats }
 
+spin_loop(interval: 10) do
+  GC.compact
+end
+
 spin do
-  Tipi.serve('0.0.0.0', 4411, opts) do |req|
+  Tipi.serve('0.0.0.0', 10080, opts) do |req|
     if req.path == '/stream'
       req.send_headers('Foo' => 'Bar')
       sleep 1
@@ -25,7 +32,7 @@ spin do
     else
       req.respond("Hello world!\n")
     end
-    p req.transfer_counts
+#    p req.transfer_counts
   end
   p 'done...'
 end.await
