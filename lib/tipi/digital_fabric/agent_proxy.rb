@@ -98,6 +98,8 @@ module DigitalFabric
         return
       when Protocol::UNMOUNT
         return unmount
+      when Protocol::STATS_REQUEST
+        return handle_stats_request(message[Protocol::Attribute::ID])
       end
 
       handler = @requests[message[Protocol::Attribute::ID]]
@@ -185,6 +187,11 @@ module DigitalFabric
 
     def send_transfer_count(key, rx, tx)
       send_df_message(Protocol.transfer_count(key, rx, tx))
+    end
+
+    def handle_stats_request(id)
+      stats = @service.get_stats
+      send_df_message(Protocol.stats_response(id, stats))
     end
 
     HTTP_RESPONSE_UPGRADE_HEADERS = { ':status' => Qeweney::Status::SWITCHING_PROTOCOLS }

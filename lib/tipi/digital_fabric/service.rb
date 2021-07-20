@@ -46,15 +46,34 @@ module DigitalFabric
       @http_latency_accumulator = 0
       @http_latency_counter = 0
 
+      cpu, rss = pid_cpu_and_rss(Process.pid)
+
       @stats = {
-        connection_rate: connections / elapsed,
-        http_request_rate: http_requests / elapsed,
-        error_rate: errors / elapsed,
-        average_latency: average_latency,
         agent_count: @agents.size,
+        average_latency: average_latency,
+        backend_op_rate: 0,
+        backend_pending_ops: 0,
+        backend_runqueue_high_watermark: 0,
         connection_count: @connection_count,
-        concurrent_requests: @current_request_count
+        connection_rate: connections / elapsed,
+        cpu_usage: cpu,
+        error_rate: errors / elapsed,
+        http_request_rate: http_requests / elapsed,
+        pending_requests: @current_request_count,
+        rss: rss.to_f / 1024,
       }
+    end
+
+    def pid_cpu_and_rss(pid)
+      s = `ps -p #{pid} -o %cpu,rss`
+      cpu, rss = s.lines[1].chomp.strip.split(' ')
+      [cpu.to_f, rss.to_i]
+    rescue Exception
+      [nil, nil]
+    end
+    
+    def get_stats
+      @stats
     end
 
     def incr_connection_count
@@ -140,12 +159,16 @@ module DigitalFabric
     end
   
     def df_upgrade(req)
+      # we don't want to count connected agents
+      @current_request_count -= 1
       if req.headers['df-token'] != @token
         return req.respond(nil, ':status' => Qeweney::Status::FORBIDDEN)
       end
 
       req.adapter.conn << Protocol.df_upgrade_response
       AgentProxy.new(self, req)
+    ensure
+      @current_request_count += 1
     end
   
     def mount(route, agent)

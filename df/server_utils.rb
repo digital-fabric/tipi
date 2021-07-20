@@ -57,12 +57,12 @@ def listen_http
     id = 0
     loop do
       client = server.accept
-      log("Accept HTTP connection", client: client)
+      # log("Accept HTTP connection", client: client)
       spin("http#{id += 1}") do
         @service.incr_connection_count
         Tipi.client_loop(client, opts) { |req| @service.http_request(req) }
       ensure
-        log("Done with HTTP connection", client: client)
+        # log("Done with HTTP connection", client: client)
         @service.decr_connection_count
       end
     rescue => e
@@ -100,14 +100,14 @@ def listen_https
     id = 0
     loop do
       client = server.accept
-      log('Accept HTTPS client connection', client: client)
+      # log('Accept HTTPS client connection', client: client)
       spin("https#{id += 1}") do
         @service.incr_connection_count
         Tipi.client_loop(client, opts) { |req| @service.http_request(req) }
       rescue => e
         log('Error while handling HTTPS client', client: client, error: e, backtrace: e.backtrace)
       ensure
-        log("Done with HTTP connection", client: client)
+        # log("Done with HTTP connection", client: client)
         @service.decr_connection_count
       end
     rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError => e
@@ -127,7 +127,7 @@ def listen_unix
 
     id = 0
     socket.accept_loop do |client|
-      log('Accept Unix connection', client: client)
+      # log('Accept Unix connection', client: client)
       spin("unix#{id += 1}") do
         Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end
@@ -148,7 +148,7 @@ def listen_df
 
     id = 0
     server.accept_loop do |client|
-      log('Accept DF connection', client: client)
+      # log('Accept DF connection', client: client)
       spin("df#{id += 1}") do
         Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end

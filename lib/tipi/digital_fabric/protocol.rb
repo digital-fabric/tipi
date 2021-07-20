@@ -22,6 +22,9 @@ module DigitalFabric
 
     TRANSFER_COUNT = 'transfer_count'
 
+    STATS_REQUEST = 'stats_request'
+    STATS_RESPONSE = 'stats_response'
+
     SEND_TIMEOUT = 15
     RECV_TIMEOUT = SEND_TIMEOUT + 5
 
@@ -68,6 +71,10 @@ module DigitalFabric
         KEY = 1
         RX = 2
         TX = 3
+      end
+
+      module Stats
+        STATS = 2
       end
     end
 
@@ -136,11 +143,19 @@ module DigitalFabric
       end
         
       def ws_close(id)
-        [WS_CLOSE, id ]
+        [ WS_CLOSE, id ]
       end
 
       def transfer_count(key, rx, tx)
         [ TRANSFER_COUNT, key, rx, tx ]
+      end
+
+      def stats_request(id)
+        [ STATS_REQUEST, id ]
+      end
+
+      def stats_response(id, stats)
+        [ STATS_RESPONSE, id, stats ]
       end
     end
   end
