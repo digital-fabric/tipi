@@ -22,17 +22,18 @@ module DigitalFabric
       @connection_count = 0
       @http_latency_accumulator = 0
       @http_latency_counter = 0
+      @http_latency_max = 0
       @last_counters = @counters.merge(stamp: Time.now.to_f - 1)
       @fiber = Fiber.current
       @timer = Polyphony::Timer.new('service_timer', resolution: 5)
 
-      stats_updater = spin(:stats_updater) { @timer.every(10) { update_stats } }
+      # stats_updater = spin(:stats_updater) { @timer.every(10) { update_stats } }
       @stats = {}
 
       @current_request_count = 0
     end
 
-    def update_stats
+    def calculate_stats
       now = Time.now.to_f
       elapsed = now - @last_counters[:stamp]
       connections = @counters[:connections] - @last_counters[:connections]
@@ -40,27 +41,44 @@ module DigitalFabric
       errors = @counters[:errors] - @last_counters[:errors]
       @last_counters = @counters.merge(stamp: now)
 
-      average_latency = @http_latency_counter > 0 ?
-                        @http_latency_accumulator / @http_latency_counter :
-                        0
+      average_latency = @http_latency_counter == 0 ? 0 :
+                        @http_latency_accumulator / @http_latency_counter
       @http_latency_accumulator = 0
       @http_latency_counter = 0
+      max_latency = @http_latency_max
+      @http_latency_max = 0
 
       cpu, rss = pid_cpu_and_rss(Process.pid)
 
-      @stats = {
-        agent_count: @agents.size,
-        average_latency: average_latency,
-        backend_op_rate: 0,
-        backend_pending_ops: 0,
-        backend_runqueue_high_watermark: 0,
-        connection_count: @connection_count,
-        connection_rate: connections / elapsed,
-        cpu_usage: cpu,
-        error_rate: errors / elapsed,
-        http_request_rate: http_requests / elapsed,
-        pending_requests: @current_request_count,
-        rss: rss.to_f / 1024,
+      backend_stats = Thread.backend.stats
+      op_rate = backend_stats[:op_count] / elapsed
+      switch_rate = backend_stats[:switch_count] / elapsed
+      poll_rate = backend_stats[:poll_count] / elapsed
+
+      {
+        service: {
+          agent_count: @agents.size,
+          connection_count: @connection_count,
+          connection_rate: connections / elapsed,
+          error_rate: errors / elapsed,
+          http_request_rate: http_requests / elapsed,
+          latency_avg: average_latency,
+          latency_max: max_latency,
+          pending_requests: @current_request_count,
+          },
+        backend: {
+          op_rate: op_rate,
+          pending_ops: backend_stats[:pending_ops],
+          poll_rate: poll_rate,
+          runqueue_size: backend_stats[:runqueue_size],
+          runqueue_high_watermark: backend_stats[:runqueue_max_length],
+          switch_rate: switch_rate,
+
+        },
+        process: {
+          cpu_usage: cpu,
+          rss: rss.to_f / 1024,
+        }
       }
     end
 
@@ -73,7 +91,7 @@ module DigitalFabric
     end
     
     def get_stats
-      @stats
+      calculate_stats
     end
 
     def incr_connection_count
@@ -99,6 +117,7 @@ module DigitalFabric
     def record_latency_measurement(latency)
       @http_latency_accumulator += latency
       @http_latency_counter += 1
+      @http_latency_max = latency if latency > @http_latency_max
     end
   
     def http_request(req, allow_df_upgrade = false)

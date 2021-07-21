@@ -111,7 +111,7 @@ def listen_https
         @service.decr_connection_count
       end
     rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError => e
-      log('HTTPS accept error', error: e, backtrace: e.backtrace)
+      # log('HTTPS accept error', error: e, backtrace: e.backtrace)
     rescue => e
       log('HTTPS accept (unknown) error', error: e, backtrace: e.backtrace)
     end
