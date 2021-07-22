@@ -148,7 +148,7 @@ module DigitalFabric
         while (message = receive)
           unless t1
             t1 = Time.now
-            @service.record_latency_measurement(t1 - t0)
+            @service.record_latency_measurement(t1 - t0, req)
           end
           kind = message[Protocol::Attribute::KIND]
           attributes = message[Protocol::Attribute::HttpRequest::HEADERS..-1]

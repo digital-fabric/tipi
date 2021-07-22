@@ -114,10 +114,13 @@ module DigitalFabric
       count
     end
 
-    def record_latency_measurement(latency)
+    def record_latency_measurement(latency, req)
       @http_latency_accumulator += latency
       @http_latency_counter += 1
       @http_latency_max = latency if latency > @http_latency_max
+      return if latency < 1.0
+
+      puts format('slow request (%.1f): %p', latency, req.headers)
     end
   
     def http_request(req, allow_df_upgrade = false)
