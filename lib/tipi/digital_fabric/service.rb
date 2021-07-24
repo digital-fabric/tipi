@@ -13,24 +13,19 @@ module DigitalFabric
       @token = token
       @agents = {}
       @routes = {}
-      @waiting_lists = {} # hash mapping routes to arrays of requests waiting for an agent to mount
       @counters = {
         connections: 0,
         http_requests: 0,
         errors: 0
       }
       @connection_count = 0
+      @current_request_count = 0
       @http_latency_accumulator = 0
       @http_latency_counter = 0
       @http_latency_max = 0
       @last_counters = @counters.merge(stamp: Time.now.to_f - 1)
       @fiber = Fiber.current
       @timer = Polyphony::Timer.new('service_timer', resolution: 5)
-
-      # stats_updater = spin(:stats_updater) { @timer.every(10) { update_stats } }
-      @stats = {}
-
-      @current_request_count = 0
     end
 
     def calculate_stats
@@ -133,8 +128,6 @@ module DigitalFabric
       inject_request_headers(req)
       agent = find_agent(req)
       unless agent
-        return req.respond('pong') if req.query[:q] == 'ping'
-
         @counters[:errors] += 1
         return req.respond(nil, ':status' => Qeweney::Status::SERVICE_UNAVAILABLE)
       end
@@ -200,11 +193,6 @@ module DigitalFabric
       @executive = agent if route[:executive]
       @agents[agent] = route
       @routing_changed = true
-
-      if (waiting = @waiting_lists[route])
-        waiting.each { |f| f.schedule(agent) }
-        @waiting_lists.delete(route)
-      end
     end
   
     def unmount(agent)
@@ -214,8 +202,6 @@ module DigitalFabric
       @executive = nil if route[:executive]
       @agents.delete(agent)
       @routing_changed = true
-
-      @waiting_lists[route] ||= []
     end
 
     INVALID_HOST = 'INVALID_HOST'
@@ -230,12 +216,6 @@ module DigitalFabric
         (host == route[:host]) || (path =~ route[:path_regexp])
       end
       return @routes[route] if route
-
-      # # search for a known route for an agent that recently unmounted
-      # route, wait_list = @waiting_lists.find do |route, _|
-      #   (host == route[:host]) || (path =~ route[:path_regexp])
-      # end
-      # return wait_for_agent(wait_list) if route
 
       nil
     end
