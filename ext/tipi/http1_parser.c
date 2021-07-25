@@ -8,19 +8,23 @@ const int MAX_PATH_LENGTH         = 1024;
 const int MAX_HEADER_KEY_LENGTH   = 128;
 const int MAX_HEADER_VALUE_LENGTH = 2048;
 
+ID ID_backend_read;
+ID ID_downcase;
 ID ID_read;
 ID ID_readpartial;
-ID ID_downcase;
-ID ID_backend_read;
+ID ID_to_i;
 
 VALUE mPolyphony;
 
 VALUE MAX_READ_LENGTH;
 VALUE BUFFER_END;
 
-VALUE KEY_METHOD;
-VALUE KEY_PATH;
-VALUE KEY_PROTOCOL;
+VALUE STR_pseudo_method;
+VALUE STR_pseudo_path;
+VALUE STR_pseudo_protocol;
+
+VALUE STR_content_length;
+VALUE STR_transfer_encoding;
 
 typedef struct parser {
   VALUE io;
@@ -82,11 +86,11 @@ struct parser_state {
   int len;
 };
 
-#define READ_CONCAT(io, buffer) \
-  rb_funcall(mPolyphony, ID_backend_read, 5, io, buffer, MAX_READ_LENGTH, Qfalse, BUFFER_END)
+#define READ_CONCAT(io, buffer, len) \
+  rb_funcall(mPolyphony, ID_backend_read, 5, io, buffer, len, Qfalse, BUFFER_END)
 
 static inline int fill_buffer(struct parser_state *state) {
-  READ_CONCAT(state->parser->io, state->parser->buffer);
+  READ_CONCAT(state->parser->io, state->parser->buffer, MAX_READ_LENGTH);
   int len = RSTRING_LEN(state->parser->buffer);
   int read_bytes = len - state->len;
   if (!read_bytes) return 0;
@@ -183,7 +187,7 @@ loop:
       goto loop;
   }
 done:
-  SET_HEADER_DOWNCASE_VALUE_FROM_BUFFER(state, headers, KEY_METHOD, pos, len);
+  SET_HEADER_DOWNCASE_VALUE_FROM_BUFFER(state, headers, STR_pseudo_method, pos, len);
   return 1;
 bad_request:
   RAISE_BAD_REQUEST("Invalid method");
@@ -210,7 +214,7 @@ loop:
       goto loop;
   }
 done:
-  SET_HEADER_VALUE_FROM_BUFFER(state, headers, KEY_PATH, pos, len);
+  SET_HEADER_VALUE_FROM_BUFFER(state, headers, STR_pseudo_path, pos, len);
   return 1;
 bad_request:
   RAISE_BAD_REQUEST("Invalid path");
@@ -255,7 +259,7 @@ eol:
   INC_BUFFER_POS(state);
 done:
   if (len < 6 || len > 8) goto bad_request;
-  SET_HEADER_DOWNCASE_VALUE_FROM_BUFFER(state, headers, KEY_PROTOCOL, pos, len);
+  SET_HEADER_DOWNCASE_VALUE_FROM_BUFFER(state, headers, STR_pseudo_protocol, pos, len);
   return 1;
 bad_request:
   RAISE_BAD_REQUEST("Invalid protocol");
@@ -377,14 +381,13 @@ VALUE Parser_parse_headers(VALUE self) {
   struct parser_state state;
   GetParser(self, state.parser);
   VALUE headers = rb_hash_new();
-
   INIT_PARSER_STATE(&state);
 
   if (!parse_request_line(&state, headers)) goto eof;
 
 loop:
   switch (parse_header(&state, headers)) {
-    case -1: goto done;
+    case -1: goto done; // empty header => end of headers
     case 0: goto eof;
     default: goto loop;
   }
@@ -393,6 +396,75 @@ done:
   RB_GC_GUARD(headers);
   return headers;
 eof:
+  return Qnil;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+static inline int parse_content_length(VALUE value) {
+  VALUE to_i = rb_funcall(value, ID_to_i, 0);
+  return NUM2INT(to_i);
+}
+
+VALUE read_body_with_content_length(VALUE self, int content_length) {
+  if (content_length < 0) return Qnil;
+
+  Parser_t *parser;
+  GetParser(self, parser);
+
+  VALUE body;
+
+  int len = RSTRING_LEN(parser->buffer);
+  int pos = parser->pos;
+  int left = content_length;
+
+  printf("read_body len: %d   pos: %d\n", len, pos);
+  if (pos < len) {
+    int available = len - pos;
+    printf("  available: %d\n", available);
+    if (available > content_length) available = content_length;
+    body = rb_str_new(RSTRING_PTR(parser->buffer) + pos, available);
+    parser->pos += available;
+    left -= available;
+    len = available;
+  }
+  else {
+    body = rb_str_new(0, 0);
+    len = 0;
+  }
+  
+  while (left) {
+    printf("read_concat left: %d\n", left);
+    int maxlen = left;//left <= 4096 ? left : 4096;
+    printf("  maxlen: %d (cur_len: %ld)\n", maxlen, RSTRING_LEN(body));
+    READ_CONCAT(parser->io, body, maxlen);
+    int new_len = RSTRING_LEN(body);
+    printf("  new_len: %d\n", new_len);
+    int read_bytes = new_len - len;
+    printf("  read_bytes: %d\n", read_bytes);
+    if (!read_bytes) INSPECT("body", body);
+    if (!read_bytes) RAISE_BAD_REQUEST("Incomplete request body");
+
+    len = new_len;
+    left -= read_bytes;
+  }
+
+  RB_GC_GUARD(body);
+  return body;
+}
+
+VALUE Parser_read_body(VALUE self, VALUE headers) {
+  VALUE content_length = rb_hash_aref(headers, STR_content_length);
+  if (content_length != Qnil)
+    return read_body_with_content_length(self, parse_content_length(content_length));
+  
+  // VALUE transfer_encoding = rb_hash_aref(headers, STR_transfer_encoding);
+  // if (chunked_encoding_p(transfer_encoding)) {
+  //   return read_body_with_chunked_encoding(self);
+  // }
+
   return Qnil;
 }
 
@@ -410,17 +482,21 @@ void Init_HTTP1_Parser() {
   // backend methods
   rb_define_method(cHTTP1Parser, "initialize", Parser_initialize, 1);
   rb_define_method(cHTTP1Parser, "parse_headers", Parser_parse_headers, 0);
-  rb_define_method(cHTTP1Parser, "parse_headers", Parser_parse_headers, 0);
+  rb_define_method(cHTTP1Parser, "read_body", Parser_read_body, 1);
 
+  ID_backend_read = rb_intern("backend_read");
+  ID_downcase     = rb_intern("downcase");
   ID_read         = rb_intern("read");
   ID_readpartial  = rb_intern("readpartial");
-  ID_downcase     = rb_intern("downcase");
-  ID_backend_read = rb_intern("backend_read");
+  ID_to_i         = rb_intern("to_i");
 
   MAX_READ_LENGTH = INT2NUM(4096);
   BUFFER_END = INT2NUM(-1);
 
-  KEY_METHOD    = rb_str_new_literal(":method");
-  KEY_PATH      = rb_str_new_literal(":path");
-  KEY_PROTOCOL  = rb_str_new_literal(":protocol");
+  STR_pseudo_method     = rb_str_new_literal(":method");
+  STR_pseudo_path       = rb_str_new_literal(":path");
+  STR_pseudo_protocol   = rb_str_new_literal(":protocol");
+
+  STR_content_length    = rb_str_new_literal("content-length");
+  STR_transfer_encoding = rb_str_new_literal("transfer-encoding");
 }
