@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
   }
   s.rdoc_options = ["--title", "tipi", "--main", "README.md"]
   s.extra_rdoc_files = ["README.md"]
+  s.extensions = ["ext/polyphony/extconf.rb"]
   s.require_paths = ["lib"]
   s.required_ruby_version = '>= 2.6'
 
@@ -31,9 +32,12 @@ Gem::Specification.new do |s|
   # for digital fabric
   s.add_runtime_dependency      'msgpack',            '~>1.4.2'
 
+  s.add_development_dependency  'rake-compiler',        '1.1.1'
   s.add_development_dependency  'rake',               '~>12.3.3'
   s.add_development_dependency  'localhost',          '~>1.1.4'
   s.add_development_dependency  'minitest',           '~>5.11.3'
   s.add_development_dependency  'minitest-reporters', '~>1.4.2'
   s.add_development_dependency  'simplecov',          '~>0.17.1'
+
+  s.add_development_dependency  'cuba',               '~>3.9.3'
 end
