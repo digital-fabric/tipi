@@ -4,8 +4,8 @@ require "bundler/gem_tasks"
 require "rake/clean"
 
 require "rake/extensiontask"
-Rake::ExtensionTask.new("polyphony_ext") do |ext|
-  ext.ext_dir = "ext/polyphony"
+Rake::ExtensionTask.new("tipi_ext") do |ext|
+  ext.ext_dir = "ext/tipi"
 end
 
 task :recompile => [:clean, :compile]
