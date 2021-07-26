@@ -492,6 +492,8 @@ VALUE Parser_read_body(VALUE self, VALUE headers) {
   return Qnil;
 }
 
+#define GLOBAL_STR(v, s) v = rb_str_new_literal(s); rb_global_variable(&v)
+
 void Init_HTTP1_Parser() {
   VALUE mTipi;
   VALUE cHTTP1Parser;
@@ -517,10 +519,12 @@ void Init_HTTP1_Parser() {
   MAX_READ_LENGTH = INT2NUM(4096);
   BUFFER_END = INT2NUM(-1);
 
-  STR_pseudo_method     = rb_str_new_literal(":method");
-  STR_pseudo_path       = rb_str_new_literal(":path");
-  STR_pseudo_protocol   = rb_str_new_literal(":protocol");
+  GLOBAL_STR(STR_pseudo_method,       ":method");
+  GLOBAL_STR(STR_pseudo_path,         ":path");
+  GLOBAL_STR(STR_pseudo_protocol,     ":protocol");
 
-  STR_content_length    = rb_str_new_literal("content-length");
-  STR_transfer_encoding = rb_str_new_literal("transfer-encoding");
+  GLOBAL_STR(STR_content_length,      "content-length");
+  GLOBAL_STR(STR_transfer_encoding,   "transfer-encoding");
+
+
 }
