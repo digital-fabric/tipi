@@ -114,10 +114,7 @@ static inline int fill_buffer(struct parser_state *state) {
   if (BUFFER_POS(state) == BUFFER_LEN(state)) FILL_BUFFER_OR_GOTO_EOF(state); \
 }
 
-#define INC_BUFFER_POS_EOF_OK(state) { \
-  BUFFER_POS(state)++; \
-  if (BUFFER_POS(state) == BUFFER_LEN(state)) fill_buffer(state); \
-}
+#define INC_BUFFER_POS_NO_READ(state) BUFFER_POS(state)++;
 
 #define INC_BUFFER_POS_UTF8(state, len) { \
   unsigned char c = BUFFER_CUR(state); \
@@ -319,7 +316,7 @@ loop:
     case '\n':
       if (BUFFER_POS(state) > pos) goto bad_request;
 
-      INC_BUFFER_POS(state);
+      INC_BUFFER_POS_NO_READ(state);
       goto done;
     default:
       INC_BUFFER_POS_UTF8(state, len);
@@ -328,7 +325,7 @@ loop:
   }
 eol:
   if (BUFFER_CUR(state) != '\n') goto bad_request;
-  INC_BUFFER_POS_EOF_OK(state);
+  INC_BUFFER_POS_NO_READ(state);
 done:
   if (len == 0) return -1;
   (*key) = str_downcase(BUFFER_STR(state, pos, len));
