@@ -41,7 +41,7 @@ o << "post /?q=time&blah=blah HTTP/1\r\nHost: dev.realiteq.net\r\n\r\n"
 data = " " * 40000000
 o << "get /?q=time HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
 
-o << "get /?q=time HTTP/1.1\r\nCookie: foo\r\nCookie: bar\r\n\r\n"
+o << "getaezraerazreazr /?q=time HTTP/1.1\r\nCookie: foo\r\nCookie: bar\r\n\r\n"
 
 o.close
 

@@ -15,6 +15,7 @@ ID ID_readpartial;
 ID ID_to_i;
 
 VALUE mPolyphony;
+VALUE cError;
 
 VALUE MAX_READ_LENGTH;
 VALUE BUFFER_END;
@@ -150,7 +151,7 @@ static inline int fill_buffer(struct parser_state *state) {
     (state)->ptr = RSTRING_PTR((state)->parser->buffer); \
 }
 
-#define RAISE_BAD_REQUEST(msg) rb_raise(rb_eRuntimeError, msg)
+#define RAISE_BAD_REQUEST(msg) rb_raise(cError, msg)
 
 #define SET_HEADER_VALUE_FROM_BUFFER(state, headers, key, pos, len) { \
   VALUE value = BUFFER_STR(state, pos, len); \
@@ -511,6 +512,7 @@ void Init_HTTP1_Parser() {
   cHTTP1Parser = rb_define_class_under(mTipi, "HTTP1Parser", rb_cObject);
   rb_define_alloc_func(cHTTP1Parser, Parser_allocate);
 
+  cError = rb_define_class(cHTTP1Parser, "Error", rb_eRuntimeError);
 
   // backend methods
   rb_define_method(cHTTP1Parser, "initialize", Parser_initialize, 1);
@@ -532,6 +534,4 @@ void Init_HTTP1_Parser() {
 
   GLOBAL_STR(STR_content_length,      "content-length");
   GLOBAL_STR(STR_transfer_encoding,   "transfer-encoding");
-
-
 }
