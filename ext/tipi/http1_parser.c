@@ -14,7 +14,6 @@ ID ID_read;
 ID ID_readpartial;
 ID ID_to_i;
 
-VALUE mPolyphony;
 VALUE cError;
 
 VALUE MAX_READ_LENGTH;
@@ -479,14 +478,14 @@ VALUE read_body_with_content_length(VALUE self, int content_length) {
 
     if (body != Qnil) {
       VALUE tmp_buf = rb_funcall(
-        mPolyphony, ID_backend_read, 5, parser->io, Qnil, INT2NUM(maxlen), Qfalse, INT2NUM(0)
+        parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
       );
       rb_str_append(body, tmp_buf);
       RB_GC_GUARD(tmp_buf);
     }
     else {
       body = rb_funcall(
-        mPolyphony, ID_backend_read, 5, parser->io, Qnil, INT2NUM(maxlen), Qfalse, INT2NUM(0)
+        parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
       );
     }
     int new_len = RSTRING_LEN(body);
@@ -519,8 +518,6 @@ VALUE Parser_read_body(VALUE self, VALUE headers) {
 void Init_HTTP1_Parser() {
   VALUE mTipi;
   VALUE cHTTP1Parser;
-
-  mPolyphony = rb_const_get(rb_cObject, rb_intern("Polyphony"));
 
   mTipi = rb_define_module("Tipi");
   cHTTP1Parser = rb_define_class_under(mTipi, "HTTP1Parser", rb_cObject);
