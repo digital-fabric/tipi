@@ -29,6 +29,9 @@ spin do
       sleep 1
       req.send_chunk("bar\n")
       req.finish
+    elsif req.path == '/upload'
+      body = req.read
+      req.respond("Body: #{body.inspect} (#{body.bytesize} bytes)")
     else
       req.respond("Hello world!\n")
     end

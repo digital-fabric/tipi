@@ -1,8 +1,15 @@
 # frozen_string_literal: true
 
 require 'polyphony'
-require_relative './tipi/http1_adapter'
-# require_relative './tipi/http1_adapter_new'
+
+$experimental_http1_adapter = ENV['HTTP1ADAPTER'] == 'new'
+
+if $experimental_http1_adapter
+  require_relative './tipi/http1_adapter_new'
+else
+  require_relative './tipi/http1_adapter'
+end
+
 require_relative './tipi/http2_adapter'
 require_relative './tipi/configuration'
 require_relative './tipi/response_extensions'
@@ -49,11 +56,14 @@ module Tipi
     ensure
       client.close rescue nil
     end
-    
+
+    HTTP1ADAPTER = $experimental_http1_adapter ?
+      HTTP1AdapterNew : HTTP1Adapter
+
     def protocol_adapter(socket, opts)
       use_http2 = socket.respond_to?(:alpn_protocol) &&
                   socket.alpn_protocol == H2_PROTOCOL
-      klass = use_http2 ? HTTP2Adapter : HTTP1Adapter#New
+      klass = use_http2 ? HTTP2Adapter : HTTP1ADAPTER
       klass.new(socket, opts)
     end
 
