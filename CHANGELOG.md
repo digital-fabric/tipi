@@ -1,3 +1,10 @@
+## 0.41 2021-07-26
+
+- Fix Rack adapter (#11)
+- Introduce experimental HTTP/1 parser
+- More work on DF server
+- Allow setting chunk size in `#respond_from_io`
+
 ## 0.40 2021-06-24
 
 - Implement serving static files using splice_chunks (nice performance boost for
