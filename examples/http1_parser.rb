@@ -36,15 +36,18 @@ f = spin do
   end
 end
 
-p Tipi::HTTP1Parser::Error
+o << "GET /a HTTP/1.1\r\n\r\n"
+o << "GET /b HTTP/1.1\r\n\r\n"
 
-o << "post /?q=time&blah=blah HTTP/1\r\nHost: dev.realiteq.net\r\n\r\n"
+# o << "GET / HTTP/1.1\r\nHost: localhost:10080\r\nUser-Agent: curl/7.74.0\r\nAccept: */*\r\n\r\n"
 
-data = " " * 4000000
-o << "get /?q=time HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
+# o << "post /?q=time&blah=blah HTTP/1\r\nHost: dev.realiteq.net\r\n\r\n"
 
-o << "get /?q=time HTTP/1.1\r\nCookie: foo\r\nCookie: bar\r\n\r\n"
+# data = " " * 4000000
+# o << "get /?q=time HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
 
-o.close
+# o << "get /?q=time HTTP/1.1\r\nCookie: foo\r\nCookie: bar\r\n\r\n"
 
+# o.close
+ 
 f.await
