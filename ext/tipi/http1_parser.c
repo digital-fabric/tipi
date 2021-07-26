@@ -88,7 +88,7 @@ struct parser_state {
 };
 
 #define READ_CONCAT(io, buffer, len) \
-  rb_funcall(mPolyphony, ID_backend_read, 5, io, buffer, len, Qfalse, BUFFER_END)
+  rb_funcall(io, ID_readpartial, 4, len, buffer, BUFFER_END, Qfalse)
 
 static inline int fill_buffer(struct parser_state *state) {
   READ_CONCAT(state->parser->io, state->parser->buffer, MAX_READ_LENGTH);
