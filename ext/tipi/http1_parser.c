@@ -427,6 +427,8 @@ eof:
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+const int READ_MAX_LEN = 1 << 20;
+
 static inline int parse_content_length(VALUE value) {
   VALUE to_i = rb_funcall(value, ID_to_i, 0);
   return NUM2INT(to_i);
@@ -444,10 +446,8 @@ VALUE read_body_with_content_length(VALUE self, int content_length) {
   int pos = parser->pos;
   int left = content_length;
 
-  printf("read_body len: %d   pos: %d\n", len, pos);
   if (pos < len) {
     int available = len - pos;
-    printf("  available: %d\n", available);
     if (available > content_length) available = content_length;
     body = rb_str_new(RSTRING_PTR(parser->buffer) + pos, available);
     parser->pos += available;
@@ -455,20 +455,27 @@ VALUE read_body_with_content_length(VALUE self, int content_length) {
     len = available;
   }
   else {
-    body = rb_str_new(0, 0);
+    body = Qnil;
     len = 0;
   }
   
   while (left) {
-    printf("read_concat left: %d\n", left);
-    int maxlen = left;//left <= 4096 ? left : 4096;
-    printf("  maxlen: %d (cur_len: %ld)\n", maxlen, RSTRING_LEN(body));
-    READ_CONCAT(parser->io, body, maxlen);
+    int maxlen = left <= READ_MAX_LEN ? left : READ_MAX_LEN;
+
+    if (body != Qnil) {
+      VALUE tmp_buf = rb_funcall(
+        mPolyphony, ID_backend_read, 5, parser->io, Qnil, INT2NUM(maxlen), Qfalse, INT2NUM(0)
+      );
+      rb_str_append(body, tmp_buf);
+      RB_GC_GUARD(tmp_buf);
+    }
+    else {
+      body = rb_funcall(
+        mPolyphony, ID_backend_read, 5, parser->io, Qnil, INT2NUM(maxlen), Qfalse, INT2NUM(0)
+      );
+    }
     int new_len = RSTRING_LEN(body);
-    printf("  new_len: %d\n", new_len);
     int read_bytes = new_len - len;
-    printf("  read_bytes: %d\n", read_bytes);
-    if (!read_bytes) INSPECT("body", body);
     if (!read_bytes) RAISE_BAD_REQUEST("Incomplete request body");
 
     len = new_len;
