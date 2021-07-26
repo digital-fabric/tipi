@@ -2,6 +2,7 @@
 
 require 'polyphony'
 require_relative './tipi/http1_adapter'
+# require_relative './tipi/http1_adapter_new'
 require_relative './tipi/http2_adapter'
 require_relative './tipi/configuration'
 require_relative './tipi/response_extensions'
@@ -52,7 +53,7 @@ module Tipi
     def protocol_adapter(socket, opts)
       use_http2 = socket.respond_to?(:alpn_protocol) &&
                   socket.alpn_protocol == H2_PROTOCOL
-      klass = use_http2 ? HTTP2Adapter : HTTP1Adapter
+      klass = use_http2 ? HTTP2Adapter : HTTP1Adapter#New
       klass.new(socket, opts)
     end
 
