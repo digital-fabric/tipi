@@ -4,7 +4,7 @@
 #define str_downcase(str) (rb_funcall((str), ID_downcase, 0))
 
 const int MAX_METHOD_LENGTH                       = 16;
-const int MAX_PATH_LENGTH                         = 1024;
+const int MAX_PATH_LENGTH                         = 4096;
 const int MAX_HEADER_KEY_LENGTH                   = 128;
 const int MAX_HEADER_VALUE_LENGTH                 = 2048;
 const int MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH  = 16;
@@ -206,7 +206,7 @@ loop:
       goto bad_request;
     default:
       INC_BUFFER_POS_UTF8(state, len);
-      if (len >= MAX_METHOD_LENGTH) goto bad_request;
+      if (len > MAX_METHOD_LENGTH) goto bad_request;
       goto loop;
   }
 done:
@@ -233,7 +233,7 @@ loop:
       goto bad_request;
     default:
       INC_BUFFER_POS_UTF8(state, len);
-      if (len >= MAX_PATH_LENGTH) goto bad_request;
+      if (len > MAX_PATH_LENGTH) goto bad_request;
       goto loop;
   }
 done:
@@ -269,14 +269,17 @@ loop:
       INC_BUFFER_POS(state);
       goto done;
     case '.':
-    case '1':
       len++;
-      if (len > 8) goto bad_request;
       INC_BUFFER_POS(state);
-      goto loop;
+      goto point;
     default:
       goto bad_request;
   }
+point:
+  if (BUFFER_CUR(state) != '1') goto bad_request;
+  len++;
+  INC_BUFFER_POS(state);
+  goto loop;
 eol:
   if (BUFFER_CUR(state) != '\n') goto bad_request;
   INC_BUFFER_POS(state);
@@ -641,17 +644,16 @@ VALUE read_body_with_chunked_encoding(VALUE self, VALUE headers, int read_entire
 
   while (1) {
     int chunk_size;
-    if (!parse_chunk_size(&state, &chunk_size)) goto bad_body;
+    if (!parse_chunk_size(&state, &chunk_size)) goto bad_request;
     
     if (chunk_size) {
-      if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size)) goto bad_body;
+      if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size)) goto bad_request;
     }
 
-    if (!parse_chunk_postfix(&state)) goto bad_body;
-    
+    if (!parse_chunk_postfix(&state)) goto bad_request;
     if (!chunk_size || !read_entire_body) goto done;
   }
-bad_body:
+bad_request:
   RAISE_BAD_REQUEST("Malformed request body");
 eof:
   RAISE_BAD_REQUEST("Incomplete request body");
