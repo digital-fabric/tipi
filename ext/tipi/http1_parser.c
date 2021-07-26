@@ -512,7 +512,7 @@ void Init_HTTP1_Parser() {
   cHTTP1Parser = rb_define_class_under(mTipi, "HTTP1Parser", rb_cObject);
   rb_define_alloc_func(cHTTP1Parser, Parser_allocate);
 
-  cError = rb_define_class(cHTTP1Parser, "Error", rb_eRuntimeError);
+  cError = rb_define_class_under(cHTTP1Parser, "Error", rb_eRuntimeError);
 
   // backend methods
   rb_define_method(cHTTP1Parser, "initialize", Parser_initialize, 1);
