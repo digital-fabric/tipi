@@ -43,6 +43,7 @@ module Tipi
         headers[':first'] = true
         @first = nil
       end
+      @last_headers = headers
       
       request = Qeweney::Request.new(headers, self)
       return true if upgrade_connection(request.headers, &block)
@@ -61,7 +62,7 @@ module Tipi
     # Reads a body chunk for the current request. Transfers control to the parse
     # loop, and resumes once the parse_loop has fired the on_body callback
     def get_body_chunk(request)
-      raise NotImplementedError
+      @parser.read_body_chunk(@last_headers)
     end
     
     # Waits for the current request to complete. Transfers control to the parse
