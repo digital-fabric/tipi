@@ -33,6 +33,7 @@ f = spin do
 
     body = parser.read_body(headers)
     trace "body: #{body ? body.bytesize : 0} bytes"
+    trace body if body && body.bytesize < 80
   end
 end
 
@@ -42,7 +43,7 @@ o << "GET /a HTTP/1.1\r\n\r\n"
 
 # o << "GET / HTTP/1.1\r\nHost: localhost:10080\r\nUser-Agent: curl/7.74.0\r\nAccept: */*\r\n\r\n"
 
-o << "post /?q=time&blah=blah HTTP/1\r\nHost: dev.realiteq.net\r\n\r\n"
+o << "post /?q=time&blah=blah HTTP/1\r\nTransfer-Encoding: chunked\r\n\r\na\r\nabcdefghij\r\n0\r\n\r\n"
 
 data = " " * 4000000
 o << "get /?q=time HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"

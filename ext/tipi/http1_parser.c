@@ -3,13 +3,15 @@
 
 #define str_downcase(str) (rb_funcall((str), ID_downcase, 0))
 
-const int MAX_METHOD_LENGTH       = 16;
-const int MAX_PATH_LENGTH         = 1024;
-const int MAX_HEADER_KEY_LENGTH   = 128;
-const int MAX_HEADER_VALUE_LENGTH = 2048;
+const int MAX_METHOD_LENGTH                       = 16;
+const int MAX_PATH_LENGTH                         = 1024;
+const int MAX_HEADER_KEY_LENGTH                   = 128;
+const int MAX_HEADER_VALUE_LENGTH                 = 2048;
+const int MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH  = 16;
 
 ID ID_backend_read;
 ID ID_downcase;
+ID ID_eq;
 ID ID_read;
 ID ID_readpartial;
 ID ID_to_i;
@@ -22,7 +24,9 @@ VALUE BUFFER_END;
 VALUE STR_pseudo_method;
 VALUE STR_pseudo_path;
 VALUE STR_pseudo_protocol;
+VALUE STR_pseudo_request_body_left;
 
+VALUE STR_chunked;
 VALUE STR_content_length;
 VALUE STR_transfer_encoding;
 
@@ -424,7 +428,7 @@ eof:
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-const int READ_MAX_LEN = 1 << 20;
+const int READ_BODY_MAX_LEN = 1 << 20;
 
 static inline int str_to_int(VALUE value, const char *error_msg) {
   char *ptr = RSTRING_PTR(value);
@@ -448,7 +452,7 @@ static inline int parse_content_length(VALUE value) {
   return str_to_int(value, "Invalid content length");
 }
 
-VALUE read_body_with_content_length(VALUE self, int content_length) {
+VALUE read_body_with_content_length(VALUE self, VALUE headers, int content_length, int read_entire_body) {
   if (content_length < 0) return Qnil;
 
   Parser_t *parser;
@@ -456,13 +460,24 @@ VALUE read_body_with_content_length(VALUE self, int content_length) {
 
   VALUE body;
 
+  VALUE left_header = rb_hash_aref(headers, STR_pseudo_request_body_left);
+
   int len = RSTRING_LEN(parser->buffer);
   int pos = parser->pos;
-  int left = content_length;
+  int left;
+
+  if (left_header != Qnil)
+    left = NUM2INT(left_header);
+  else {
+    left = content_length;
+    rb_hash_aset(headers, STR_pseudo_request_body_left, INT2NUM(left));
+  }
+
+  if (!left) return Qnil;
 
   if (pos < len) {
     int available = len - pos;
-    if (available > content_length) available = content_length;
+    if (available > left) available = left;
     body = rb_str_new(RSTRING_PTR(parser->buffer) + pos, available);
     parser->pos += available;
     left -= available;
@@ -474,43 +489,200 @@ VALUE read_body_with_content_length(VALUE self, int content_length) {
   }
   
   while (left) {
-    int maxlen = left <= READ_MAX_LEN ? left : READ_MAX_LEN;
-
-    if (body != Qnil) {
-      VALUE tmp_buf = rb_funcall(
-        parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
-      );
+    int maxlen = left <= READ_BODY_MAX_LEN ? left : READ_BODY_MAX_LEN;
+    VALUE tmp_buf = rb_funcall(
+      parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
+    );
+    
+    if (body != Qnil)
       rb_str_append(body, tmp_buf);
-      RB_GC_GUARD(tmp_buf);
-    }
-    else {
-      body = rb_funcall(
-        parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
-      );
-    }
+    else
+      body = tmp_buf;
+    RB_GC_GUARD(tmp_buf);
+
     int new_len = RSTRING_LEN(body);
     int read_bytes = new_len - len;
     if (!read_bytes) RAISE_BAD_REQUEST("Incomplete request body");
 
     len = new_len;
     left -= read_bytes;
+    if (!read_entire_body) {
+      rb_hash_aset(headers, STR_pseudo_request_body_left, INT2NUM(left));
+      goto done;
+    }
   }
-
+  rb_hash_aset(headers, STR_pseudo_request_body_left, INT2NUM(0));
+done:
   RB_GC_GUARD(body);
   return body;
 }
 
-VALUE Parser_read_body(VALUE self, VALUE headers) {
+int chunked_encoding_p(VALUE transfer_encoding) {
+  if (transfer_encoding == Qnil) return 0;
+  return rb_funcall(str_downcase(transfer_encoding), ID_eq, 1, STR_chunked) == Qtrue;
+}
+
+int parse_chunk_size(struct parser_state *state, int *chunk_size) {
+  int len = 0;
+  int value = 0;
+  char c;
+
+loop:
+  c = BUFFER_CUR(state);
+  if ((c >= '0') && (c <= '9'))       value = (value << 4) + (c - '0');
+  else if ((c >= 'a') && (c <= 'f'))  value = (value << 4) + (c - 'a' + 10);
+  else if ((c >= 'A') && (c <= 'F'))  value = (value << 4) + (c - 'A' + 10);
+  else switch (BUFFER_CUR(state)) {
+    case '\r':
+      INC_BUFFER_POS(state);
+      goto eol;
+    case '\n':
+      INC_BUFFER_POS_NO_READ(state);
+      goto done;
+    default:
+      goto bad_request;
+  }
+  INC_BUFFER_POS(state);
+  len++;
+  if (len >= MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH) goto bad_request;
+  goto loop;
+eol:
+  if (BUFFER_CUR(state) != '\n') goto bad_request;
+  INC_BUFFER_POS_NO_READ(state);
+done:
+  if (len == 0) goto bad_request;
+  (*chunk_size) = value;
+  return 1;
+bad_request:
+  RAISE_BAD_REQUEST("Invalid chunk size");
+eof:
+  return 0;
+}
+
+static inline void str_append_from_buffer(VALUE str, char *ptr, int len) {
+  int str_len = RSTRING_LEN(str);
+  rb_str_modify_expand(str, len);
+  memcpy(RSTRING_PTR(str) + str_len, ptr, len);
+  rb_str_set_len(str, str_len + len);
+}
+
+int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *body, int chunk_size) {
+  int len = RSTRING_LEN(state->parser->buffer);
+  int pos = state->parser->pos;
+  int left = chunk_size;
+
+  if (pos < len) {
+    int available = len - pos;
+    if (available > left) available = left;
+    if (*body != Qnil)
+      str_append_from_buffer(*body, RSTRING_PTR(state->parser->buffer) + pos, available);
+    else
+      *body = rb_str_new(RSTRING_PTR(state->parser->buffer) + pos, available);
+    state->parser->pos += available;
+    left -= available;
+  }
+
+  while (left) {
+    int maxlen = left <= READ_BODY_MAX_LEN ? left : READ_BODY_MAX_LEN;
+
+    VALUE tmp_buf = rb_funcall(
+      state->parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
+    );
+    if (tmp_buf == Qnil) RAISE_BAD_REQUEST("Incomplete request body");
+    
+    if (*body != Qnil)
+      rb_str_append(*body, tmp_buf);
+    else
+      *body = tmp_buf;
+    int read_bytes = RSTRING_LEN(tmp_buf);
+    RB_GC_GUARD(tmp_buf);
+
+    if (!read_bytes) RAISE_BAD_REQUEST("Incomplete request body");
+    left -= read_bytes;
+  }
+  return 1;
+eof:
+  return 0;
+}
+
+static inline int parse_chunk_postfix(struct parser_state *state) {
+  if (BUFFER_POS(state) == BUFFER_LEN(state)) FILL_BUFFER_OR_GOTO_EOF(state);
+  int pos = BUFFER_POS(state);
+loop:
+  switch (BUFFER_CUR(state)) {
+    case '\r':
+      INC_BUFFER_POS(state);
+      goto eol;
+    case '\n':
+      INC_BUFFER_POS_NO_READ(state);
+      goto done;
+    default:
+      goto bad_request;
+  }
+eol:
+  if (BUFFER_CUR(state) != '\n') goto bad_request;
+  INC_BUFFER_POS_NO_READ(state);
+done:
+  return 1;
+bad_request:
+  RAISE_BAD_REQUEST("Invalid protocol");
+eof:
+  return 0;
+}
+
+VALUE read_body_with_chunked_encoding(VALUE self, VALUE headers, int read_entire_body) {
+  struct parser_state state;
+  GetParser(self, state.parser);
+
+  buffer_trim(&state);
+  INIT_PARSER_STATE(&state);
+
+  VALUE body = Qnil;
+
+  while (1) {
+    int chunk_size;
+    if (!parse_chunk_size(&state, &chunk_size)) goto bad_body;
+    
+    if (chunk_size) {
+      if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size)) goto bad_body;
+    }
+
+    if (!parse_chunk_postfix(&state)) goto bad_body;
+    
+    if (!chunk_size || !read_entire_body) goto done;
+  }
+bad_body:
+  RAISE_BAD_REQUEST("Malformed request body");
+eof:
+  RAISE_BAD_REQUEST("Incomplete request body");
+done:
+  RB_GC_GUARD(body);
+  return body;
+}
+
+static inline VALUE read_body(VALUE self, VALUE headers, int read_entire_body) {
   VALUE content_length = rb_hash_aref(headers, STR_content_length);
-  if (content_length != Qnil)
-    return read_body_with_content_length(self, parse_content_length(content_length));
-  
-  // VALUE transfer_encoding = rb_hash_aref(headers, STR_transfer_encoding);
-  // if (chunked_encoding_p(transfer_encoding)) {
-  //   return read_body_with_chunked_encoding(self);
-  // }
+  if (content_length != Qnil) {
+    int content_length_int = parse_content_length(content_length);
+    return read_body_with_content_length(
+      self, headers, content_length_int, read_entire_body
+    );
+  }
+
+  VALUE transfer_encoding = rb_hash_aref(headers, STR_transfer_encoding);
+  if (chunked_encoding_p(transfer_encoding))
+    return read_body_with_chunked_encoding(self, headers, read_entire_body);
 
   return Qnil;
+}
+
+
+VALUE Parser_read_body(VALUE self, VALUE headers) {
+  return read_body(self, headers, 1);
+}
+
+VALUE Parser_read_body_chunk(VALUE self, VALUE headers) {
+  return read_body(self, headers, 0);
 }
 
 #define GLOBAL_STR(v, s) v = rb_str_new_literal(s); rb_global_variable(&v)
@@ -529,9 +701,11 @@ void Init_HTTP1_Parser() {
   rb_define_method(cHTTP1Parser, "initialize", Parser_initialize, 1);
   rb_define_method(cHTTP1Parser, "parse_headers", Parser_parse_headers, 0);
   rb_define_method(cHTTP1Parser, "read_body", Parser_read_body, 1);
+  rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 1);
 
   ID_backend_read = rb_intern("backend_read");
   ID_downcase     = rb_intern("downcase");
+  ID_eq           = rb_intern("==");
   ID_read         = rb_intern("read");
   ID_readpartial  = rb_intern("readpartial");
   ID_to_i         = rb_intern("to_i");
@@ -542,7 +716,9 @@ void Init_HTTP1_Parser() {
   GLOBAL_STR(STR_pseudo_method,       ":method");
   GLOBAL_STR(STR_pseudo_path,         ":path");
   GLOBAL_STR(STR_pseudo_protocol,     ":protocol");
+  GLOBAL_STR(STR_pseudo_request_body_left,   ":request_body_left");
 
+  GLOBAL_STR(STR_chunked,             "chunked");
   GLOBAL_STR(STR_content_length,      "content-length");
   GLOBAL_STR(STR_transfer_encoding,   "transfer-encoding");
 }
