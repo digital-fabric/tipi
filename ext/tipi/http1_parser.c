@@ -164,6 +164,28 @@ static inline int fill_buffer(struct parser_state *state) {
   RB_GC_GUARD(value); \
 }
 
+#define BUFFER_TRIM_MIN_LEN 4096
+#define BUFFER_TRIM_MIN_POS 2048
+
+static inline void buffer_trim(struct parser_state *state) {
+  int len = RSTRING_LEN(state->parser->buffer);
+  int pos = state->parser->pos;
+  int left = len - pos;
+
+  // The buffer is trimmed only if length and position thresholds are passed,
+  // *and* position is past the halfway point. 
+  if (len < BUFFER_TRIM_MIN_LEN || 
+      pos < BUFFER_TRIM_MIN_POS ||
+      left >= pos) return;
+
+  if (left > 0) {
+    char *ptr = RSTRING_PTR(state->parser->buffer);
+    memcpy(ptr, ptr + pos, left);
+  }
+  rb_str_set_len(state->parser->buffer, left);
+  state->parser->pos = 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -381,6 +403,8 @@ VALUE Parser_parse_headers(VALUE self) {
   struct parser_state state;
   GetParser(self, state.parser);
   VALUE headers = rb_hash_new();
+
+  buffer_trim(&state);
   INIT_PARSER_STATE(&state);
 
   if (!parse_request_line(&state, headers)) goto eof;
