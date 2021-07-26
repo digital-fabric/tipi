@@ -427,9 +427,26 @@ eof:
 
 const int READ_MAX_LEN = 1 << 20;
 
+static inline int str_to_int(VALUE value, const char *error_msg) {
+  char *ptr = RSTRING_PTR(value);
+  int len = RSTRING_LEN(value);
+  int int_value = 0;
+
+  while (len) {
+    char c = *ptr;
+    if ((c >= '0') && (c <= '9'))
+      int_value = int_value * 10 + (c - '0');
+    else
+      RAISE_BAD_REQUEST(error_msg);
+    len--;
+    ptr++;
+  }
+
+  return int_value;
+}
+
 static inline int parse_content_length(VALUE value) {
-  VALUE to_i = rb_funcall(value, ID_to_i, 0);
-  return NUM2INT(to_i);
+  return str_to_int(value, "Invalid content length");
 }
 
 VALUE read_body_with_content_length(VALUE self, int content_length) {
