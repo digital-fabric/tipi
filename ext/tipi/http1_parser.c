@@ -326,7 +326,7 @@ loop:
       goto done;
     default:
       INC_BUFFER_POS_UTF8(state, len);
-      if (len >= MAX_HEADER_KEY_LENGTH) goto bad_request;
+      if (len > MAX_HEADER_KEY_LENGTH) goto bad_request;
       goto loop;
   }
 eol:
@@ -357,7 +357,7 @@ loop:
       goto done;
     default:
       INC_BUFFER_POS_UTF8(state, len);
-      if (len >= MAX_HEADER_VALUE_LENGTH) goto bad_request;
+      if (len > MAX_HEADER_VALUE_LENGTH) goto bad_request;
       goto loop;
   }
 eol:
