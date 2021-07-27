@@ -3,11 +3,11 @@
 
 #define str_downcase(str) (rb_funcall((str), ID_downcase, 0))
 
-const int MAX_METHOD_LENGTH                       = 16;
-const int MAX_PATH_LENGTH                         = 4096;
-const int MAX_HEADER_KEY_LENGTH                   = 128;
-const int MAX_HEADER_VALUE_LENGTH                 = 2048;
-const int MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH  = 16;
+#define MAX_METHOD_LENGTH                       16
+#define MAX_PATH_LENGTH                         4096
+#define MAX_HEADER_KEY_LENGTH                   128
+#define MAX_HEADER_VALUE_LENGTH                 2048
+#define MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH  16
 
 ID ID_backend_read;
 ID ID_downcase;
