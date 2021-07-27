@@ -162,6 +162,18 @@ static inline int fill_buffer(struct parser_state *state) {
   RB_GC_GUARD(value); \
 }
 
+#define CONSUME_CRLF(state) { \
+  INC_BUFFER_POS(state); \
+  if (BUFFER_CUR(state) != '\n') goto bad_request; \
+  INC_BUFFER_POS(state); \
+}
+
+#define CONSUME_CRLF_NO_READ(state) { \
+  INC_BUFFER_POS(state); \
+  if (BUFFER_CUR(state) != '\n') goto bad_request; \
+  INC_BUFFER_POS_NO_READ(state); \
+}
+
 #define BUFFER_TRIM_MIN_LEN 4096
 #define BUFFER_TRIM_MIN_POS 2048
 
@@ -192,19 +204,19 @@ static inline int parse_method(struct parser_state *state, VALUE headers) {
   int pos = BUFFER_POS(state);
   int len = 0;
 
-loop:
-  switch (BUFFER_CUR(state)) {
-    case ' ':
-      if (len < 1 || len > MAX_METHOD_LENGTH) goto bad_request;
-      INC_BUFFER_POS(state);
-      goto done;
-    case '\r':
-    case '\n':
-      goto bad_request;
-    default:
-      INC_BUFFER_POS_UTF8(state, len);
-      if (len > MAX_METHOD_LENGTH) goto bad_request;
-      goto loop;
+  while (1) {
+    switch (BUFFER_CUR(state)) {
+      case ' ':
+        if (len < 1 || len > MAX_METHOD_LENGTH) goto bad_request;
+        INC_BUFFER_POS(state);
+        goto done;
+      case '\r':
+      case '\n':
+        goto bad_request;
+      default:
+        INC_BUFFER_POS_UTF8(state, len);
+        if (len > MAX_METHOD_LENGTH) goto bad_request;
+    }
   }
 done:
   SET_HEADER_DOWNCASE_VALUE_FROM_BUFFER(state, headers, STR_pseudo_method, pos, len);
@@ -219,19 +231,19 @@ static int parse_path(struct parser_state *state, VALUE headers) {
   while (BUFFER_CUR(state) == ' ') INC_BUFFER_POS(state);
   int pos = BUFFER_POS(state);
   int len = 0;
-loop:
-  switch (BUFFER_CUR(state)) {
-    case ' ':
-      if (len < 1 || len > MAX_PATH_LENGTH) goto bad_request;
-      INC_BUFFER_POS(state);
-      goto done;
-    case '\r':
-    case '\n':
-      goto bad_request;
-    default:
-      INC_BUFFER_POS_UTF8(state, len);
-      if (len > MAX_PATH_LENGTH) goto bad_request;
-      goto loop;
+  while (1) {
+    switch (BUFFER_CUR(state)) {
+      case ' ':
+        if (len < 1 || len > MAX_PATH_LENGTH) goto bad_request;
+        INC_BUFFER_POS(state);
+        goto done;
+      case '\r':
+      case '\n':
+        goto bad_request;
+      default:
+        INC_BUFFER_POS_UTF8(state, len);
+        if (len > MAX_PATH_LENGTH) goto bad_request;
+    }
   }
 done:
   SET_HEADER_VALUE_FROM_BUFFER(state, headers, STR_pseudo_path, pos, len);
@@ -257,29 +269,24 @@ static int parse_protocol(struct parser_state *state, VALUE headers) {
   if (BUFFER_CUR(state) == '/') INC_BUFFER_POS(state) else goto bad_request;
   if (BUFFER_CUR(state) == '1') INC_BUFFER_POS(state) else goto bad_request;
   len = 6;
-loop:
-  switch (BUFFER_CUR(state)) {
-    case '\r':
-      INC_BUFFER_POS(state);
-      goto eol;
-    case '\n':
-      INC_BUFFER_POS(state);
-      goto done;
-    case '.':
-      len++;
-      INC_BUFFER_POS(state);
-      goto point;
-    default:
-      goto bad_request;
+  while (1) {
+    switch (BUFFER_CUR(state)) {
+      case '\r':
+        CONSUME_CRLF(state);
+        goto done;
+      case '\n':
+        INC_BUFFER_POS(state);
+        goto done;
+      case '.':
+        INC_BUFFER_POS(state);
+        if (BUFFER_CUR(state) != '1') goto bad_request;
+        INC_BUFFER_POS(state);
+        len += 2;
+        continue;
+      default:
+        goto bad_request;
+    }
   }
-point:
-  if (BUFFER_CUR(state) != '1') goto bad_request;
-  len++;
-  INC_BUFFER_POS(state);
-  goto loop;
-eol:
-  if (BUFFER_CUR(state) != '\n') goto bad_request;
-  INC_BUFFER_POS(state);
 done:
   if (len < 6 || len > 8) goto bad_request;
   SET_HEADER_DOWNCASE_VALUE_FROM_BUFFER(state, headers, STR_pseudo_protocol, pos, len);
@@ -304,33 +311,29 @@ static inline int parse_header_key(struct parser_state *state, VALUE *key) {
   int pos = BUFFER_POS(state);
   int len = 0;
 
-loop:
-  switch (BUFFER_CUR(state)) {
-    case ' ':
-      goto bad_request;
-    case ':':
-      if (len < 1 || len > MAX_HEADER_KEY_LENGTH)
+  while (1) {
+    switch (BUFFER_CUR(state)) {
+      case ' ':
         goto bad_request;
-      INC_BUFFER_POS(state);
-      goto done;
-    case '\r':
-      if (BUFFER_POS(state) > pos) goto bad_request;
+      case ':':
+        if (len < 1 || len > MAX_HEADER_KEY_LENGTH)
+          goto bad_request;
+        INC_BUFFER_POS(state);
+        goto done;
+      case '\r':
+        if (BUFFER_POS(state) > pos) goto bad_request;
+        CONSUME_CRLF_NO_READ(state);
+        goto done;
+      case '\n':
+        if (BUFFER_POS(state) > pos) goto bad_request;
 
-      INC_BUFFER_POS(state);
-      goto eol;
-    case '\n':
-      if (BUFFER_POS(state) > pos) goto bad_request;
-
-      INC_BUFFER_POS_NO_READ(state);
-      goto done;
-    default:
-      INC_BUFFER_POS_UTF8(state, len);
-      if (len > MAX_HEADER_KEY_LENGTH) goto bad_request;
-      goto loop;
+        INC_BUFFER_POS_NO_READ(state);
+        goto done;
+      default:
+        INC_BUFFER_POS_UTF8(state, len);
+        if (len > MAX_HEADER_KEY_LENGTH) goto bad_request;
+    }
   }
-eol:
-  if (BUFFER_CUR(state) != '\n') goto bad_request;
-  INC_BUFFER_POS_NO_READ(state);
 done:
   if (len == 0) return -1;
   (*key) = str_downcase(BUFFER_STR(state, pos, len));
@@ -347,21 +350,18 @@ static inline int parse_header_value(struct parser_state *state, VALUE *value) {
   int pos = BUFFER_POS(state);
   int len = 0;
 
-loop:
-  switch (BUFFER_CUR(state)) {
-    case '\r':
-      INC_BUFFER_POS(state);
-      goto eol;
-    case '\n':
-      goto done;
-    default:
-      INC_BUFFER_POS_UTF8(state, len);
-      if (len > MAX_HEADER_VALUE_LENGTH) goto bad_request;
-      goto loop;
+  while (1) {
+    switch (BUFFER_CUR(state)) {
+      case '\r':
+        CONSUME_CRLF(state);
+        goto done;
+      case '\n':
+        goto done;
+      default:
+        INC_BUFFER_POS_UTF8(state, len);
+        if (len > MAX_HEADER_VALUE_LENGTH) goto bad_request;
+    }
   }
-eol:
-  if (BUFFER_CUR(state) != '\n') goto bad_request;
-  INC_BUFFER_POS(state);
 done:
   if (len < 1 || len > MAX_HEADER_VALUE_LENGTH) goto bad_request;
   (*value) = BUFFER_STR(state, pos, len);
@@ -413,14 +413,14 @@ VALUE Parser_parse_headers(VALUE self) {
   if (!parse_request_line(&state, headers)) goto eof;
 
   int header_count = 0;
-loop:
-  if (header_count > MAX_HEADER_COUNT) RAISE_BAD_REQUEST("Too many headers");
-  switch (parse_header(&state, headers)) {
-    case -1: goto done; // empty header => end of headers
-    case 0: goto eof;
+  while (1) {
+    if (header_count > MAX_HEADER_COUNT) RAISE_BAD_REQUEST("Too many headers");
+    switch (parse_header(&state, headers)) {
+      case -1: goto done; // empty header => end of headers
+      case 0: goto eof;
+    }
+    header_count++;
   }
-  header_count++;
-  goto loop;
 done:
   RB_GC_GUARD(headers);
   return headers;
@@ -529,30 +529,26 @@ int chunked_encoding_p(VALUE transfer_encoding) {
 int parse_chunk_size(struct parser_state *state, int *chunk_size) {
   int len = 0;
   int value = 0;
-  char c;
 
-loop:
-  c = BUFFER_CUR(state);
-  if ((c >= '0') && (c <= '9'))       value = (value << 4) + (c - '0');
-  else if ((c >= 'a') && (c <= 'f'))  value = (value << 4) + (c - 'a' + 10);
-  else if ((c >= 'A') && (c <= 'F'))  value = (value << 4) + (c - 'A' + 10);
-  else switch (BUFFER_CUR(state)) {
-    case '\r':
-      INC_BUFFER_POS(state);
-      goto eol;
-    case '\n':
-      INC_BUFFER_POS_NO_READ(state);
-      goto done;
-    default:
-      goto bad_request;
+  while (1) {
+    char c = BUFFER_CUR(state);
+    if ((c >= '0') && (c <= '9'))       value = (value << 4) + (c - '0');
+    else if ((c >= 'a') && (c <= 'f'))  value = (value << 4) + (c - 'a' + 10);
+    else if ((c >= 'A') && (c <= 'F'))  value = (value << 4) + (c - 'A' + 10);
+    else switch (c) {
+      case '\r':
+        CONSUME_CRLF_NO_READ(state);
+        goto done;
+      case '\n':
+        INC_BUFFER_POS_NO_READ(state);
+        goto done;
+      default:
+        goto bad_request;
+    }
+    INC_BUFFER_POS(state);
+    len++;
+    if (len >= MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH) goto bad_request;
   }
-  INC_BUFFER_POS(state);
-  len++;
-  if (len >= MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH) goto bad_request;
-  goto loop;
-eol:
-  if (BUFFER_CUR(state) != '\n') goto bad_request;
-  INC_BUFFER_POS_NO_READ(state);
 done:
   if (len == 0) goto bad_request;
   (*chunk_size) = value;
@@ -611,21 +607,16 @@ eof:
 
 static inline int parse_chunk_postfix(struct parser_state *state) {
   if (BUFFER_POS(state) == BUFFER_LEN(state)) FILL_BUFFER_OR_GOTO_EOF(state);
-  int pos = BUFFER_POS(state);
-loop:
   switch (BUFFER_CUR(state)) {
     case '\r':
-      INC_BUFFER_POS(state);
-      goto eol;
+      CONSUME_CRLF_NO_READ(state);
+      goto done;
     case '\n':
       INC_BUFFER_POS_NO_READ(state);
       goto done;
     default:
       goto bad_request;
   }
-eol:
-  if (BUFFER_CUR(state) != '\n') goto bad_request;
-  INC_BUFFER_POS_NO_READ(state);
 done:
   return 1;
 bad_request:
