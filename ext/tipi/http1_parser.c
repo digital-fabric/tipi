@@ -7,6 +7,7 @@
 #define MAX_PATH_LENGTH                         4096
 #define MAX_HEADER_KEY_LENGTH                   128
 #define MAX_HEADER_VALUE_LENGTH                 2048
+#define MAX_HEADER_COUNT                        256
 #define MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH  16
 
 ID ID_backend_read;
@@ -415,13 +416,15 @@ VALUE Parser_parse_headers(VALUE self) {
 
   if (!parse_request_line(&state, headers)) goto eof;
 
+  int header_count = 0;
 loop:
+  if (header_count > MAX_HEADER_COUNT) RAISE_BAD_REQUEST("Too many headers");
   switch (parse_header(&state, headers)) {
     case -1: goto done; // empty header => end of headers
     case 0: goto eof;
-    default: goto loop;
   }
-
+  header_count++;
+  goto loop;
 done:
   RB_GC_GUARD(headers);
   return headers;
