@@ -154,4 +154,66 @@ class HTTP1ParserTest < MiniTest::Test
     
     assert_nil @parser.parse_headers
   end
+
+  def test_headers
+    @o << "GET / HTTP/1.1\r\nFoo: Bar\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal [':method', ':path', ':protocol', 'foo'], headers.keys
+    assert_equal 'Bar', headers['foo']
+
+    reset_parser
+    @o << "GET / HTTP/1.1\r\nFOO:    baR\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal 'baR', headers['foo']
+
+    reset_parser
+    @o << "GET / HTTP/1.1\r\na: bbb\r\nc: ddd\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal 'bbb', headers['a']
+    assert_equal 'ddd', headers['c']
+  end
+
+  def test_headers_multiple_values
+    @o << "GET / HTTP/1.1\r\nFoo: Bar\r\nfoo: baz\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal ['Bar', 'baz'], headers['foo']
+  end
+
+  def test_bad_headers
+    @o << "GET / http/1.1\r\n   a: b\r\n\r\n"
+    assert_raises(Error) { @parser.parse_headers }
+
+    reset_parser
+    @o << "GET / http/1.1\r\na b\r\n\r\n"
+    assert_raises(Error) { @parser.parse_headers }
+
+    reset_parser
+    @o << "GET / http/1.1\r\n#{'a' * 128}: b\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal 'b', headers['a' * 128]
+
+    reset_parser
+    @o << "GET / http/1.1\r\n#{'a' * 129}: b\r\n\r\n"
+    assert_raises(Error) { @parser.parse_headers }
+
+    reset_parser
+    @o << "GET / http/1.1\r\nfoo: #{'a' * 2048}\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal 'a' * 2048, headers['foo']
+
+    reset_parser
+    @o << "GET / http/1.1\r\nfoo: #{'a' * 2049}\r\n\r\n"
+    assert_raises(Error) { @parser.parse_headers }
+
+    reset_parser
+    hdrs = (1..256).map { |i| "foo#{i}: bar\r\n" }.join
+    @o << "GET / http/1.1\r\n#{hdrs}\r\n"
+    headers = @parser.parse_headers
+    assert_equal 259, headers.size
+
+    reset_parser
+    hdrs = (1..257).map { |i| "foo#{i}: bar\r\n" }.join
+    @o << "GET / http/1.1\r\n#{hdrs}\r\n"
+    assert_raises(Error) { @parser.parse_headers }
+  end
 end
