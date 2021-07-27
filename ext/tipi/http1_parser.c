@@ -1,14 +1,8 @@
 #include "ruby.h"
 #include "http1_parser.h"
 
-#define str_downcase(str) (rb_funcall((str), ID_downcase, 0))
-
-#define MAX_METHOD_LENGTH                       16
-#define MAX_PATH_LENGTH                         4096
-#define MAX_HEADER_KEY_LENGTH                   128
-#define MAX_HEADER_VALUE_LENGTH                 2048
-#define MAX_HEADER_COUNT                        256
-#define MAX_CHUNKED_ENCODING_CHUNK_SIZE_LENGTH  16
+// Securit-related limits are defined in security/http1.rb and injected as
+// defines in extconf.rb
 
 ID ID_backend_read;
 ID ID_downcase;
@@ -84,6 +78,8 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+#define str_downcase(str) (rb_funcall((str), ID_downcase, 0))
 
 struct parser_state {
   struct parser *parser;
