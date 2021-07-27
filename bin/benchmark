@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+require 'bundler/setup'
+require 'polyphony'
+
+def parse_latency(latency)
+  m = latency.match(/^([\d\.]+)(us|ms|s)$/)
+  return nil unless m
+
+  value = m[1].to_f
+  case m[2]
+  when 's' then value
+  when 'ms' then value / 1000
+  when 'us' then value / 1000000
+  end
+end
+
+def parse_wrk_results(results)
+  lines = results.lines
+  latencies = lines[3].strip.split(/\s+/)
+  throughput = lines[6].strip.split(/\s+/)
+
+  {
+    latency_avg:  parse_latency(latencies[1]),
+    latency_max:  parse_latency(latencies[3]),
+    rate:         throughput[1].to_f
+  }
+end
+
+def run_wrk(duration: 10, threads: 2, connections: 10, url: )
+  `wrk -d#{duration} -t#{threads} -c#{connections} #{url}`
+end
+
+[8, 64, 256, 512].each do |c|
+  puts "connections: #{c}"
+  p parse_wrk_results(run_wrk(duration: 10, threads: 4, connections: c, url: "http://localhost:10080/"))
+end
