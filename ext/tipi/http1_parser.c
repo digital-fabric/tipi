@@ -309,6 +309,8 @@ static inline int parse_header_key(struct parser_state *state, VALUE *key) {
 
 loop:
   switch (BUFFER_CUR(state)) {
+    case ' ':
+      goto bad_request;
     case ':':
       if (len < 1 || len > MAX_HEADER_KEY_LENGTH)
         goto bad_request;
