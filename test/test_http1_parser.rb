@@ -2,6 +2,7 @@
 
 require_relative 'helper'
 require 'tipi_ext'
+require_relative '../security/http1.rb'
 
 class HTTP1ParserTest < MiniTest::Test
   Error = Tipi::HTTP1Parser::Error
@@ -61,13 +62,14 @@ class HTTP1ParserTest < MiniTest::Test
 
     assert_raises(Error) { @parser.parse_headers }
   
-    # method limit is 16 bytes
-    reset_parser
-    @o << "#{'a' * 16} / HTTP/1.1\r\n\r\n"
-    assert_equal 'a' * 16, @parser.parse_headers[':method']
+    max_length = Tipi::HTTP1_LIMITS[:max_method_length]
 
     reset_parser
-    @o << "#{'a' * 17} / HTTP/1.1\r\n\r\n"
+    @o << "#{'a' * max_length} / HTTP/1.1\r\n\r\n"
+    assert_equal 'a' * max_length, @parser.parse_headers[':method']
+
+    reset_parser
+    @o << "#{'a' * (max_length + 1)} / HTTP/1.1\r\n\r\n"
     assert_raises(Error) { @parser.parse_headers }
   end
 
@@ -86,13 +88,14 @@ class HTTP1ParserTest < MiniTest::Test
     @o << "GET HTTP/1.1\r\n\r\n"
     assert_raises(Error) { @parser.parse_headers }
   
-    # path limit is 4096 bytes
-    reset_parser
-    @o << "get #{'a' * 4096} HTTP/1.1\r\n\r\n"
-    assert_equal 'a' * 4096, @parser.parse_headers[':path']
+    max_length = Tipi::HTTP1_LIMITS[:max_path_length]
 
     reset_parser
-    @o << "get #{'a' * 4097} HTTP/1.1\r\n\r\n"
+    @o << "get #{'a' * max_length} HTTP/1.1\r\n\r\n"
+    assert_equal 'a' * max_length, @parser.parse_headers[':path']
+
+    reset_parser
+    @o << "get #{'a' * (max_length + 1)} HTTP/1.1\r\n\r\n"
     assert_raises(Error) { @parser.parse_headers }
   end
 
@@ -187,32 +190,38 @@ class HTTP1ParserTest < MiniTest::Test
     @o << "GET / http/1.1\r\na b\r\n\r\n"
     assert_raises(Error) { @parser.parse_headers }
 
-    reset_parser
-    @o << "GET / http/1.1\r\n#{'a' * 128}: b\r\n\r\n"
-    headers = @parser.parse_headers
-    assert_equal 'b', headers['a' * 128]
+    max_key_length = Tipi::HTTP1_LIMITS[:max_header_key_length]
 
     reset_parser
-    @o << "GET / http/1.1\r\n#{'a' * 129}: b\r\n\r\n"
+    @o << "GET / http/1.1\r\n#{'a' * max_key_length}: b\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal 'b', headers['a' * max_key_length]
+
+    reset_parser
+    @o << "GET / http/1.1\r\n#{'a' * (max_key_length + 1)}: b\r\n\r\n"
     assert_raises(Error) { @parser.parse_headers }
 
-    reset_parser
-    @o << "GET / http/1.1\r\nfoo: #{'a' * 2048}\r\n\r\n"
-    headers = @parser.parse_headers
-    assert_equal 'a' * 2048, headers['foo']
+    max_value_length = Tipi::HTTP1_LIMITS[:max_header_value_length]
 
     reset_parser
-    @o << "GET / http/1.1\r\nfoo: #{'a' * 2049}\r\n\r\n"
+    @o << "GET / http/1.1\r\nfoo: #{'a' * max_value_length}\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal 'a' * max_value_length, headers['foo']
+
+    reset_parser
+    @o << "GET / http/1.1\r\nfoo: #{'a' * (max_value_length + 1)}\r\n\r\n"
     assert_raises(Error) { @parser.parse_headers }
 
+    max_header_count = Tipi::HTTP1_LIMITS[:max_header_count]
+
     reset_parser
-    hdrs = (1..256).map { |i| "foo#{i}: bar\r\n" }.join
+    hdrs = (1..max_header_count).map { |i| "foo#{i}: bar\r\n" }.join
     @o << "GET / http/1.1\r\n#{hdrs}\r\n"
     headers = @parser.parse_headers
-    assert_equal 259, headers.size
+    assert_equal (max_header_count + 3), headers.size
 
     reset_parser
-    hdrs = (1..257).map { |i| "foo#{i}: bar\r\n" }.join
+    hdrs = (1..(max_header_count + 1)).map { |i| "foo#{i}: bar\r\n" }.join
     @o << "GET / http/1.1\r\n#{hdrs}\r\n"
     assert_raises(Error) { @parser.parse_headers }
   end
