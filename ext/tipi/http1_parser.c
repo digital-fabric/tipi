@@ -204,6 +204,13 @@ static inline void buffer_trim(struct parser_state *state) {
   state->parser->pos = 0;
 }
 
+static inline void str_append_from_buffer(VALUE str, char *ptr, int len) {
+  int str_len = RSTRING_LEN(str);
+  rb_str_modify_expand(str, len);
+  memcpy(RSTRING_PTR(str) + str_len, ptr, len);
+  rb_str_set_len(str, str_len + len);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static inline int parse_method(struct parser_state *state, VALUE headers) {
@@ -499,19 +506,14 @@ VALUE read_body_with_content_length(VALUE self, VALUE headers, int content_lengt
     VALUE tmp_buf = rb_funcall(
       parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
     );
-    
+    if (tmp_buf == Qnil) goto eof;
+
     if (body != Qnil)
       rb_str_append(body, tmp_buf);
     else
       body = tmp_buf;
+    left -= RSTRING_LEN(tmp_buf);
     RB_GC_GUARD(tmp_buf);
-
-    int new_len = RSTRING_LEN(body);
-    int read_bytes = new_len - len;
-    if (!read_bytes) RAISE_BAD_REQUEST("Incomplete request body");
-
-    len = new_len;
-    left -= read_bytes;
     if (!read_entire_body) {
       rb_hash_aset(headers, STR_pseudo_request_body_left, INT2NUM(left));
       goto done;
@@ -521,6 +523,8 @@ VALUE read_body_with_content_length(VALUE self, VALUE headers, int content_lengt
 done:
   RB_GC_GUARD(body);
   return body;
+eof:
+  RAISE_BAD_REQUEST("Incomplete body");
 }
 
 int chunked_encoding_p(VALUE transfer_encoding) {
@@ -559,13 +563,6 @@ bad_request:
   RAISE_BAD_REQUEST("Invalid chunk size");
 eof:
   return 0;
-}
-
-static inline void str_append_from_buffer(VALUE str, char *ptr, int len) {
-  int str_len = RSTRING_LEN(str);
-  rb_str_modify_expand(str, len);
-  memcpy(RSTRING_PTR(str) + str_len, ptr, len);
-  rb_str_set_len(str, str_len + len);
 }
 
 int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *body, int chunk_size) {
@@ -637,7 +634,7 @@ VALUE read_body_with_chunked_encoding(VALUE self, VALUE headers, int read_entire
   VALUE body = Qnil;
 
   while (1) {
-    int chunk_size;
+    int chunk_size = 0;
     if (!parse_chunk_size(&state, &chunk_size)) goto bad_request;
     
     if (chunk_size) {

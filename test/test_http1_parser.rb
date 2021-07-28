@@ -8,6 +8,7 @@ class HTTP1ParserTest < MiniTest::Test
   Error = Tipi::HTTP1Parser::Error
 
   def setup
+    super
     @i, @o = IO.pipe
     @parser = Tipi::HTTP1Parser.new(@i)
   end
@@ -224,5 +225,209 @@ class HTTP1ParserTest < MiniTest::Test
     hdrs = (1..(max_header_count + 1)).map { |i| "foo#{i}: bar\r\n" }.join
     @o << "GET / http/1.1\r\n#{hdrs}\r\n"
     assert_raises(Error) { @parser.parse_headers }
+  end
+
+  def test_request_without_cr
+    @o << "GET /foo HTTP/1.1\nBar: baz\n\n"
+    headers = @parser.parse_headers
+    assert_equal({
+      ':method'   => 'get',
+      ':path'     => '/foo',
+      ':protocol' => 'http/1.1',
+      'bar'       => 'baz'
+    }, headers)
+  end
+
+  def test_read_body_with_content_length
+    10.times do
+      data = ' ' * rand(20..60000)
+      spin do
+        @o << "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
+      end
+      headers = @parser.parse_headers
+      assert_equal data.bytesize.to_s, headers['content-length']
+
+      body = @parser.read_body(headers)
+      assert_equal data, body
+    end
+  end
+
+  def test_read_body_chunk_with_content_length
+    data = 'abc' * (1 << 20)
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
+    end
+    headers = @parser.parse_headers
+    assert_equal data.bytesize.to_s, headers['content-length']
+
+    buf = +''
+    count = 0
+    while (chunk = @parser.read_body_chunk(headers))
+      count += 1
+      buf += chunk
+    end
+    # we're dealing with pipes, so chunks are limited to 64KB (???)
+    assert_equal data.bytesize / (2**16), count
+    assert_equal data, buf
+  end
+
+  def test_read_body_with_content_length_incomplete
+    data = ' ' * rand(20..60000)
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize + 1}\r\n\r\n#{data}"
+      @o.close # !!! otherwise the parser will keep waiting
+    end
+    headers = @parser.parse_headers
+
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body(headers) }
+  end
+
+  def test_read_body_chunk_with_content_length_incomplete
+    data = 'abc' * (1 << 20)
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize + 1}\r\n\r\n#{data}"
+      @o.close
+    end
+    headers = @parser.parse_headers
+
+    expected_chunk_count = data.bytesize / (2**16)
+
+    expected_chunk_count.times do
+      chunk = @parser.read_body_chunk(headers)
+      assert chunk # not nil
+    end
+
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body_chunk(headers) }
+  end
+
+  def test_read_body_with_chunked_encoding
+    chunks = []
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      rand(8..16).times do |i|
+        chunk = i.to_s * rand(40000..360000)
+        @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+        chunks << chunk
+      end
+      @o << "0\r\n\r\n"
+    end 
+    headers = @parser.parse_headers
+    assert_equal 'chunked', headers['transfer-encoding']
+
+    body = @parser.read_body(headers)
+    assert_equal chunks.join, body
+  end
+
+  def test_read_body_chunk_with_chunked_encoding
+    chunks = []
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      rand(8..16).times do |i|
+        chunk = i.to_s * rand(40000..360000)
+        @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+        chunks << chunk
+      end
+      @o << "0\r\n\r\n"
+    end 
+    headers = @parser.parse_headers
+    assert_equal 'chunked', headers['transfer-encoding']
+
+    received = []
+    while (chunk = @parser.read_body_chunk(headers))
+      received << chunk
+    end
+    assert_equal chunks, received
+  end
+
+  def test_read_body_with_chunked_encoding_malformed
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      rand(8..16).times do |i|
+        chunk = i.to_s * rand(40000..360000)
+        @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n3"
+      end
+      @o << "0\r\n\r\n"
+      @o.close
+    end
+    headers = @parser.parse_headers
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body(headers) }
+
+    reset_parser
+    # missing last empty chunk
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      rand(8..16).times do |i|
+        chunk = i.to_s * rand(40000..360000)
+        @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+      end
+      @o.close
+    end 
+    headers = @parser.parse_headers
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body(headers) }
+
+    reset_parser
+    # bad chunk size
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      rand(8..16).times do |i|
+        chunk = i.to_s * rand(40000..360000)
+        @o << "-#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+      end
+      @o.close
+    end 
+    headers = @parser.parse_headers
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body(headers) }
+  end
+
+  def test_read_body_chunk_with_chunked_encoding_malformed
+    chunk = nil
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      chunk = ' ' * rand(40000..360000)
+      @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n3"
+      @o << "0\r\n\r\n"
+      @o.close
+    end
+    headers = @parser.parse_headers
+    read = @parser.read_body_chunk(headers)
+    assert_equal chunk, read
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body_chunk(headers) }
+
+    reset_parser
+    Fiber.current.shutdown_all_children
+    # missing last empty chunk
+    chunk = nil
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      chunk = ' '.to_s * rand(20..1600)
+      @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+      @o.close
+    end
+    headers = @parser.parse_headers
+    read = @parser.read_body_chunk(headers)
+    assert_equal chunk, read
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body_chunk(headers) }
+
+    reset_parser
+    Fiber.current.shutdown_all_children
+    # bad chunk size
+    spin do
+      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      chunk = ' '.to_s * rand(20..1600)
+      @o << "-#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+      @o.close
+    end 
+    headers = @parser.parse_headers
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body_chunk(headers) }
+
+    reset_parser
+    Fiber.current.shutdown_all_children
+    # missing body
+    @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+    @o.close
+    headers = @parser.parse_headers
+    assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body_chunk(headers) }
+  ensure
+    Fiber.current.shutdown_all_children
   end
 end

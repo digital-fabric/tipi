@@ -14,15 +14,11 @@ require 'polyphony'
 
 ::Exception.__disable_sanitized_backtrace__ = true
 
-Minitest::Reporters.use! [
-  Minitest::Reporters::SpecReporter.new
-]
-
 class MiniTest::Test
   def setup
-    # puts "* setup #{self.name}"
+    # trace "* setup #{self.name}"
     if Fiber.current.children.size > 0
-      puts "Children left: #{Fiber.current.children.inspect}"
+      trace "Children left: #{Fiber.current.children.inspect}"
       exit!
     end
     Fiber.current.setup_main_fiber
@@ -32,7 +28,7 @@ class MiniTest::Test
   end
 
   def teardown
-    # puts "* teardown #{self.name.inspect} Fiber.current: #{Fiber.current.inspect}"
+    # trace "* teardown #{self.name}"
     Fiber.current.shutdown_all_children
   rescue => e
     puts e
@@ -47,4 +43,21 @@ module Kernel
   rescue Exception => e
     e
   end
+
+  def trace(*args)
+    STDOUT.orig_write(format_trace(args))
+  end
+
+  def format_trace(args)
+    if args.first.is_a?(String)
+      if args.size > 1
+        format("%s: %p\n", args.shift, args)
+      else
+        format("%s\n", args.first)
+      end
+    else
+      format("%p\n", args.size == 1 ? args.first : args)
+    end
+  end
 end
+
