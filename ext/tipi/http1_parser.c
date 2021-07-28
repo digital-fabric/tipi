@@ -34,6 +34,7 @@ VALUE STR_transfer_encoding;
 typedef struct parser {
   VALUE io;
   VALUE buffer;
+  VALUE headers;
   int pos;
 } Parser_t;
 
@@ -43,6 +44,7 @@ static void Parser_mark(void *ptr) {
   Parser_t *parser = ptr;
   rb_gc_mark(parser->io);
   rb_gc_mark(parser->buffer);
+  rb_gc_mark(parser->headers);
 }
 
 static void Parser_free(void *ptr) {
@@ -76,6 +78,7 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
 
   parser->io = io;
   parser->buffer = rb_str_new_literal("");
+  parser->headers = Qnil;
   parser->pos = 0;
 
   // pre-allocate the buffer
@@ -418,27 +421,26 @@ eof:
 VALUE Parser_parse_headers(VALUE self) {
   struct parser_state state;
   GetParser(self, state.parser);
-  VALUE headers = rb_hash_new();
+  state.parser->headers = rb_hash_new();
 
   buffer_trim(&state);
   INIT_PARSER_STATE(&state);
 
-  if (!parse_request_line(&state, headers)) goto eof;
+  if (!parse_request_line(&state, state.parser->headers)) goto eof;
 
   int header_count = 0;
   while (1) {
     if (header_count > MAX_HEADER_COUNT) RAISE_BAD_REQUEST("Too many headers");
-    switch (parse_header(&state, headers)) {
+    switch (parse_header(&state, state.parser->headers)) {
       case -1: goto done; // empty header => end of headers
       case 0: goto eof;
     }
     header_count++;
   }
-done:
-  RB_GC_GUARD(headers);
-  return headers;
 eof:
-  return Qnil;
+  state.parser->headers = Qnil;
+done:
+  return state.parser->headers;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -465,15 +467,11 @@ static inline int parse_content_length(VALUE value) {
   return str_to_int(value, "Invalid content length");
 }
 
-VALUE read_body_with_content_length(VALUE self, VALUE headers, int content_length, int read_entire_body) {
+VALUE read_body_with_content_length(Parser_t *parser, int content_length, int read_entire_body) {
   if (content_length < 0) return Qnil;
 
-  Parser_t *parser;
-  GetParser(self, parser);
-
-  VALUE body;
-
-  VALUE left_header = rb_hash_aref(headers, STR_pseudo_request_body_left);
+  VALUE body = Qnil;
+  VALUE left_header = rb_hash_aref(parser->headers, STR_pseudo_request_body_left);
 
   int len = RSTRING_LEN(parser->buffer);
   int pos = parser->pos;
@@ -483,7 +481,7 @@ VALUE read_body_with_content_length(VALUE self, VALUE headers, int content_lengt
     left = NUM2INT(left_header);
   else {
     left = content_length;
-    rb_hash_aset(headers, STR_pseudo_request_body_left, INT2NUM(left));
+    rb_hash_aset(parser->headers, STR_pseudo_request_body_left, INT2NUM(left));
   }
 
   if (!left) return Qnil;
@@ -515,11 +513,11 @@ VALUE read_body_with_content_length(VALUE self, VALUE headers, int content_lengt
     left -= RSTRING_LEN(tmp_buf);
     RB_GC_GUARD(tmp_buf);
     if (!read_entire_body) {
-      rb_hash_aset(headers, STR_pseudo_request_body_left, INT2NUM(left));
+      rb_hash_aset(parser->headers, STR_pseudo_request_body_left, INT2NUM(left));
       goto done;
     }
   }
-  rb_hash_aset(headers, STR_pseudo_request_body_left, INT2NUM(0));
+  rb_hash_aset(parser->headers, STR_pseudo_request_body_left, INT2NUM(0));
 done:
   RB_GC_GUARD(body);
   return body;
@@ -624,13 +622,11 @@ eof:
   return 0;
 }
 
-VALUE read_body_with_chunked_encoding(VALUE self, VALUE headers, int read_entire_body) {
+VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body) {
   struct parser_state state;
-  GetParser(self, state.parser);
-
+  state.parser = parser;
   buffer_trim(&state);
   INIT_PARSER_STATE(&state);
-
   VALUE body = Qnil;
 
   while (1) {
@@ -653,28 +649,31 @@ done:
   return body;
 }
 
-static inline VALUE read_body(VALUE self, VALUE headers, int read_entire_body) {
-  VALUE content_length = rb_hash_aref(headers, STR_content_length);
+static inline VALUE read_body(VALUE self, int read_entire_body) {
+  Parser_t *parser;
+  GetParser(self, parser);
+
+  VALUE content_length = rb_hash_aref(parser->headers, STR_content_length);
   if (content_length != Qnil) {
     int content_length_int = parse_content_length(content_length);
     return read_body_with_content_length(
-      self, headers, content_length_int, read_entire_body
+      parser, content_length_int, read_entire_body
     );
   }
 
-  VALUE transfer_encoding = rb_hash_aref(headers, STR_transfer_encoding);
+  VALUE transfer_encoding = rb_hash_aref(parser->headers, STR_transfer_encoding);
   if (chunked_encoding_p(transfer_encoding))
-    return read_body_with_chunked_encoding(self, headers, read_entire_body);
+    return read_body_with_chunked_encoding(parser, read_entire_body);
 
   return Qnil;
 }
 
-VALUE Parser_read_body(VALUE self, VALUE headers) {
-  return read_body(self, headers, 1);
+VALUE Parser_read_body(VALUE self) {
+  return read_body(self, 1);
 }
 
-VALUE Parser_read_body_chunk(VALUE self, VALUE headers) {
-  return read_body(self, headers, 0);
+VALUE Parser_read_body_chunk(VALUE self) {
+  return read_body(self, 0);
 }
 
 void Init_HTTP1_Parser() {
@@ -690,8 +689,8 @@ void Init_HTTP1_Parser() {
   // backend methods
   rb_define_method(cHTTP1Parser, "initialize", Parser_initialize, 1);
   rb_define_method(cHTTP1Parser, "parse_headers", Parser_parse_headers, 0);
-  rb_define_method(cHTTP1Parser, "read_body", Parser_read_body, 1);
-  rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 1);
+  rb_define_method(cHTTP1Parser, "read_body", Parser_read_body, 0);
+  rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 0);
 
   ID_backend_read = rb_intern("backend_read");
   ID_downcase     = rb_intern("downcase");
