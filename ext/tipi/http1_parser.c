@@ -4,6 +4,12 @@
 // Securit-related limits are defined in security/http1.rb and injected as
 // defines in extconf.rb
 
+#define INITIAL_BUFFER_SIZE     4096
+#define BUFFER_TRIM_MIN_LEN     4096
+#define BUFFER_TRIM_MIN_POS     2048
+#define MAX_HEADERS_READ_LENGTH 4096
+#define MAX_BODY_READ_LENGTH    (1 << 20)
+
 ID ID_backend_read;
 ID ID_downcase;
 ID ID_eq;
@@ -13,8 +19,8 @@ ID ID_to_i;
 
 VALUE cError;
 
-VALUE MAX_READ_LENGTH;
-VALUE BUFFER_END;
+VALUE NUM_max_headers_read_length;
+VALUE NUM_buffer_end;
 
 VALUE STR_pseudo_method;
 VALUE STR_pseudo_path;
@@ -72,34 +78,18 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
   parser->buffer = rb_str_new_literal("");
   parser->pos = 0;
 
+  // pre-allocate the buffer
+  rb_str_modify_expand(parser->buffer, INITIAL_BUFFER_SIZE);
+
   return self;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
 #define str_downcase(str) (rb_funcall((str), ID_downcase, 0))
 
-struct parser_state {
-  struct parser *parser;
-  char *ptr;
-  int len;
-};
-
 #define READ_CONCAT(io, buffer, len) \
-  rb_funcall(io, ID_readpartial, 4, len, buffer, BUFFER_END, Qfalse)
-
-static inline int fill_buffer(struct parser_state *state) {
-  READ_CONCAT(state->parser->io, state->parser->buffer, MAX_READ_LENGTH);
-  int len = RSTRING_LEN(state->parser->buffer);
-  int read_bytes = len - state->len;
-  if (!read_bytes) return 0;
-  
-  state->ptr = RSTRING_PTR(state->parser->buffer);
-  state->len = len;
-  return read_bytes;
-}
+  rb_funcall(io, ID_readpartial, 4, len, buffer, NUM_buffer_end, Qfalse)
 
 #define FILL_BUFFER_OR_GOTO_EOF(state) { if (!fill_buffer(state)) goto eof; }
 
@@ -174,8 +164,26 @@ static inline int fill_buffer(struct parser_state *state) {
   INC_BUFFER_POS_NO_READ(state); \
 }
 
-#define BUFFER_TRIM_MIN_LEN 4096
-#define BUFFER_TRIM_MIN_POS 2048
+#define GLOBAL_STR(v, s) v = rb_str_new_literal(s); rb_global_variable(&v)
+
+struct parser_state {
+  struct parser *parser;
+  char *ptr;
+  int len;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+static inline int fill_buffer(struct parser_state *state) {
+  READ_CONCAT(state->parser->io, state->parser->buffer, NUM_max_headers_read_length);
+  int len = RSTRING_LEN(state->parser->buffer);
+  int read_bytes = len - state->len;
+  if (!read_bytes) return 0;
+  
+  state->ptr = RSTRING_PTR(state->parser->buffer);
+  state->len = len;
+  return read_bytes;
+}
 
 static inline void buffer_trim(struct parser_state *state) {
   int len = RSTRING_LEN(state->parser->buffer);
@@ -196,8 +204,6 @@ static inline void buffer_trim(struct parser_state *state) {
   state->parser->pos = 0;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 static inline int parse_method(struct parser_state *state, VALUE headers) {
@@ -429,10 +435,6 @@ eof:
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-const int READ_BODY_MAX_LEN = 1 << 20;
 
 static inline int str_to_int(VALUE value, const char *error_msg) {
   char *ptr = RSTRING_PTR(value);
@@ -493,7 +495,7 @@ VALUE read_body_with_content_length(VALUE self, VALUE headers, int content_lengt
   }
   
   while (left) {
-    int maxlen = left <= READ_BODY_MAX_LEN ? left : READ_BODY_MAX_LEN;
+    int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
     VALUE tmp_buf = rb_funcall(
       parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
     );
@@ -583,7 +585,7 @@ int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *bod
   }
 
   while (left) {
-    int maxlen = left <= READ_BODY_MAX_LEN ? left : READ_BODY_MAX_LEN;
+    int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
 
     VALUE tmp_buf = rb_funcall(
       state->parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
@@ -670,7 +672,6 @@ static inline VALUE read_body(VALUE self, VALUE headers, int read_entire_body) {
   return Qnil;
 }
 
-
 VALUE Parser_read_body(VALUE self, VALUE headers) {
   return read_body(self, headers, 1);
 }
@@ -678,8 +679,6 @@ VALUE Parser_read_body(VALUE self, VALUE headers) {
 VALUE Parser_read_body_chunk(VALUE self, VALUE headers) {
   return read_body(self, headers, 0);
 }
-
-#define GLOBAL_STR(v, s) v = rb_str_new_literal(s); rb_global_variable(&v)
 
 void Init_HTTP1_Parser() {
   VALUE mTipi;
@@ -704,8 +703,8 @@ void Init_HTTP1_Parser() {
   ID_readpartial  = rb_intern("readpartial");
   ID_to_i         = rb_intern("to_i");
 
-  MAX_READ_LENGTH = INT2NUM(4096);
-  BUFFER_END = INT2NUM(-1);
+  NUM_max_headers_read_length = INT2NUM(MAX_HEADERS_READ_LENGTH);
+  NUM_buffer_end = INT2NUM(-1);
 
   GLOBAL_STR(STR_pseudo_method,       ":method");
   GLOBAL_STR(STR_pseudo_path,         ":path");
