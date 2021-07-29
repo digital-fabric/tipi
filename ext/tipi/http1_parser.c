@@ -11,15 +11,18 @@
 #define MAX_BODY_READ_LENGTH    (1 << 20)
 
 ID ID_backend_read;
+ID ID_backend_recv;
 ID ID_downcase;
 ID ID_eq;
 ID ID_read;
 ID ID_readpartial;
 ID ID_to_i;
 
+VALUE mPolyphony;
 VALUE cError;
 
 VALUE NUM_max_headers_read_length;
+VALUE NUM_buffer_start;
 VALUE NUM_buffer_end;
 
 VALUE STR_pseudo_method;
@@ -90,9 +93,6 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
 ////////////////////////////////////////////////////////////////////////////////
 
 #define str_downcase(str) (rb_funcall((str), ID_downcase, 0))
-
-#define READ_CONCAT(io, buffer, len) \
-  rb_funcall(io, ID_readpartial, 4, len, buffer, NUM_buffer_end, Qfalse)
 
 #define FILL_BUFFER_OR_GOTO_EOF(state) { if (!fill_buffer(state)) goto eof; }
 
@@ -177,8 +177,12 @@ struct parser_state {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static inline VALUE parser_io_read(Parser_t *parser, VALUE maxlen, VALUE buf, VALUE buf_pos) {
+  return rb_funcall(parser->io, ID_readpartial, 4, maxlen, buf, buf_pos, Qfalse);
+}
+
 static inline int fill_buffer(struct parser_state *state) {
-  READ_CONCAT(state->parser->io, state->parser->buffer, NUM_max_headers_read_length);
+  parser_io_read(state->parser, NUM_max_headers_read_length, state->parser->buffer, NUM_buffer_end);
   int len = RSTRING_LEN(state->parser->buffer);
   int read_bytes = len - state->len;
   if (!read_bytes) return 0;
@@ -501,11 +505,8 @@ VALUE read_body_with_content_length(Parser_t *parser, int content_length, int re
   
   while (left) {
     int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
-    VALUE tmp_buf = rb_funcall(
-      parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
-    );
+    VALUE tmp_buf = parser_io_read(parser, INT2NUM(maxlen), Qnil, NUM_buffer_start);
     if (tmp_buf == Qnil) goto eof;
-
     if (body != Qnil)
       rb_str_append(body, tmp_buf);
     else
@@ -582,20 +583,14 @@ int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *bod
   while (left) {
     int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
 
-    VALUE tmp_buf = rb_funcall(
-      state->parser->io, ID_readpartial, 4, INT2NUM(maxlen), Qnil, INT2NUM(0), Qfalse
-    );
+    VALUE tmp_buf = parser_io_read(state->parser, INT2NUM(maxlen), Qnil, NUM_buffer_start);
     if (tmp_buf == Qnil) RAISE_BAD_REQUEST("Incomplete request body");
-    
     if (*body != Qnil)
       rb_str_append(*body, tmp_buf);
     else
       *body = tmp_buf;
-    int read_bytes = RSTRING_LEN(tmp_buf);
+    left -= RSTRING_LEN(tmp_buf);
     RB_GC_GUARD(tmp_buf);
-
-    if (!read_bytes) RAISE_BAD_REQUEST("Incomplete request body");
-    left -= read_bytes;
   }
   return 1;
 eof:
@@ -680,6 +675,8 @@ void Init_HTTP1_Parser() {
   VALUE mTipi;
   VALUE cHTTP1Parser;
 
+  mPolyphony = rb_const_get(rb_cObject, rb_intern("Polyphony"));
+
   mTipi = rb_define_module("Tipi");
   cHTTP1Parser = rb_define_class_under(mTipi, "HTTP1Parser", rb_cObject);
   rb_define_alloc_func(cHTTP1Parser, Parser_allocate);
@@ -693,6 +690,7 @@ void Init_HTTP1_Parser() {
   rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 0);
 
   ID_backend_read = rb_intern("backend_read");
+  ID_backend_recv = rb_intern("backend_recv");
   ID_downcase     = rb_intern("downcase");
   ID_eq           = rb_intern("==");
   ID_read         = rb_intern("read");
@@ -700,6 +698,7 @@ void Init_HTTP1_Parser() {
   ID_to_i         = rb_intern("to_i");
 
   NUM_max_headers_read_length = INT2NUM(MAX_HEADERS_READ_LENGTH);
+  NUM_buffer_start = INT2NUM(0);
   NUM_buffer_end = INT2NUM(-1);
 
   GLOBAL_STR(STR_pseudo_method,       ":method");

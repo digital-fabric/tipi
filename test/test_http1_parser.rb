@@ -424,4 +424,37 @@ class HTTP1ParserTest < MiniTest::Test
   ensure
     Fiber.current.shutdown_all_children
   end
+
+  def test_parser_with_tcp_socket
+    port = rand(1234..5678)
+    server = TCPServer.new('127.0.0.1', port)
+    server_fiber = spin do
+      while (socket = server.accept)
+        spin do
+          parser = Tipi::HTTP1Parser.new(socket)
+          headers = parser.parse_headers
+          socket << headers.inspect
+          socket.shutdown
+          socket.close
+        end
+      end
+    end
+
+    snooze
+    client = TCPSocket.new('127.0.0.1', port)
+    client << "get /foo HTTP/1.1\r\nCookie: abc=def\r\n\r\n"
+    reply = client.read
+    assert_equal({
+      ':method' => 'get',
+      ':path' => '/foo',
+      ':protocol' => 'http/1.1',
+      'cookie' => 'abc=def'
+  }.inspect, reply)
+  ensure
+    client.shutdown rescue nil
+    client&.close
+    server_fiber&.stop
+    server_fiber&.await
+    server&.close
+  end
 end
