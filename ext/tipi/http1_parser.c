@@ -10,6 +10,9 @@
 #define MAX_HEADERS_READ_LENGTH 4096
 #define MAX_BODY_READ_LENGTH    (1 << 20)
 
+#define BODY_READ_MODE_UNKNOWN  -2
+#define BODY_READ_MODE_CHUNKED  -1
+
 ID ID_backend_read;
 ID ID_backend_recv;
 ID ID_downcase;
@@ -29,7 +32,6 @@ VALUE NUM_buffer_end;
 VALUE STR_pseudo_method;
 VALUE STR_pseudo_path;
 VALUE STR_pseudo_protocol;
-VALUE STR_pseudo_request_body_left;
 
 VALUE STR_chunked;
 VALUE STR_content_length;
@@ -47,8 +49,10 @@ typedef struct parser {
   VALUE buffer;
   VALUE headers;
   int   pos;
-  
-  enum polyphony_read_method read_method;
+
+  enum  polyphony_read_method read_method;
+  int   body_read_mode;
+  int   body_left;
 } Parser_t;
 
 VALUE cParser = Qnil;
@@ -106,6 +110,8 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
 
   parser->read_method = detect_read_method(io);
 
+  parser->body_read_mode = BODY_READ_MODE_UNKNOWN;
+  parser->body_left = 0;
   return self;
 }
 
@@ -471,6 +477,7 @@ VALUE Parser_parse_headers(VALUE self) {
 eof:
   state.parser->headers = Qnil;
 done:
+  state.parser->body_read_mode = BODY_READ_MODE_UNKNOWN;
   return state.parser->headers;
 }
 
@@ -494,58 +501,38 @@ static inline int str_to_int(VALUE value, const char *error_msg) {
   return int_value;
 }
 
-static inline int parse_content_length(VALUE value) {
-  return str_to_int(value, "Invalid content length");
-}
-
-VALUE read_body_with_content_length(Parser_t *parser, int content_length, int read_entire_body) {
-  if (content_length < 0) return Qnil;
+VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body) {
+  if (parser->body_left <= 0) return Qnil;
 
   VALUE body = Qnil;
-  VALUE left_header = rb_hash_aref(parser->headers, STR_pseudo_request_body_left);
 
   int len = RSTRING_LEN(parser->buffer);
   int pos = parser->pos;
-  int left;
-
-  if (left_header != Qnil)
-    left = NUM2INT(left_header);
-  else {
-    left = content_length;
-    rb_hash_aset(parser->headers, STR_pseudo_request_body_left, INT2NUM(left));
-  }
-
-  if (!left) return Qnil;
 
   if (pos < len) {
     int available = len - pos;
-    if (available > left) available = left;
+    if (available > parser->body_left) available = parser->body_left;
     body = rb_str_new(RSTRING_PTR(parser->buffer) + pos, available);
     parser->pos += available;
-    left -= available;
-    len = available;
+    parser->body_left -= available;
   }
   else {
     body = Qnil;
     len = 0;
   }
   
-  while (left) {
-    int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
+  while (parser->body_left) {
+    int maxlen = parser->body_left <= MAX_BODY_READ_LENGTH ? parser->body_left : MAX_BODY_READ_LENGTH;
     VALUE tmp_buf = parser_io_read(parser, INT2NUM(maxlen), Qnil, NUM_buffer_start);
     if (tmp_buf == Qnil) goto eof;
     if (body != Qnil)
       rb_str_append(body, tmp_buf);
     else
       body = tmp_buf;
-    left -= RSTRING_LEN(tmp_buf);
+    parser->body_left -= RSTRING_LEN(tmp_buf);
     RB_GC_GUARD(tmp_buf);
-    if (!read_entire_body) {
-      rb_hash_aset(parser->headers, STR_pseudo_request_body_left, INT2NUM(left));
-      goto done;
-    }
+    if (!read_entire_body) goto done;
   }
-  rb_hash_aset(parser->headers, STR_pseudo_request_body_left, INT2NUM(0));
 done:
   RB_GC_GUARD(body);
   return body;
@@ -671,23 +658,30 @@ done:
   return body;
 }
 
+static inline void detect_body_read_mode(Parser_t *parser) {
+  VALUE content_length = rb_hash_aref(parser->headers, STR_content_length);
+  if (content_length != Qnil) {
+    int int_content_length = str_to_int(content_length, "Invalid content length");
+    if (int_content_length < 0) RAISE_BAD_REQUEST("Invalid body content length");
+    parser->body_read_mode = parser->body_left = int_content_length;
+    return;
+  }
+  
+  VALUE transfer_encoding = rb_hash_aref(parser->headers, STR_transfer_encoding);
+  if (chunked_encoding_p(transfer_encoding))
+    parser->body_read_mode = BODY_READ_MODE_CHUNKED;
+}
+
 static inline VALUE read_body(VALUE self, int read_entire_body) {
   Parser_t *parser;
   GetParser(self, parser);
 
-  VALUE content_length = rb_hash_aref(parser->headers, STR_content_length);
-  if (content_length != Qnil) {
-    int content_length_int = parse_content_length(content_length);
-    return read_body_with_content_length(
-      parser, content_length_int, read_entire_body
-    );
-  }
+  if (parser->body_read_mode == BODY_READ_MODE_UNKNOWN)
+    detect_body_read_mode(parser);
 
-  VALUE transfer_encoding = rb_hash_aref(parser->headers, STR_transfer_encoding);
-  if (chunked_encoding_p(transfer_encoding))
+  if (parser->body_read_mode == BODY_READ_MODE_CHUNKED)
     return read_body_with_chunked_encoding(parser, read_entire_body);
-
-  return Qnil;
+  return read_body_with_content_length(parser, read_entire_body);
 }
 
 VALUE Parser_read_body(VALUE self) {
@@ -732,7 +726,6 @@ void Init_HTTP1_Parser() {
   GLOBAL_STR(STR_pseudo_method,       ":method");
   GLOBAL_STR(STR_pseudo_path,         ":path");
   GLOBAL_STR(STR_pseudo_protocol,     ":protocol");
-  GLOBAL_STR(STR_pseudo_request_body_left,   ":request_body_left");
 
   GLOBAL_STR(STR_chunked,             "chunked");
   GLOBAL_STR(STR_content_length,      "content-length");
