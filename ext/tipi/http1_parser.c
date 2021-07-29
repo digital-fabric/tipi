@@ -14,6 +14,7 @@ ID ID_backend_read;
 ID ID_backend_recv;
 ID ID_downcase;
 ID ID_eq;
+ID ID_polyphony_read_method;
 ID ID_read;
 ID ID_readpartial;
 ID ID_to_i;
@@ -34,11 +35,20 @@ VALUE STR_chunked;
 VALUE STR_content_length;
 VALUE STR_transfer_encoding;
 
+VALUE SYM_backend_read;
+VALUE SYM_backend_recv;
+
+enum polyphony_read_method {
+  method_readpartial, method_backend_read, method_backend_recv
+};
+
 typedef struct parser {
   VALUE io;
   VALUE buffer;
   VALUE headers;
-  int pos;
+  int   pos;
+  
+  enum polyphony_read_method read_method;
 } Parser_t;
 
 VALUE cParser = Qnil;
@@ -75,6 +85,13 @@ static VALUE Parser_allocate(VALUE klass) {
 #define GetParser(obj, parser) \
   TypedData_Get_Struct((obj), Parser_t, &Parser_type, (parser))
 
+enum polyphony_read_method detect_read_method(VALUE io) {
+  VALUE method = rb_funcall(io, ID_polyphony_read_method, 0);
+  if (method == SYM_backend_read) return method_backend_read;
+  if (method == SYM_backend_recv) return method_backend_recv;
+  return method_readpartial;
+}
+
 VALUE Parser_initialize(VALUE self, VALUE io) {
   Parser_t *parser;
   GetParser(self, parser);
@@ -86,6 +103,8 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
 
   // pre-allocate the buffer
   rb_str_modify_expand(parser->buffer, INITIAL_BUFFER_SIZE);
+
+  parser->read_method = detect_read_method(io);
 
   return self;
 }
@@ -178,7 +197,15 @@ struct parser_state {
 ////////////////////////////////////////////////////////////////////////////////
 
 static inline VALUE parser_io_read(Parser_t *parser, VALUE maxlen, VALUE buf, VALUE buf_pos) {
-  return rb_funcall(parser->io, ID_readpartial, 4, maxlen, buf, buf_pos, Qfalse);
+  switch (parser->read_method) {
+    case method_backend_read:
+      return rb_funcall(mPolyphony, ID_backend_read, 5, parser->io, buf, maxlen, Qfalse, buf_pos);
+    case method_backend_recv:
+      return rb_funcall(mPolyphony, ID_backend_recv, 4, parser->io, buf, maxlen, buf_pos);
+    default:
+      return rb_funcall(parser->io, ID_readpartial, 4, maxlen, buf, buf_pos, Qfalse);
+  }
+  
 }
 
 static inline int fill_buffer(struct parser_state *state) {
@@ -689,13 +716,14 @@ void Init_HTTP1_Parser() {
   rb_define_method(cHTTP1Parser, "read_body", Parser_read_body, 0);
   rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 0);
 
-  ID_backend_read = rb_intern("backend_read");
-  ID_backend_recv = rb_intern("backend_recv");
-  ID_downcase     = rb_intern("downcase");
-  ID_eq           = rb_intern("==");
-  ID_read         = rb_intern("read");
-  ID_readpartial  = rb_intern("readpartial");
-  ID_to_i         = rb_intern("to_i");
+  ID_backend_read           = rb_intern("backend_read");
+  ID_backend_recv           = rb_intern("backend_recv");
+  ID_downcase               = rb_intern("downcase");
+  ID_eq                     = rb_intern("==");
+  ID_polyphony_read_method  = rb_intern("__polyphony_read_method__");
+  ID_read                   = rb_intern("read");
+  ID_readpartial            = rb_intern("readpartial");
+  ID_to_i                   = rb_intern("to_i");
 
   NUM_max_headers_read_length = INT2NUM(MAX_HEADERS_READ_LENGTH);
   NUM_buffer_start = INT2NUM(0);
@@ -709,4 +737,7 @@ void Init_HTTP1_Parser() {
   GLOBAL_STR(STR_chunked,             "chunked");
   GLOBAL_STR(STR_content_length,      "content-length");
   GLOBAL_STR(STR_transfer_encoding,   "transfer-encoding");
+
+  SYM_backend_read = ID2SYM(ID_backend_read);
+  SYM_backend_recv = ID2SYM(ID_backend_recv);
 }

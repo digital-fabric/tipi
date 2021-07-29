@@ -31,7 +31,7 @@ f = spin do
     break unless headers
     trace headers
 
-    body = parser.read_body(headers)
+    body = parser.read_body
     trace "body: #{body ? body.bytesize : 0} bytes"
     trace body if body && body.bytesize < 80
   end
