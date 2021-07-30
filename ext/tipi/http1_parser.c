@@ -332,10 +332,13 @@ static int parse_protocol(struct parser_state *state, VALUE headers) {
         goto done;
       case '.':
         INC_BUFFER_POS(state);
-        if (BUFFER_CUR(state) != '1') goto bad_request;
+        char c = BUFFER_CUR(state);
+        if (c == '0' || c == '1') {
         INC_BUFFER_POS(state);
         len += 2;
         continue;
+        }
+        goto bad_request;
       default:
         goto bad_request;
     }
