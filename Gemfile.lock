@@ -6,7 +6,7 @@ PATH
       http-2 (~> 0.10.0)
       msgpack (~> 1.4.2)
       polyphony (~> 0.65)
-      qeweney (~> 0.11)
+      qeweney (~> 0.12)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)
 
@@ -50,7 +50,7 @@ GEM
     msgpack (1.4.2)
     multipart-post (2.1.1)
     polyphony (0.65)
-    qeweney (0.11)
+    qeweney (0.12)
       escape_utils (~> 1.2.1)
     rack (2.2.3)
     rake (12.3.3)
