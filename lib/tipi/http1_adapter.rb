@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'http/parser'
+require 'tipi_ext'
 require_relative './http2_adapter'
 require 'qeweney/request'
 
@@ -14,41 +14,54 @@ module Tipi
       @conn = conn
       @opts = opts
       @first = true
-      @parser = ::HTTP::Parser.new(self)
+      @parser = Tipi::HTTP1Parser.new(@conn)
     end
     
     def each(&block)
-      @conn.recv_loop do |data|
-        return if handle_incoming_data(data, &block) 
+      while true
+        headers = @parser.parse_headers
+        break unless headers
+        
+        # handle_request returns true if connection is not persistent or was
+        # upgraded
+        break if handle_request(headers, &block)
       end
+    rescue Tipi::HTTP1Parser::Error
+      # ignore
     rescue SystemCallError, IOError
       # ignore
     ensure
       finalize_client_loop
     end
     
-    # return [Boolean] true if client loop should stop
-    def handle_incoming_data(data, &block)
-      rx = data.bytesize
-      @parser << data
-      while (request = @requests_head)
-        request.headers[':rx'] = rx
-        if @first
-          request.headers[':first'] = true
-          @first = nil
-        end
-        return true if upgrade_connection(request.headers, &block)
-        
-        @requests_head = request.__next__
-        block.call(request)
-        return true unless request.keep_alive?
+    def handle_request(headers, &block)
+      scheme = (proto = headers['x-forwarded-proto']) ?
+                proto.downcase : scheme_from_connection
+      headers[':scheme'] = scheme
+      @protocol = headers[':protocol']
+      if @first
+        headers[':first'] = true
+        @first = nil
       end
-      nil
+      @last_headers = headers
+      
+      request = Qeweney::Request.new(headers, self)
+      return true if upgrade_connection(request.headers, &block)
+        
+      block.call(request)
+      return !persistent_connection?(headers)
+    end
+
+    def persistent_connection?(headers)
+      if headers[':protocol'] == 'http/1.1'
+        return headers['connection'] != 'close'
+      else
+        connection = headers['connection']
+        return connection && connection != 'close'
+      end
     end
     
     def finalize_client_loop
-      # release references to various objects
-      @requests_head = @requests_tail = nil
       @parser = nil
       @splicing_pipe = nil
       @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
@@ -58,81 +71,22 @@ module Tipi
     # Reads a body chunk for the current request. Transfers control to the parse
     # loop, and resumes once the parse_loop has fired the on_body callback
     def get_body_chunk(request)
-      @waiting_for_body_chunk = true
-      @next_chunk = nil
-      while !@requests_tail.complete? && (data = @conn.readpartial(8192))
-        request.rx_incr(data.bytesize)
-        @parser << data
-        return @next_chunk if @next_chunk
-        
-        snooze
-      end
-      nil
-    ensure
-      @waiting_for_body_chunk = nil
+      @parser.read_body_chunk
+    end
+
+    def get_body(request)
+      @parser.read_body
     end
     
     # Waits for the current request to complete. Transfers control to the parse
     # loop, and resumes once the parse_loop has fired the on_message_complete
     # callback
     def consume_request(request)
-      request = @requests_head
-      @conn.recv_loop do |data|
-        request.rx_incr(data.bytesize)
-        @parser << data
-        return if request.complete?
-      end
+      raise NotImplementedError
     end
     
     def protocol
-      version = @parser.http_version
-      "HTTP #{version.join('.')}"
-    end
-    
-    def on_headers_complete(headers)
-      headers = normalize_headers(headers)
-      headers[':path'] = @parser.request_url
-      headers[':method'] = @parser.http_method.downcase
-      scheme = (proto = headers['x-forwarded-proto']) ?
-                proto.downcase : scheme_from_connection
-      headers[':scheme'] = scheme
-      queue_request(Qeweney::Request.new(headers, self))
-    end
-
-    def normalize_headers(headers)
-      headers.each_with_object({}) do |(k, v), h|
-        k = k.downcase
-        hk = h[k]
-        if hk
-          hk = h[k] = [hk] unless hk.is_a?(Array)
-          v.is_a?(Array) ? hk.concat(v) : hk << v
-        else
-          h[k] = v
-        end
-      end
-    end
-    
-    def queue_request(request)
-      if @requests_head
-        @requests_tail.__next__ = request
-        @requests_tail = request
-      else
-        @requests_head = @requests_tail = request
-      end
-    end
-    
-    def on_body(chunk)
-      if @waiting_for_body_chunk
-        @next_chunk = chunk
-        @waiting_for_body_chunk = nil
-      else
-        @requests_tail.buffer_body_chunk(chunk)
-      end
-    end
-    
-    def on_message_complete
-      @waiting_for_body_chunk = nil
-      @requests_tail.complete!(@parser.keep_alive?)
+      @protocol      
     end
     
     # Upgrades the connection to a different protocol, if the 'Upgrade' header is
@@ -246,9 +200,13 @@ module Tipi
     # @param chunked [boolean] whether to use chunked transfer encoding
     # @return [void]
     def send_headers(request, headers, empty_response: false, chunked: true)
-      formatted_headers = format_headers(headers, !empty_response, @parser.http_minor == 1 && chunked)
+      formatted_headers = format_headers(headers, !empty_response, http1_1?(request) && chunked)
       request.tx_incr(formatted_headers.bytesize)
       @conn.write(formatted_headers)
+    end
+
+    def http1_1?(request)
+      request.headers[':protocol'] == 'http/1.1'
     end
     
     # Sends a response body chunk. If no headers were sent, default headers are

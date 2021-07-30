@@ -695,7 +695,7 @@ static inline void detect_body_read_mode(Parser_t *parser) {
     parser->body_read_mode = BODY_READ_MODE_CHUNKED;
 }
 
-static inline VALUE read_body(VALUE self, int read_entire_body) {
+static inline VALUE read_body(VALUE self, int read_entire_body, int no_read) {
   Parser_t *parser;
   GetParser(self, parser);
 
@@ -703,16 +703,16 @@ static inline VALUE read_body(VALUE self, int read_entire_body) {
     detect_body_read_mode(parser);
 
   if (parser->body_read_mode == BODY_READ_MODE_CHUNKED)
-    return read_body_with_chunked_encoding(parser, read_entire_body);
-  return read_body_with_content_length(parser, read_entire_body);
+    return read_body_with_chunked_encoding(parser, read_entire_body, no_read);
+  return read_body_with_content_length(parser, read_entire_body, no_read);
 }
 
 VALUE Parser_read_body(VALUE self) {
-  return read_body(self, 1);
+  return read_body(self, 1, 0);
 }
 
-VALUE Parser_read_body_chunk(VALUE self) {
-  return read_body(self, 0);
+VALUE Parser_read_body_chunk(VALUE self, VALUE no_read) {
+  return read_body(self, 0, no_read == Qtrue);
 }
 
 void Init_HTTP1_Parser() {
@@ -731,7 +731,7 @@ void Init_HTTP1_Parser() {
   rb_define_method(cHTTP1Parser, "initialize", Parser_initialize, 1);
   rb_define_method(cHTTP1Parser, "parse_headers", Parser_parse_headers, 0);
   rb_define_method(cHTTP1Parser, "read_body", Parser_read_body, 0);
-  rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 0);
+  rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 1);
 
   ID_backend_read           = rb_intern("backend_read");
   ID_backend_recv           = rb_intern("backend_recv");

@@ -9,33 +9,6 @@ class String
   end
 end
 
-class IO
-  # Creates two mockup sockets for simulating server-client communication
-  def self.server_client_mockup
-    server_in, client_out = IO.pipe
-    client_in, server_out = IO.pipe
-
-    server_connection = mockup_connection(server_in, server_out, client_out)
-    client_connection = mockup_connection(client_in, client_out, server_out)
-
-    [server_connection, client_connection]
-  end
-
-  def self.mockup_connection(input, output, output2)
-    eg(
-      :read        => ->(*args) { input.read(*args) },
-      :read_loop   => ->(*args, &block) { input.read_loop(*args, &block) },
-      :recv_loop   => ->(*args, &block) { input.read_loop(*args, &block) },
-      :readpartial => ->(*args) { input.readpartial(*args) },
-      :recv        => ->(*args) { input.readpartial(*args) },
-      :<<          => ->(*args) { output.write(*args) },
-      :write       => ->(*args) { output.write(*args) },
-      :close       => -> { output.close },
-      :eof?        => -> { output2.closed? }
-    )
-  end
-end
-
 class RequestHeadersTest < MiniTest::Test
   def teardown
     @server&.interrupt if @server&.alive?
@@ -65,7 +38,7 @@ class RequestHeadersTest < MiniTest::Test
     assert_kind_of Qeweney::Request, req
     assert_equal 'blah.com', req.headers['host']
     assert_equal 'bar', req.headers['foo']
-    assert_equal ['1', '3', '2'], req.headers['hi']
+    assert_equal ['1', '2', '3'], req.headers['hi']
     assert_equal 'get', req.headers[':method']
     assert_equal '/titi', req.headers[':path']
   end
