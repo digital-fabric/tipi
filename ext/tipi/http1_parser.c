@@ -1,14 +1,14 @@
 #include "ruby.h"
 #include "http1_parser.h"
 
-// Securit-related limits are defined in security/http1.rb and injected as
+// Security-related limits are defined in security/http1.rb and injected as
 // defines in extconf.rb
 
 #define INITIAL_BUFFER_SIZE     4096
 #define BUFFER_TRIM_MIN_LEN     4096
 #define BUFFER_TRIM_MIN_POS     2048
 #define MAX_HEADERS_READ_LENGTH 4096
-#define MAX_BODY_READ_LENGTH    (1 << 20)
+#define MAX_BODY_READ_LENGTH    (1 << 20) // 1MB
 
 #define BODY_READ_MODE_UNKNOWN  -2
 #define BODY_READ_MODE_CHUNKED  -1
@@ -32,6 +32,7 @@ VALUE NUM_buffer_end;
 VALUE STR_pseudo_method;
 VALUE STR_pseudo_path;
 VALUE STR_pseudo_protocol;
+VALUE STR_pseudo_rx;
 
 VALUE STR_chunked;
 VALUE STR_content_length;
@@ -49,6 +50,7 @@ typedef struct parser {
   VALUE buffer;
   VALUE headers;
   int   pos;
+  int   current_request_rx;
 
   enum  polyphony_read_method read_method;
   int   body_read_mode;
@@ -334,9 +336,9 @@ static int parse_protocol(struct parser_state *state, VALUE headers) {
         INC_BUFFER_POS(state);
         char c = BUFFER_CUR(state);
         if (c == '0' || c == '1') {
-        INC_BUFFER_POS(state);
-        len += 2;
-        continue;
+          INC_BUFFER_POS(state);
+          len += 2;
+          continue;
         }
         goto bad_request;
       default:
@@ -466,6 +468,7 @@ VALUE Parser_parse_headers(VALUE self) {
 
   buffer_trim(&state);
   INIT_PARSER_STATE(&state);
+  int initial_pos = state.parser->pos;
 
   if (!parse_request_line(&state, state.parser->headers)) goto eof;
 
@@ -482,6 +485,10 @@ eof:
   state.parser->headers = Qnil;
 done:
   state.parser->body_read_mode = BODY_READ_MODE_UNKNOWN;
+  int read_bytes = BUFFER_POS(&state) - initial_pos;
+  state.parser->current_request_rx = read_bytes;
+  if (state.parser->headers != Qnil)
+    rb_hash_aset(state.parser->headers, STR_pseudo_rx, INT2NUM(read_bytes));
   return state.parser->headers;
 }
 
@@ -519,6 +526,7 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body) {
     body = rb_str_new(RSTRING_PTR(parser->buffer) + pos, available);
     parser->pos += available;
     parser->body_left -= available;
+    parser->current_request_rx += available;
   }
   else {
     body = Qnil;
@@ -533,11 +541,14 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body) {
       rb_str_append(body, tmp_buf);
     else
       body = tmp_buf;
-    parser->body_left -= RSTRING_LEN(tmp_buf);
+    int read_bytes = RSTRING_LEN(tmp_buf);
+    parser->current_request_rx += read_bytes;
+    parser->body_left -= read_bytes;
     RB_GC_GUARD(tmp_buf);
     if (!read_entire_body) goto done;
   }
 done:
+  rb_hash_aset(parser->headers, STR_pseudo_rx, INT2NUM(parser->current_request_rx));
   RB_GC_GUARD(body);
   return body;
 eof:
@@ -552,6 +563,7 @@ int chunked_encoding_p(VALUE transfer_encoding) {
 int parse_chunk_size(struct parser_state *state, int *chunk_size) {
   int len = 0;
   int value = 0;
+  int initial_pos = BUFFER_POS(state);
 
   while (1) {
     char c = BUFFER_CUR(state);
@@ -575,6 +587,7 @@ int parse_chunk_size(struct parser_state *state, int *chunk_size) {
 done:
   if (len == 0) goto bad_request;
   (*chunk_size) = value;
+  state->parser->current_request_rx += BUFFER_POS(state) - initial_pos;
   return 1;
 bad_request:
   RAISE_BAD_REQUEST("Invalid chunk size");
@@ -595,6 +608,7 @@ int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *bod
     else
       *body = rb_str_new(RSTRING_PTR(state->parser->buffer) + pos, available);
     state->parser->pos += available;
+    state->parser->current_request_rx += available;
     left -= available;
   }
 
@@ -607,7 +621,9 @@ int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *bod
       rb_str_append(*body, tmp_buf);
     else
       *body = tmp_buf;
-    left -= RSTRING_LEN(tmp_buf);
+    int read_bytes = RSTRING_LEN(tmp_buf);
+    state->parser->current_request_rx += read_bytes;
+    left -= read_bytes;
     RB_GC_GUARD(tmp_buf);
   }
   return 1;
@@ -616,7 +632,8 @@ eof:
 }
 
 static inline int parse_chunk_postfix(struct parser_state *state) {
-  if (BUFFER_POS(state) == BUFFER_LEN(state)) FILL_BUFFER_OR_GOTO_EOF(state);
+  int initial_pos = BUFFER_POS(state);
+  if (initial_pos == BUFFER_LEN(state)) FILL_BUFFER_OR_GOTO_EOF(state);
   switch (BUFFER_CUR(state)) {
     case '\r':
       CONSUME_CRLF_NO_READ(state);
@@ -628,6 +645,7 @@ static inline int parse_chunk_postfix(struct parser_state *state) {
       goto bad_request;
   }
 done:
+  state->parser->current_request_rx += BUFFER_POS(state) - initial_pos;
   return 1;
 bad_request:
   RAISE_BAD_REQUEST("Invalid protocol");
@@ -658,6 +676,7 @@ bad_request:
 eof:
   RAISE_BAD_REQUEST("Incomplete request body");
 done:
+  rb_hash_aset(parser->headers, STR_pseudo_rx, INT2NUM(state.parser->current_request_rx));
   RB_GC_GUARD(body);
   return body;
 }
@@ -730,6 +749,7 @@ void Init_HTTP1_Parser() {
   GLOBAL_STR(STR_pseudo_method,       ":method");
   GLOBAL_STR(STR_pseudo_path,         ":path");
   GLOBAL_STR(STR_pseudo_protocol,     ":protocol");
+  GLOBAL_STR(STR_pseudo_rx,           ":rx");
 
   GLOBAL_STR(STR_chunked,             "chunked");
   GLOBAL_STR(STR_content_length,      "content-length");

@@ -15,21 +15,33 @@ class HTTP1ParserTest < MiniTest::Test
   alias_method :reset_parser, :setup
 
   def test_request_line
-    @o << "GET / HTTP/1.1\r\n\r\n"
+    msg = "GET / HTTP/1.1\r\n\r\n"
+    @o << msg
     headers = @parser.parse_headers
 
     assert_equal(
-      { ':method' => 'get', ':path' => '/', ':protocol' => 'http/1.1' },
+      {
+        ':method' => 'get',
+        ':path' => '/',
+        ':protocol' => 'http/1.1',
+        ':rx' => msg.bytesize
+      },
       headers
     )
   end
 
   def test_request_line_whitespace
-    @o << "GET       /               HTTP/1.1\r\n\r\n"
+    msg = "GET       /               HTTP/1.1\r\n\r\n"
+    @o << msg
     headers = @parser.parse_headers
 
     assert_equal(
-      { ':method' => 'get', ':path' => '/', ':protocol' => 'http/1.1' },
+      {
+        ':method' => 'get',
+        ':path' => '/',
+        ':protocol' => 'http/1.1',
+        ':rx' => msg.bytesize
+      },
       headers
     )
   end
@@ -162,7 +174,7 @@ class HTTP1ParserTest < MiniTest::Test
   def test_headers
     @o << "GET / HTTP/1.1\r\nFoo: Bar\r\n\r\n"
     headers = @parser.parse_headers
-    assert_equal [':method', ':path', ':protocol', 'foo'], headers.keys
+    assert_equal [':method', ':path', ':protocol', 'foo', ':rx'], headers.keys
     assert_equal 'Bar', headers['foo']
 
     reset_parser
@@ -219,7 +231,7 @@ class HTTP1ParserTest < MiniTest::Test
     hdrs = (1..max_header_count).map { |i| "foo#{i}: bar\r\n" }.join
     @o << "GET / http/1.1\r\n#{hdrs}\r\n"
     headers = @parser.parse_headers
-    assert_equal (max_header_count + 3), headers.size
+    assert_equal (max_header_count + 4), headers.size
 
     reset_parser
     hdrs = (1..(max_header_count + 1)).map { |i| "foo#{i}: bar\r\n" }.join
@@ -228,34 +240,39 @@ class HTTP1ParserTest < MiniTest::Test
   end
 
   def test_request_without_cr
-    @o << "GET /foo HTTP/1.1\nBar: baz\n\n"
+    msg = "GET /foo HTTP/1.1\nBar: baz\n\n"
+    @o << msg
     headers = @parser.parse_headers
     assert_equal({
       ':method'   => 'get',
       ':path'     => '/foo',
       ':protocol' => 'http/1.1',
-      'bar'       => 'baz'
+      'bar'       => 'baz',
+      ':rx'       => msg.bytesize
     }, headers)
   end
 
   def test_read_body_with_content_length
     10.times do
       data = ' ' * rand(20..60000)
+      msg = "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
       spin do
-        @o << "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
+        @o << msg
       end
       headers = @parser.parse_headers
       assert_equal data.bytesize.to_s, headers['content-length']
 
       body = @parser.read_body
       assert_equal data, body
+      assert_equal msg.bytesize, headers[':rx']
     end
   end
 
   def test_read_body_chunk_with_content_length
     data = 'abc' * (1 << 20)
+    msg = "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
     spin do
-      @o << "POST /foo HTTP/1.1\r\nContent-Length: #{data.bytesize}\r\n\r\n#{data}"
+      @o << msg
     end
     headers = @parser.parse_headers
     assert_equal data.bytesize.to_s, headers['content-length']
@@ -269,6 +286,7 @@ class HTTP1ParserTest < MiniTest::Test
     # we're dealing with pipes, so chunks are limited to 64KB (???)
     assert_equal data.bytesize / (2**16), count
     assert_equal data, buf
+    assert_equal msg.bytesize, headers[':rx']
   end
 
   def test_read_body_with_content_length_incomplete
@@ -302,32 +320,47 @@ class HTTP1ParserTest < MiniTest::Test
 
   def test_read_body_with_chunked_encoding
     chunks = []
+    total_sent = 0
     spin do
-      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      msg = "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      @o << msg
+      total_sent += msg.bytesize
       rand(8..16).times do |i|
         chunk = i.to_s * rand(40000..360000)
-        @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+        msg = "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+        @o << msg
         chunks << chunk
+        total_sent += msg.bytesize
       end
-      @o << "0\r\n\r\n"
+      msg = "0\r\n\r\n"
+      @o << msg
+      total_sent += msg.bytesize
     end 
     headers = @parser.parse_headers
     assert_equal 'chunked', headers['transfer-encoding']
 
     body = @parser.read_body
     assert_equal chunks.join, body
+    assert_equal total_sent, headers[':rx']
   end
 
   def test_read_body_chunk_with_chunked_encoding
     chunks = []
+    total_sent = 0
     spin do
-      @o << "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      msg = "POST /foo HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+      @o << msg
+      total_sent += msg.bytesize
       rand(8..16).times do |i|
         chunk = i.to_s * rand(40000..360000)
-        @o << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+        msg = "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+        @o << msg
+        total_sent += msg.bytesize
         chunks << chunk
       end
-      @o << "0\r\n\r\n"
+      msg = "0\r\n\r\n"
+      @o << msg
+      total_sent += msg.bytesize
     end 
     headers = @parser.parse_headers
     assert_equal 'chunked', headers['transfer-encoding']
@@ -337,6 +370,7 @@ class HTTP1ParserTest < MiniTest::Test
       received << chunk
     end
     assert_equal chunks, received
+    assert_equal total_sent, headers[':rx']
   end
 
   def test_read_body_with_chunked_encoding_malformed
@@ -442,14 +476,16 @@ class HTTP1ParserTest < MiniTest::Test
 
     snooze
     client = TCPSocket.new('127.0.0.1', port)
-    client << "get /foo HTTP/1.1\r\nCookie: abc=def\r\n\r\n"
+    msg = "get /foo HTTP/1.1\r\nCookie: abc=def\r\n\r\n"
+    client << msg
     reply = client.read
     assert_equal({
       ':method' => 'get',
       ':path' => '/foo',
       ':protocol' => 'http/1.1',
-      'cookie' => 'abc=def'
-  }.inspect, reply)
+      'cookie' => 'abc=def',
+      ':rx' => msg.bytesize,
+    }, eval(reply))
   ensure
     client.shutdown rescue nil
     client&.close
