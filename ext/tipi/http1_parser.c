@@ -412,6 +412,7 @@ static inline int parse_header_value(struct parser_state *state, VALUE *value) {
         CONSUME_CRLF(state);
         goto done;
       case '\n':
+        INC_BUFFER_POS(state);
         goto done;
       default:
         INC_BUFFER_POS_UTF8(state, len);
