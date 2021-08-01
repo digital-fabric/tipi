@@ -92,9 +92,9 @@ class HTTP1ParserTest < MiniTest::Test
     assert_equal '/äBçDé¤23~{@€', headers[':path']
 
     reset_parser
-    @o << "GET /äBçDé¤23~{@€ HTTP/1.1\r\n\r\n"
+    @o << "GET /%E5%86%86foo%20bar%25 HTTP/1.1\r\n\r\n"
     headers = @parser.parse_headers
-    assert_equal '/äBçDé¤23~{@€', headers[':path']
+    assert_equal '/円foo bar%', headers[':path']
   end
 
   def test_bad_path
