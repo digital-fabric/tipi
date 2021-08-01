@@ -555,7 +555,7 @@ static inline int str_to_int(VALUE value, const char *error_msg) {
   return int_value;
 }
 
-VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body) {
+VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int no_read) {
   if (parser->body_left <= 0) return Qnil;
 
   VALUE body = Qnil;
@@ -575,6 +575,7 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body) {
     body = Qnil;
     len = 0;
   }
+  if (no_read) return body;
   
   while (parser->body_left) {
     int maxlen = parser->body_left <= MAX_BODY_READ_LENGTH ? parser->body_left : MAX_BODY_READ_LENGTH;
@@ -638,7 +639,7 @@ eof:
   return 0;
 }
 
-int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *body, int chunk_size) {
+int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *body, int chunk_size, int no_read) {
   int len = RSTRING_LEN(state->parser->buffer);
   int pos = state->parser->pos;
   int left = chunk_size;
@@ -654,6 +655,7 @@ int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *bod
     state->parser->current_request_rx += available;
     left -= available;
   }
+  if (no_read) return 1;
 
   while (left) {
     int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
@@ -696,7 +698,7 @@ eof:
   return 0;
 }
 
-VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body) {
+VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body, int no_read) {
   struct parser_state state;
   state.parser = parser;
   buffer_trim(&state);
@@ -708,7 +710,7 @@ VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body) {
     if (!parse_chunk_size(&state, &chunk_size)) goto bad_request;
     
     if (chunk_size) {
-      if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size)) goto bad_request;
+      if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size, no_read)) goto bad_request;
     }
 
     if (!parse_chunk_postfix(&state)) goto bad_request;
