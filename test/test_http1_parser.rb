@@ -437,7 +437,7 @@ class HTTP1ParserTest < MiniTest::Test
       @o.close
     end
     headers = @parser.parse_headers
-    read = @parser.read_body_chunk
+    read = @parser.read_body_chunk(false)
     assert_equal chunk, read
     assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body_chunk(false) }
 
@@ -462,6 +462,34 @@ class HTTP1ParserTest < MiniTest::Test
     assert_raises(Tipi::HTTP1Parser::Error) { @parser.read_body_chunk(false) }
   ensure
     Fiber.current.shutdown_all_children
+  end
+
+  def test_complete?
+    @o << "GET / HTTP/1.1\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal true, @parser.complete?
+
+    reset_parser
+    @o << "GET / HTTP/1.1\r\nContent-Length: 3\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal false, @parser.complete?
+    @o << 'foo'
+    body = @parser.read_body
+    assert_equal 'foo', body
+    assert_equal true, @parser.complete?
+
+    reset_parser
+    @o << "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n"
+    headers = @parser.parse_headers
+    assert_equal false, @parser.complete?
+    @o << "3\r\nfoo\r\n"
+    chunk = @parser.read_body_chunk(false)
+    assert_equal 'foo', chunk
+    assert_equal false, @parser.complete?
+    @o << "0\r\n\r\n"
+    chunk = @parser.read_body_chunk(false)
+    assert_nil chunk
+    assert_equal true, @parser.complete?
   end
 
   def test_parser_with_tcp_socket

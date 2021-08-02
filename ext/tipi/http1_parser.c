@@ -55,6 +55,7 @@ typedef struct parser {
   enum  polyphony_read_method read_method;
   int   body_read_mode;
   int   body_left;
+  int   request_completed;
 } Parser_t;
 
 VALUE cParser = Qnil;
@@ -591,6 +592,7 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int 
     RB_GC_GUARD(tmp_buf);
     if (!read_entire_body) goto done;
   }
+  parser->request_completed = 1;
 done:
   rb_hash_aset(parser->headers, STR_pseudo_rx, INT2NUM(parser->current_request_rx));
   RB_GC_GUARD(body);
@@ -712,6 +714,7 @@ VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body, in
     if (chunk_size) {
       if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size, no_read)) goto bad_request;
     }
+    else parser->request_completed = 1;
 
     if (!parse_chunk_postfix(&state)) goto bad_request;
     if (!chunk_size || !read_entire_body) goto done;
@@ -732,12 +735,18 @@ static inline void detect_body_read_mode(Parser_t *parser) {
     int int_content_length = str_to_int(content_length, "Invalid content length");
     if (int_content_length < 0) RAISE_BAD_REQUEST("Invalid body content length");
     parser->body_read_mode = parser->body_left = int_content_length;
+    parser->request_completed = 0;
     return;
   }
   
   VALUE transfer_encoding = rb_hash_aref(parser->headers, STR_transfer_encoding);
-  if (chunked_encoding_p(transfer_encoding))
+  if (chunked_encoding_p(transfer_encoding)) {
     parser->body_read_mode = BODY_READ_MODE_CHUNKED;
+    parser->request_completed = 0;
+    return;
+  }
+  parser->request_completed = 1;
+
 }
 
 static inline VALUE read_body(VALUE self, int read_entire_body, int no_read) {
@@ -760,6 +769,16 @@ VALUE Parser_read_body_chunk(VALUE self, VALUE no_read) {
   return read_body(self, 0, no_read == Qtrue);
 }
 
+VALUE Parser_complete_p(VALUE self) {
+  Parser_t *parser;
+  GetParser(self, parser);
+
+  if (parser->body_read_mode == BODY_READ_MODE_UNKNOWN)
+    detect_body_read_mode(parser);
+
+  return parser->request_completed ? Qtrue : Qfalse;
+}
+
 void Init_HTTP1_Parser() {
   VALUE mTipi;
   VALUE cHTTP1Parser;
@@ -777,6 +796,7 @@ void Init_HTTP1_Parser() {
   rb_define_method(cHTTP1Parser, "parse_headers", Parser_parse_headers, 0);
   rb_define_method(cHTTP1Parser, "read_body", Parser_read_body, 0);
   rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 1);
+  rb_define_method(cHTTP1Parser, "complete?", Parser_complete_p, 0);
 
   ID_backend_read           = rb_intern("backend_read");
   ID_backend_recv           = rb_intern("backend_recv");
