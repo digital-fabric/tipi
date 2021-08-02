@@ -140,12 +140,12 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "6\r\nbazbud\r\n"
     sleep 0.01
     assert_equal %w[foobar bazbud], chunks
-    # assert !request.complete?
+    assert !request.complete?
 
     connection << "0\r\n\r\n"
     sleep 0.01
     assert_equal %w[foobar bazbud], chunks
-    # assert request.complete?
+    assert request.complete?
 
     sleep 0.01
 
