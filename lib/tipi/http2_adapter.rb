@@ -15,6 +15,7 @@ module Tipi
       @conn = conn
       @opts = opts
       @upgrade_headers = upgrade_headers
+      p upgrade_headers: upgrade_headers
       @first = true
       @rx = (upgrade_headers && upgrade_headers[':rx']) || 0
       @tx = (upgrade_headers && upgrade_headers[':tx']) || 0
@@ -42,6 +43,7 @@ module Tipi
     HTTP
     
     def upgrade
+      snooze
       @conn << UPGRADE_MESSAGE
       @tx += UPGRADE_MESSAGE.bytesize
       settings = @upgrade_headers['http2-settings']

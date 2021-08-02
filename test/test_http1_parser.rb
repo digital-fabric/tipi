@@ -492,6 +492,45 @@ class HTTP1ParserTest < MiniTest::Test
     assert_equal true, @parser.complete?
   end
 
+  def test_buffered_body_chunk
+    @o << "GET / HTTP/1.1\r\nContent-Length: 3\r\n\r\nfoo"
+    headers = @parser.parse_headers
+    assert_equal false, @parser.complete?
+
+    chunk = @parser.read_body_chunk(true)
+    assert_equal 'foo', chunk
+    assert_equal true, @parser.complete?
+    chunk = @parser.read_body_chunk(false)
+    assert_nil chunk
+    assert_equal true, @parser.complete?
+
+    reset_parser
+    @o << "GET / HTTP/1.1\r\nContent-Length: 6\r\n\r\nfoo"
+    headers = @parser.parse_headers
+    assert_equal false, @parser.complete?
+
+    chunk = @parser.read_body_chunk(true)
+    assert_equal 'foo', chunk
+    assert_equal false, @parser.complete?
+    @o << 'bar'
+    chunk = @parser.read_body_chunk(false)
+    assert_equal 'bar', chunk
+    assert_equal true, @parser.complete?
+
+    reset_parser
+    @o << "GET / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nfoo\r\n"
+    headers = @parser.parse_headers
+    assert_equal false, @parser.complete?
+
+    chunk = @parser.read_body_chunk(true)
+    assert_equal 'foo', chunk
+    assert_equal false, @parser.complete?
+    @o << "0\r\n\r\n"
+    chunk = @parser.read_body_chunk(true)
+    assert_nil chunk
+    assert_equal true, @parser.complete?
+  end
+
   def test_parser_with_tcp_socket
     port = rand(1234..5678)
     server = TCPServer.new('127.0.0.1', port)

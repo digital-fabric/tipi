@@ -15,7 +15,7 @@ module DigitalFabric
       route[:executive] = true
       @service.mount(route, self)
       @current_request_count = 0
-      @updater = spin_loop(:executive_updater, interval: 10) { update_service_stats }
+      # @updater = spin_loop(:executive_updater, interval: 10) { update_service_stats }
       update_service_stats
     end
 
@@ -38,6 +38,8 @@ module DigitalFabric
       else
         req.respond('Invalid path', { ':status' => Qeweney::Status::NOT_FOUND })
       end
+    rescue => e
+      puts "Error: #{e.inspect}"
     ensure
       @current_request_count -= 1
     end
@@ -45,7 +47,7 @@ module DigitalFabric
     def stream_stats(req)
       req.send_headers({ 'Content-Type' => 'text/event-stream' })
 
-      @service.timer.every(10) do
+      every(10) do
         message = last_service_stats
         req.send_chunk(format_sse_event(message.to_json))
       end

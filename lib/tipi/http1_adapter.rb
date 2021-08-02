@@ -43,11 +43,13 @@ module Tipi
         headers[':first'] = true
         @first = nil
       end
-      @last_headers = headers
+      
+      return true if upgrade_connection(headers, &block)
       
       request = Qeweney::Request.new(headers, self)
-      return true if upgrade_connection(request.headers, &block)
-        
+      if !@parser.complete?
+        request.buffer_body_chunk(@parser.read_body_chunk(true))
+      end
       block.call(request)
       return !persistent_connection?(headers)
     end
@@ -121,13 +123,13 @@ module Tipi
     end
     
     def upgrade_with_handler(handler, headers)
-      @parser = @requests_head = @requests_tail = nil
+      @parser = nil
       handler.(self, headers)
       true
     end
     
     def upgrade_to_http2(headers, &block)
-      @parser = @requests_head = @requests_tail = nil
+      @parser = nil
       HTTP2Adapter.upgrade_each(@conn, @opts, http2_upgraded_headers(headers), &block)
       true
     end

@@ -570,6 +570,7 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int 
     parser->pos += available;
     parser->body_left -= available;
     parser->current_request_rx += available;
+    if (!parser->body_left) parser->request_completed = 1;
   }
   else {
     body = Qnil;
@@ -588,10 +589,10 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int 
     int read_bytes = RSTRING_LEN(tmp_buf);
     parser->current_request_rx += read_bytes;
     parser->body_left -= read_bytes;
+    if (!parser->body_left) parser->request_completed = 1;
     RB_GC_GUARD(tmp_buf);
     if (!read_entire_body) goto done;
   }
-  parser->request_completed = 1;
 done:
   rb_hash_aset(parser->headers, STR_pseudo_rx, INT2NUM(parser->current_request_rx));
   RB_GC_GUARD(body);

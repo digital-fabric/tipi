@@ -25,7 +25,7 @@ module DigitalFabric
       @http_latency_max = 0
       @last_counters = @counters.merge(stamp: Time.now.to_f - 1)
       @fiber = Fiber.current
-      @timer = Polyphony::Timer.new('service_timer', resolution: 5)
+      # @timer = Polyphony::Timer.new('service_timer', resolution: 5)
     end
 
     def calculate_stats
@@ -229,13 +229,6 @@ module DigitalFabric
         @routes[route] ||= agent
       end
       @route_keys = @routes.keys
-    end
-
-    def wait_for_agent(wait_list)
-      wait_list << Fiber.current
-      @timer.move_on_after(10) { suspend }
-    ensure
-      wait_list.delete(self)
     end
 
     def path_regexp(path)

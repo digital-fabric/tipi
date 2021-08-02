@@ -145,6 +145,7 @@ module DigitalFabric
       t1 = nil
       with_request do |id|
         msg = Protocol.http_request(id, req.headers, req.next_chunk(true), req.complete?)
+        p [req.headers[':method'], id, req.headers[':path'], msg[3], msg[4]] if req.headers[':method'] == 'POST'
         send_df_message(msg)
         while (message = receive)
           unless t1
