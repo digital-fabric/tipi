@@ -23,5 +23,9 @@ jobs:
       run: |
         gem install bundler
         POLYPHONY_USE_LIBEV=1 bundle install
+    - name: Show Linux kernel version
+      run: uname -r
+    - name: Compile C-extension
+      run: bundle exec rake compile
     - name: Run tests
       run:  bundle exec rake test
