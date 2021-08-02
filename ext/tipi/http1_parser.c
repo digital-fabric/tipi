@@ -556,7 +556,7 @@ static inline int str_to_int(VALUE value, const char *error_msg) {
   return int_value;
 }
 
-VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int no_read) {
+VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int buffered_only) {
   if (parser->body_left <= 0) return Qnil;
 
   VALUE body = Qnil;
@@ -576,7 +576,7 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int 
     body = Qnil;
     len = 0;
   }
-  if (no_read) return body;
+  if (buffered_only) return body;
   
   while (parser->body_left) {
     int maxlen = parser->body_left <= MAX_BODY_READ_LENGTH ? parser->body_left : MAX_BODY_READ_LENGTH;
@@ -641,7 +641,7 @@ eof:
   return 0;
 }
 
-int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *body, int chunk_size, int no_read) {
+int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *body, int chunk_size, int buffered_only) {
   int len = RSTRING_LEN(state->parser->buffer);
   int pos = state->parser->pos;
   int left = chunk_size;
@@ -657,7 +657,7 @@ int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *bod
     state->parser->current_request_rx += available;
     left -= available;
   }
-  if (no_read) return 1;
+  if (buffered_only) return 1;
 
   while (left) {
     int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
@@ -700,7 +700,7 @@ eof:
   return 0;
 }
 
-VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body, int no_read) {
+VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body, int buffered_only) {
   struct parser_state state;
   state.parser = parser;
   buffer_trim(&state);
@@ -712,7 +712,7 @@ VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body, in
     if (!parse_chunk_size(&state, &chunk_size)) goto bad_request;
     
     if (chunk_size) {
-      if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size, no_read)) goto bad_request;
+      if (!read_body_chunk_with_chunked_encoding(&state, &body, chunk_size, buffered_only)) goto bad_request;
     }
     else parser->request_completed = 1;
 
@@ -749,7 +749,7 @@ static inline void detect_body_read_mode(Parser_t *parser) {
 
 }
 
-static inline VALUE read_body(VALUE self, int read_entire_body, int no_read) {
+static inline VALUE read_body(VALUE self, int read_entire_body, int buffered_only) {
   Parser_t *parser;
   GetParser(self, parser);
 
@@ -757,16 +757,16 @@ static inline VALUE read_body(VALUE self, int read_entire_body, int no_read) {
     detect_body_read_mode(parser);
 
   if (parser->body_read_mode == BODY_READ_MODE_CHUNKED)
-    return read_body_with_chunked_encoding(parser, read_entire_body, no_read);
-  return read_body_with_content_length(parser, read_entire_body, no_read);
+    return read_body_with_chunked_encoding(parser, read_entire_body, buffered_only);
+  return read_body_with_content_length(parser, read_entire_body, buffered_only);
 }
 
 VALUE Parser_read_body(VALUE self) {
   return read_body(self, 1, 0);
 }
 
-VALUE Parser_read_body_chunk(VALUE self, VALUE no_read) {
-  return read_body(self, 0, no_read == Qtrue);
+VALUE Parser_read_body_chunk(VALUE self, VALUE buffered_only) {
+  return read_body(self, 0, buffered_only == Qtrue);
 }
 
 VALUE Parser_complete_p(VALUE self) {
