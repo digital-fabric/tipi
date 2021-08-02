@@ -17,10 +17,6 @@ module DigitalFabric
       @agent.get_http_request_body(@id, 1)
     end
 
-    def consume_request(request)
-      @agent.get_http_request_body(@id, nil)
-    end
-
     def respond(request, body, headers)
       @agent.send_df_message(
         Protocol.http_response(@id, body, headers, true)
