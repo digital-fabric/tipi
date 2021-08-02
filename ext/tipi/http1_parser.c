@@ -68,7 +68,6 @@ static void Parser_mark(void *ptr) {
 }
 
 static void Parser_free(void *ptr) {
-  Parser_t *parser = ptr;
   xfree(ptr);
 }
 
@@ -510,9 +509,9 @@ VALUE Parser_parse_headers(VALUE self) {
   GetParser(self, state.parser);
   state.parser->headers = rb_hash_new();
 
+  int initial_pos = state.parser->pos;
   buffer_trim(&state);
   INIT_PARSER_STATE(&state);
-  int initial_pos = state.parser->pos;
 
   if (!parse_request_line(&state, state.parser->headers)) goto eof;
 
@@ -663,7 +662,7 @@ int read_body_chunk_with_chunked_encoding(struct parser_state *state, VALUE *bod
     int maxlen = left <= MAX_BODY_READ_LENGTH ? left : MAX_BODY_READ_LENGTH;
 
     VALUE tmp_buf = parser_io_read(state->parser, INT2NUM(maxlen), Qnil, NUM_buffer_start);
-    if (tmp_buf == Qnil) RAISE_BAD_REQUEST("Incomplete request body");
+    if (tmp_buf == Qnil) goto eof;
     if (*body != Qnil)
       rb_str_append(*body, tmp_buf);
     else
