@@ -144,7 +144,8 @@ module DigitalFabric
       t0 = Time.now
       t1 = nil
       with_request do |id|
-        send_df_message(Protocol.http_request(id, req))
+        msg = Protocol.http_request(id, req.headers, req.next_chunk(true), req.complete?)
+        send_df_message(msg)
         while (message = receive)
           unless t1
             t1 = Time.now
@@ -263,7 +264,7 @@ module DigitalFabric
           break if body.bytesize >= limit
         end
       end
-      send_df_message(Protocol.http_request_body(id, body, req.complete?))
+      send_df_message(Protocol.http_request_body(id, body, false))
     end
 
     def http_upgrade(req, protocol)

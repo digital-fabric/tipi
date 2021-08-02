@@ -102,8 +102,8 @@ module DigitalFabric
         DF_UPGRADE_RESPONSE
       end
 
-      def http_request(id, req)
-        [ HTTP_REQUEST, id, req.headers, req.next_chunk, req.complete? ]
+      def http_request(id, headers, buffered_chunk, complete)
+        [ HTTP_REQUEST, id, headers, buffered_chunk, complete ]
       end
 
       def http_response(id, body, headers, complete, transfer_count_key = nil)
