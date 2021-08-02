@@ -76,7 +76,7 @@ module Tipi
         @waiting_for_half_close = nil
         @stream_fiber.schedule
       else
-        @request.complete!
+        @complete = true
       end
     end
     
@@ -91,9 +91,9 @@ module Tipi
       @adapter.unset_request_for_transfer_count(request)
     end
     
-    def get_body_chunk(request)
+    def get_body_chunk(request, buffered_only = false)
       # called in the context of the stream fiber
-      return nil if @request.complete?
+      return nil if @complete
       
       with_transfer_count(request) do
         @waiting_for_body_chunk = true
@@ -104,17 +104,22 @@ module Tipi
     ensure
       @waiting_for_body_chunk = nil
     end
-    
-    # Wait for request to finish
-    def consume_request(request)
-      return if @request.complete?
-      
+
+    def get_body(request)
+      return nil if @complete
+
       with_transfer_count(request) do
-        @waiting_for_half_close = true
+        @waiting_for_body_chunk = true
+        # the chunk (or an exception) will be returned once the stream fiber is
+        # resumed 
         suspend
       end
     ensure
-      @waiting_for_half_close = nil
+      @waiting_for_body_chunk = nil
+    end
+
+    def complete?(request)
+      @complete
     end
     
     # response API

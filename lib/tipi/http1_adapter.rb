@@ -70,23 +70,20 @@ module Tipi
     
     # Reads a body chunk for the current request. Transfers control to the parse
     # loop, and resumes once the parse_loop has fired the on_body callback
-    def get_body_chunk(request)
-      @parser.read_body_chunk
+    def get_body_chunk(request, buffered_only = false)
+      @parser.read_body_chunk(buffered_only)
     end
 
     def get_body(request)
       @parser.read_body
     end
-    
-    # Waits for the current request to complete. Transfers control to the parse
-    # loop, and resumes once the parse_loop has fired the on_message_complete
-    # callback
-    def consume_request(request)
-      raise NotImplementedError
+
+    def complete?(request)
+      @parser.complete?
     end
     
     def protocol
-      @protocol      
+      @protocol
     end
     
     # Upgrades the connection to a different protocol, if the 'Upgrade' header is
@@ -164,7 +161,6 @@ module Tipi
     # @param body [String] response body
     # @param headers
     def respond(request, body, headers)
-      consume_request(request) if @parsing
       formatted_headers = format_headers(headers, body, false)
       request.tx_incr(formatted_headers.bytesize + (body ? body.bytesize : 0))
       if body
@@ -175,8 +171,6 @@ module Tipi
     end
 
     def respond_from_io(request, io, headers, chunk_size = 2**14)
-      consume_request(request) if @parsing
-
       formatted_headers = format_headers(headers, true, true)
       request.tx_incr(formatted_headers.bytesize)
       
