@@ -23,6 +23,9 @@ Tipi.serve('0.0.0.0', 1234, opts) do |req|
     req.send_chunk("foo\n")
     sleep 0.5
     req.send_chunk("bar\n", done: true)
+  elsif req.path == '/upload'
+    body = req.read
+    req.respond("Body: #{body.inspect} (#{body.bytesize} bytes)")
   else
     req.respond("Hello world!\n")
   end
