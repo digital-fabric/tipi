@@ -1,4 +1,9 @@
 PATH
+  remote: ../polyphony
+  specs:
+    polyphony (0.66)
+
+PATH
   remote: ../qeweney
   specs:
     qeweney (0.13)
@@ -9,7 +14,7 @@ PATH
   specs:
     tipi (0.41)
       acme-client (~> 2.0.8)
-      http-2 (~> 0.10.0)
+      http-2-next (~> 0.4.3)
       msgpack (~> 1.4.2)
       polyphony (~> 0.65)
       qeweney (~> 0.13)
@@ -46,7 +51,7 @@ GEM
     faraday-net_http_persistent (1.2.0)
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
-    http-2 (0.10.2)
+    http-2-next (0.4.3)
     json (2.5.1)
     localhost (1.1.8)
     minitest (5.11.3)
@@ -57,7 +62,6 @@ GEM
       ruby-progressbar
     msgpack (1.4.2)
     multipart-post (2.1.1)
-    polyphony (0.66)
     rack (2.2.3)
     rake (12.3.3)
     rake-compiler (1.1.1)
@@ -79,6 +83,7 @@ DEPENDENCIES
   localhost (~> 1.1.4)
   minitest (~> 5.11.3)
   minitest-reporters (~> 1.4.2)
+  polyphony!
   qeweney!
   rake (~> 12.3.3)
   rake-compiler (= 1.1.1)

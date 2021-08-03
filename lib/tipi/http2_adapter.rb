@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'http/2'
+require 'http/2/next'
 require_relative './http2_stream'
 
 module Tipi
@@ -20,7 +20,7 @@ module Tipi
       @rx = (upgrade_headers && upgrade_headers[':rx']) || 0
       @tx = (upgrade_headers && upgrade_headers[':tx']) || 0
 
-      @interface = ::HTTP2::Server.new
+      @interface = ::HTTP2Next::Server.new
       @connection_fiber = Fiber.current
       @interface.on(:frame, &method(:send_frame))
       @streams = {}
