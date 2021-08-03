@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'http/2/next'
+require 'http/2'
 require_relative './http2_stream'
 
 module Tipi
@@ -20,7 +20,7 @@ module Tipi
       @rx = (upgrade_headers && upgrade_headers[':rx']) || 0
       @tx = (upgrade_headers && upgrade_headers[':tx']) || 0
 
-      @interface = ::HTTP2Next::Server.new
+      @interface = ::HTTP2::Server.new
       @connection_fiber = Fiber.current
       @interface.on(:frame, &method(:send_frame))
       @streams = {}
@@ -46,7 +46,7 @@ module Tipi
       @conn << UPGRADE_MESSAGE
       @tx += UPGRADE_MESSAGE.bytesize
       settings = @upgrade_headers['http2-settings']
-      @interface.upgrade(settings, @upgrade_headers, @upgrade_body)
+      @interface.upgrade(settings, @upgrade_headers, @upgrade_body || '')
     ensure
       @upgrade_headers = nil
     end

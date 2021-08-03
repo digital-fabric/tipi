@@ -14,7 +14,7 @@ PATH
   specs:
     tipi (0.41)
       acme-client (~> 2.0.8)
-      http-2-next (~> 0.4.3)
+      http-2 (~> 0.11)
       msgpack (~> 1.4.2)
       polyphony (~> 0.65)
       qeweney (~> 0.13.1)
@@ -51,7 +51,7 @@ GEM
     faraday-net_http_persistent (1.2.0)
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
-    http-2-next (0.4.3)
+    http-2 (0.11.0)
     json (2.5.1)
     localhost (1.1.8)
     minitest (5.11.3)

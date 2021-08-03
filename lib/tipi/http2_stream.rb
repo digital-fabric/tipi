@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'http/2/next'
+require 'http/2'
 require 'qeweney/request'
 
 module Tipi
@@ -59,7 +59,7 @@ module Tipi
     end
 
     def on_data(data)
-      data = data.to_s # chunks might be wrapped in a HTTP2Next::Buffer
+      data = data.to_s # chunks might be wrapped in a HTTP2::Buffer
       if @waiting_for_body_chunk
         @waiting_for_body_chunk = nil
         @stream_fiber.schedule data
@@ -131,7 +131,7 @@ module Tipi
         @headers_sent = true
         @stream.data(chunk || '')
       end
-    rescue HTTP2Next::Error::StreamClosed
+    rescue HTTP2::Error::StreamClosed
       # ignore
     end
 
@@ -145,7 +145,7 @@ module Tipi
           @stream.data(chunk)
         end
       end
-    rescue HTTP2Next::Error::StreamClosed
+    rescue HTTP2::Error::StreamClosed
       # ignore
     end
 
@@ -167,7 +167,7 @@ module Tipi
         @stream.headers(transform_headers(headers), end_stream: false)
       end
       @headers_sent = true
-    rescue HTTP2Next::Error::StreamClosed
+    rescue HTTP2::Error::StreamClosed
       # ignore
     end
     
@@ -181,7 +181,7 @@ module Tipi
       elsif done
         @stream.close
       end
-    rescue HTTP2Next::Error::StreamClosed
+    rescue HTTP2::Error::StreamClosed
       # ignore
     end
     
@@ -194,7 +194,7 @@ module Tipi
           @stream.headers(transform_headers(headers), end_stream: true)
         end
       end
-    rescue HTTP2Next::Error::StreamClosed
+    rescue HTTP2::Error::StreamClosed
       # ignore
     end
     
