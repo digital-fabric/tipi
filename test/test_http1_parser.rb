@@ -320,7 +320,7 @@ class HTTP1ParserTest < MiniTest::Test
       @o << msg
       total_sent += msg.bytesize
       rand(8..16).times do |i|
-        chunk = i.to_s * rand(40000..360000)
+        chunk = i.to_s * rand(200..360000)
         msg = "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
         @o << msg
         chunks << chunk

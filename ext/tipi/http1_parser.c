@@ -711,6 +711,7 @@ VALUE read_body_with_chunked_encoding(Parser_t *parser, int read_entire_body, in
 
   while (1) {
     int chunk_size = 0;
+    if (BUFFER_POS(&state) == BUFFER_LEN(&state)) FILL_BUFFER_OR_GOTO_EOF(&state);
     if (!parse_chunk_size(&state, &chunk_size)) goto bad_request;
     
     if (chunk_size) {
