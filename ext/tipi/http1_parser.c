@@ -214,11 +214,13 @@ static inline VALUE parser_io_read(Parser_t *parser, VALUE maxlen, VALUE buf, VA
     default:
       return rb_funcall(parser->io, ID_readpartial, 4, maxlen, buf, buf_pos, Qfalse);
   }
-  
 }
 
 static inline int fill_buffer(struct parser_state *state) {
-  parser_io_read(state->parser, NUM_max_headers_read_length, state->parser->buffer, NUM_buffer_end);
+  VALUE ret = parser_io_read(state->parser, NUM_max_headers_read_length, state->parser->buffer, NUM_buffer_end);
+  if (ret == Qnil) return 0;
+
+  state->parser->buffer = ret;
   int len = RSTRING_LEN(state->parser->buffer);
   int read_bytes = len - state->len;
   if (!read_bytes) return 0;
@@ -347,7 +349,7 @@ done:
   // SET_HEADER_VALUE_FROM_BUFFER(state, headers, STR_pseudo_path, pos, len);
   return 1;
 bad_request:
-  RAISE_BAD_REQUEST("Invalid path");
+  RAISE_BAD_REQUEST("Invalid request target");
 eof:
   return 0;
 }
