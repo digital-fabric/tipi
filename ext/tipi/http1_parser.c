@@ -509,9 +509,10 @@ VALUE Parser_parse_headers(VALUE self) {
   GetParser(self, state.parser);
   state.parser->headers = rb_hash_new();
 
-  int initial_pos = state.parser->pos;
   buffer_trim(&state);
   INIT_PARSER_STATE(&state);
+  int initial_pos = state.parser->pos;
+  state.parser->current_request_rx = 0;
 
   if (!parse_request_line(&state, state.parser->headers)) goto eof;
 
@@ -529,7 +530,8 @@ eof:
 done:
   state.parser->body_read_mode = BODY_READ_MODE_UNKNOWN;
   int read_bytes = BUFFER_POS(&state) - initial_pos;
-  state.parser->current_request_rx = read_bytes;
+
+  state.parser->current_request_rx += read_bytes;
   if (state.parser->headers != Qnil)
     rb_hash_aset(state.parser->headers, STR_pseudo_rx, INT2NUM(read_bytes));
   return state.parser->headers;
@@ -568,8 +570,8 @@ VALUE read_body_with_content_length(Parser_t *parser, int read_entire_body, int 
     if (available > parser->body_left) available = parser->body_left;
     body = rb_str_new(RSTRING_PTR(parser->buffer) + pos, available);
     parser->pos += available;
-    parser->body_left -= available;
     parser->current_request_rx += available;
+    parser->body_left -= available;
     if (!parser->body_left) parser->request_completed = 1;
   }
   else {
