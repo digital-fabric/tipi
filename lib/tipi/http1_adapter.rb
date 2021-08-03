@@ -129,8 +129,9 @@ module Tipi
     end
     
     def upgrade_to_http2(headers, &block)
-      @parser = nil
-      HTTP2Adapter.upgrade_each(@conn, @opts, http2_upgraded_headers(headers), &block)
+      headers = http2_upgraded_headers(headers)
+      body = @parser.read_body
+      HTTP2Adapter.upgrade_each(@conn, @opts, headers, body, &block)
       true
     end
     

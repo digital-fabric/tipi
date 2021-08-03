@@ -6,16 +6,16 @@ require_relative './http2_stream'
 module Tipi
   # HTTP2 server adapter
   class HTTP2Adapter
-    def self.upgrade_each(socket, opts, headers, &block)
-      adapter = new(socket, opts, headers)
+    def self.upgrade_each(socket, opts, headers, body, &block)
+      adapter = new(socket, opts, headers, body)
       adapter.each(&block)
     end
     
-    def initialize(conn, opts, upgrade_headers = nil)
+    def initialize(conn, opts, upgrade_headers = nil, upgrade_body = nil)
       @conn = conn
       @opts = opts
       @upgrade_headers = upgrade_headers
-      p upgrade_headers: upgrade_headers
+      @upgrade_body = upgrade_body
       @first = true
       @rx = (upgrade_headers && upgrade_headers[':rx']) || 0
       @tx = (upgrade_headers && upgrade_headers[':tx']) || 0
@@ -43,12 +43,10 @@ module Tipi
     HTTP
     
     def upgrade
-      snooze
       @conn << UPGRADE_MESSAGE
       @tx += UPGRADE_MESSAGE.bytesize
       settings = @upgrade_headers['http2-settings']
-      Fiber.current.schedule(nil)
-      @interface.upgrade(settings, @upgrade_headers, '')
+      @interface.upgrade(settings, @upgrade_headers, @upgrade_body)
     ensure
       @upgrade_headers = nil
     end
