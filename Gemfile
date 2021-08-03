@@ -1,4 +1,7 @@
 source 'https://rubygems.org'
 
 gemspec
-gem "qeweney", path: "../qeweney"
+%w{polyphony qeweney}.each do |dep|
+  dir = "../#{dep}"
+  gem(dep, path: dir) if File.directory?(dir)
+end
