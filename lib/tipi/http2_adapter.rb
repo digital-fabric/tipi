@@ -3,6 +3,17 @@
 require 'http/2'
 require_relative './http2_stream'
 
+# patch to fix bug in HTTP2::Stream
+class HTTP2::Stream
+  def end_stream?(frame)
+    case frame[:type]
+    when :data, :headers, :continuation
+      frame[:flags]&.include?(:end_stream)
+    else false
+    end
+  end
+end
+
 module Tipi
   # HTTP2 server adapter
   class HTTP2Adapter
