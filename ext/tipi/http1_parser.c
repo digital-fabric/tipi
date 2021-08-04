@@ -135,7 +135,7 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
   if (BUFFER_POS(state) == BUFFER_LEN(state)) FILL_BUFFER_OR_GOTO_EOF(state); \
 }
 
-#define INC_BUFFER_POS_NO_READ(state) BUFFER_POS(state)++;
+#define INC_BUFFER_POS_NO_FILL(state) BUFFER_POS(state)++;
 
 #define INC_BUFFER_POS_UTF8(state, len) { \
   unsigned char c = BUFFER_CUR(state); \
@@ -189,10 +189,10 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
   INC_BUFFER_POS(state); \
 }
 
-#define CONSUME_CRLF_NO_READ(state) { \
+#define CONSUME_CRLF_NO_FILL(state) { \
   INC_BUFFER_POS(state); \
   if (BUFFER_CUR(state) != '\n') goto bad_request; \
-  INC_BUFFER_POS_NO_READ(state); \
+  INC_BUFFER_POS_NO_FILL(state); \
 }
 
 #define GLOBAL_STR(v, s) v = rb_str_new_literal(s); rb_global_variable(&v)
@@ -383,12 +383,12 @@ static inline int parse_header_key(struct parser_state *state, VALUE *key) {
         goto done;
       case '\r':
         if (BUFFER_POS(state) > pos) goto bad_request;
-        CONSUME_CRLF_NO_READ(state);
+        CONSUME_CRLF_NO_FILL(state);
         goto done;
       case '\n':
         if (BUFFER_POS(state) > pos) goto bad_request;
 
-        INC_BUFFER_POS_NO_READ(state);
+        INC_BUFFER_POS_NO_FILL(state);
         goto done;
       default:
         INC_BUFFER_POS_UTF8(state, len);
@@ -580,10 +580,10 @@ int parse_chunk_size(struct parser_state *state, int *chunk_size) {
     else if ((c >= 'A') && (c <= 'F'))  value = (value << 4) + (c - 'A' + 10);
     else switch (c) {
       case '\r':
-        CONSUME_CRLF_NO_READ(state);
+        CONSUME_CRLF_NO_FILL(state);
         goto done;
       case '\n':
-        INC_BUFFER_POS_NO_READ(state);
+        INC_BUFFER_POS_NO_FILL(state);
         goto done;
       default:
         goto bad_request;
@@ -645,10 +645,10 @@ static inline int parse_chunk_postfix(struct parser_state *state) {
   if (initial_pos == BUFFER_LEN(state)) FILL_BUFFER_OR_GOTO_EOF(state);
   switch (BUFFER_CUR(state)) {
     case '\r':
-      CONSUME_CRLF_NO_READ(state);
+      CONSUME_CRLF_NO_FILL(state);
       goto done;
     case '\n':
-      INC_BUFFER_POS_NO_READ(state);
+      INC_BUFFER_POS_NO_FILL(state);
       goto done;
     default:
       goto bad_request;
