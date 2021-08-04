@@ -15,8 +15,7 @@ module Tipi
       @conn = conn
       @first = first
       @connection_fiber = Fiber.current
-      @stream_fiber = spin { |req| handle_request(req, &block) }
-      Thread.current.fiber_unschedule(@stream_fiber)
+      @stream_fiber = spin { run(&block) }
 
       # Stream callbacks occur on the connection fiber (see HTTP2Adapter#each).
       # The request handler is run on a separate fiber for each stream, allowing
@@ -34,7 +33,8 @@ module Tipi
       stream.on(:half_close, &method(:on_half_close))
     end
     
-    def handle_request(request, &block)
+    def run(&block)
+      request = receive
       error = nil
       block.(request)
       @connection_fiber.schedule
@@ -43,7 +43,6 @@ module Tipi
     rescue Exception => e
       error = e
     ensure
-      @done = true
       @connection_fiber.schedule error
     end
     
@@ -55,29 +54,19 @@ module Tipi
         @request.headers[':first'] = true
         @first = false
       end
-      @stream_fiber.schedule @request
+      @stream_fiber << @request
     end
 
     def on_data(data)
       data = data.to_s # chunks might be wrapped in a HTTP2::Buffer
-      if @waiting_for_body_chunk
-        @waiting_for_body_chunk = nil
-        @stream_fiber.schedule data
-      else
-        @request.buffer_body_chunk(data)
-      end
+      
+      (@buffered_chunks ||= []) << data
+      @get_body_chunk_fiber&.schedule
     end
 
     def on_half_close
-      if @waiting_for_body_chunk
-        @waiting_for_body_chunk = nil
-        @stream_fiber.schedule
-      elsif @waiting_for_half_close
-        @waiting_for_half_close = nil
-        @stream_fiber.schedule
-      else
-        @complete = true
-      end
+      @get_body_chunk_fiber&.schedule
+      @complete = true
     end
     
     def protocol
@@ -90,32 +79,34 @@ module Tipi
     ensure
       @adapter.unset_request_for_transfer_count(request)
     end
-    
+
     def get_body_chunk(request, buffered_only = false)
-      # called in the context of the stream fiber
+      @buffered_chunks ||= []
+      return @buffered_chunks.shift unless @buffered_chunks.empty?
       return nil if @complete
       
-      with_transfer_count(request) do
-        @waiting_for_body_chunk = true
-        # the chunk (or an exception) will be returned once the stream fiber is
-        # resumed 
+      begin
+        @get_body_chunk_fiber = Fiber.current
         suspend
+      ensure
+        @get_body_chunk_fiber = nil
       end
-    ensure
-      @waiting_for_body_chunk = nil
+      @buffered_chunks.shift
     end
 
     def get_body(request)
-      return nil if @complete
+      @buffered_chunks ||= []
+      return @buffered_chunks.join if @complete
 
-      with_transfer_count(request) do
-        @waiting_for_body_chunk = true
-        # the chunk (or an exception) will be returned once the stream fiber is
-        # resumed 
-        suspend
+      while !@complete
+        begin
+          @get_body_chunk_fiber = Fiber.current
+          suspend
+        ensure
+          @get_body_chunk_fiber = nil
+        end
       end
-    ensure
-      @waiting_for_body_chunk = nil
+      @buffered_chunks.join
     end
 
     def complete?(request)
@@ -199,7 +190,7 @@ module Tipi
     end
     
     def stop
-      return if @done
+      return if @complete
       
       @stream.close
       @stream_fiber.schedule(Polyphony::MoveOn.new)
