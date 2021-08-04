@@ -133,7 +133,7 @@ module DigitalFabric
       end
 
       agent.http_request(req)
-    rescue IOError, SystemCallError, HTTP2Next::Error::StreamClosed
+    rescue IOError, SystemCallError, HTTP2::Error::StreamClosed
       @counters[:errors] += 1
     rescue => e
       @counters[:errors] += 1
