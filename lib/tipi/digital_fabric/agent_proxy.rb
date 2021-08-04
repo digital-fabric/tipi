@@ -265,7 +265,7 @@ module DigitalFabric
           break if body.bytesize >= limit
         end
       end
-      send_df_message(Protocol.http_request_body(id, body, false))
+      send_df_message(Protocol.http_request_body(id, body, req.complete?))
     end
 
     def http_upgrade(req, protocol)
