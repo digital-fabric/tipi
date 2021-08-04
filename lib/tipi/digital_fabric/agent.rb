@@ -187,7 +187,6 @@ module DigitalFabric
       complete = msg[Protocol::Attribute::HttpRequest::COMPLETE]
       req = Qeweney::Request.new(headers, RequestAdapter.new(self, msg))
       req.buffer_body_chunk(body_chunk) if body_chunk
-      req.complete! if complete
       req
     end
 
