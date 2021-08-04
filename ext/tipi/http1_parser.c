@@ -285,49 +285,10 @@ eof:
   return 0;
 }
 
-static inline char hex_digit_to_char(char c) {
-  if (c >= '0' && c <= '9') return c - '0';
-  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-  RAISE_BAD_REQUEST("Invalid hex digit");
-}
-
-static inline char parse_hex_char_code(const char *ptr) {
-  return (hex_digit_to_char(ptr[0]) << 4) | hex_digit_to_char(ptr[1]);
-}
-
-VALUE parse_request_target_string(struct parser_state *state, int pos, int len) {
-  VALUE str = rb_utf8_str_new_literal("");
-  rb_str_modify_expand(str, len);
-  char *ptr = RSTRING_PTR(str);
-  int str_len = 0;
-  int end_pos = pos + len;
-
-  while (pos < end_pos) {
-    char c = BUFFER_AT(state, pos);
-    if (c == '%' && pos < end_pos - 2) {
-      *ptr = parse_hex_char_code(BUFFER_PTR(state, ++pos));
-      ptr++;
-      pos += 2;
-      str_len++;
-    }
-    else {
-      *ptr = c;
-      ptr++;
-      pos++;
-      str_len++;
-    }
-  }
-  rb_str_set_len(str, str_len);
-  RB_GC_GUARD(str);
-  return str;
-}
-
 static int parse_request_target(struct parser_state *state, VALUE headers) {
   while (BUFFER_CUR(state) == ' ') INC_BUFFER_POS(state);
   int pos = BUFFER_POS(state);
   int len = 0;
-  VALUE target;
   while (1) {
     switch (BUFFER_CUR(state)) {
       case ' ':
@@ -343,10 +304,7 @@ static int parse_request_target(struct parser_state *state, VALUE headers) {
     }
   }
 done:
-  target = parse_request_target_string(state, pos, len);
-  rb_hash_aset(headers, STR_pseudo_path, target);
-  RB_GC_GUARD(target);
-  // SET_HEADER_VALUE_FROM_BUFFER(state, headers, STR_pseudo_path, pos, len);
+  SET_HEADER_VALUE_FROM_BUFFER(state, headers, STR_pseudo_path, pos, len);
   return 1;
 bad_request:
   RAISE_BAD_REQUEST("Invalid request target");
