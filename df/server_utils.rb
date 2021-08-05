@@ -131,8 +131,6 @@ def listen_unix
       spin("unix#{id += 1}") do
         Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end
-    rescue OpenSSL::SSL::SSLError
-      # disregard
     end
   end
 end
@@ -152,8 +150,6 @@ def listen_df
       spin("df#{id += 1}") do
         Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end
-    rescue OpenSSL::SSL::SSLError
-      # disregard
     end
   end
 end
