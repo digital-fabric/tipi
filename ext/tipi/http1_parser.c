@@ -470,8 +470,8 @@ VALUE Parser_parse_headers(VALUE self) {
   state.parser->headers = rb_hash_new();
 
   buffer_trim(&state);
-  INIT_PARSER_STATE(&state);
   int initial_pos = state.parser->pos;
+  INIT_PARSER_STATE(&state);
   state.parser->current_request_rx = 0;
 
   if (!parse_request_line(&state, state.parser->headers)) goto eof;
