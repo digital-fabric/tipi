@@ -238,8 +238,8 @@ module DigitalFabric
     def graceful_shutdown
       @shutdown = true
       @agents.keys.each do |agent|
-        if agent.respond_to?(:shutdown)
-          agent.shutdown
+        if agent.respond_to?(:send_shutdown)
+          agent.send_shutdown
         else
           @agents.delete(agent)
         end

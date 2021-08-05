@@ -60,7 +60,7 @@ module DigitalFabric
       @mounted = nil
     end
 
-    def shutdown
+    def send_shutdown
       send_df_message(Protocol.shutdown)
       @fiber.raise GracefulShutdown.new
     end
