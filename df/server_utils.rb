@@ -163,7 +163,7 @@ if ENV['TRACE'] == '1'
     fiber_id = fiber.tag || fiber.inspect
     case event
     when :fiber_schedule
-      log format("=> %s %s %s %s", event, fiber_id, value.inspect, pri ? '' : '(priority)')
+      log format("=> %s %s %s %s", event, fiber_id, value.inspect, pri ? '(priority)' : '')
     when :fiber_run
       log format("=> %s %s %s", event, fiber_id, value.inspect)
     when :fiber_create, :fiber_terminate
