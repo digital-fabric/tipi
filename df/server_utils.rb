@@ -7,24 +7,7 @@ require 'tipi/digital_fabric/executive'
 require 'json'
 require 'fileutils'
 require 'time'
-
-module ::Kernel
-  def trace(*args)
-    STDOUT.orig_write(format_trace(args))
-  end
-
-  def format_trace(args)
-    if args.first.is_a?(String)
-      if args.size > 1
-        format("%s: %p\n", args.shift, args)
-      else
-        format("%s\n", args.first)
-      end
-    else
-      format("%p\n", args.size == 1 ? args.first : args)
-    end
-  end
-end
+require 'polyphony/extensions/debug'
 
 FileUtils.cd(__dir__)
 
@@ -65,8 +48,10 @@ def listen_http
         # log("Done with HTTP connection", client: client)
         @service.decr_connection_count
       end
-    rescue => e
-      log("HTTP accept loop error", error: e, backtrace: e.backtrace)
+    rescue Polyphony::BaseException
+      raise
+    rescue Exception => e
+      log 'HTTP accept (unknown) error', error: e, backtrace: e.backtrace
     end
   end
 end
@@ -74,7 +59,7 @@ end
 CERTIFICATE_REGEXP = /(-----BEGIN CERTIFICATE-----\n[^-]+-----END CERTIFICATE-----\n)/.freeze
 
 def listen_https
-  spin('https_listener') do
+  spin(:https_listener) do
     private_key = OpenSSL::PKey::RSA.new IO.read('../../reality/ssl/privkey.pem')
     c = IO.read('../../reality/ssl/cacert.pem')
     certificates = c.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
@@ -112,8 +97,10 @@ def listen_https
       end
     rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError => e
       # log('HTTPS accept error', error: e, backtrace: e.backtrace)
-    rescue => e
-      log('HTTPS accept (unknown) error', error: e, backtrace: e.backtrace)
+    rescue Polyphony::BaseException
+      raise
+    rescue Exception => e
+      log 'HTTPS accept (unknown) error', error: e, backtrace: e.backtrace
     end
   end
 end
@@ -126,11 +113,16 @@ def listen_unix
     socket = UNIXServer.new(UNIX_SOCKET_PATH)
 
     id = 0
-    socket.accept_loop do |client|
+    loop do
+      client = socket.accept
       # log('Accept Unix connection', client: client)
       spin("unix#{id += 1}") do
         Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end
+    rescue Polyphony::BaseException
+      raise
+    rescue Exception => e
+      log 'Unix accept error', error: e, backtrace: e.backtrace
     end
   end
 end
@@ -139,17 +131,23 @@ def listen_df
   spin(:df_listener) do
     opts = {
       reuse_addr:  true,
+      reuse_port:  true,
       dont_linger: true,
     }
     log('Listening for DF connections on localhost:4321')
     server = Polyphony::Net.tcp_listen('0.0.0.0', 4321, opts)
 
     id = 0
-    server.accept_loop do |client|
+    loop do
+      client = server.accept
       # log('Accept DF connection', client: client)
       spin("df#{id += 1}") do
         Tipi.client_loop(client, {}) { |req| @service.http_request(req, true) }
       end
+    rescue Polyphony::BaseException
+      raise
+    rescue Exception => e
+      log 'DF accept (unknown) error', error: e, backtrace: e.backtrace
     end
   end
 end
