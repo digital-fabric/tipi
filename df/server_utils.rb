@@ -68,8 +68,13 @@ def listen_https
     log "SSL Certificate expires: #{cert.not_after.inspect}"
     ctx.add_certificate(cert, private_key, certificates)
     ctx.ciphers = 'ECDH+aRSA'
-    ctx.min_version = OpenSSL::SSL::TLS1_1_VERSION
-    ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION
+    ctx.send(
+      :set_minmax_proto_version,
+      OpenSSL::SSL::SSL3_VERSION,
+      OpenSSL::SSL::TLS1_3_VERSION
+    )
+    # ctx.min_version = OpenSSL::SSL::SSL3_VERSION #OpenSSL::SSL::TLS1_VERSION
+    # ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION
 
     # TODO: further limit ciphers
     # ref: https://github.com/socketry/falcon/blob/3ec805b3ceda0a764a2c5eb68cde33897b6a35ff/lib/falcon/environments/tls.rb
