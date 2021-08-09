@@ -91,8 +91,10 @@ def listen_https
     server = Polyphony::Net.tcp_listen('0.0.0.0', 10443, opts)
     id = 0
     loop do
+      log('Before HTTPS server.accept')
       client = server.accept
-      # log('Accept HTTPS client connection', client: client)
+      log('After HTTPS server.accept')
+      log('Accept HTTPS client connection', client: client)
       spin("https#{id += 1}") do
         @service.incr_connection_count
         Tipi.client_loop(client, opts) { |req| @service.http_request(req) }
@@ -103,7 +105,7 @@ def listen_https
         @service.decr_connection_count
       end
     rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError => e
-      # log('HTTPS accept error', error: e, backtrace: e.backtrace)
+      log('HTTPS accept error', error: e)
     rescue Polyphony::BaseException
       raise
     rescue Exception => e

@@ -42,6 +42,8 @@ module Tipi
         @transfer_count_request.tx_incr(data.bytesize)
       end
       @conn << data
+    rescue Polyphony::BaseException
+      raise
     rescue Exception => e
       @connection_fiber.transfer e
     end

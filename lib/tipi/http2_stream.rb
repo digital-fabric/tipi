@@ -38,8 +38,8 @@ module Tipi
       error = nil
       block.(request)
       @connection_fiber.schedule
-    rescue Polyphony::MoveOn
-      # ignore
+    rescue Polyphony::BaseException
+      raise
     rescue Exception => e
       error = e
     ensure
