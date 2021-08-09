@@ -17,7 +17,7 @@ rescue Interrupt
 rescue SystemExit
   # ignore
 rescue Exception => e
-  log("Uncaught exception", error: e, backtrace: e.backtrace)
+  log("Uncaught exception", error: e, source: e.source_fiber, raising: e.raising_fiber, backtrace: e.backtrace)
 ensure
   log('DF server stopped')
 end
