@@ -51,7 +51,7 @@ class CertificateManager
     @private_key ||= OpenSSL::PKey::RSA.new(4096)
   end
 
-  ACME_DIRECTORY = 'https://acme-v02.api.letsencrypt.org/directory'
+  ACME_DIRECTORY = 'https://acme-staging-v02.api.letsencrypt.org/directory'
 
   def acme_client
     @acme_client ||= setup_acme_client
