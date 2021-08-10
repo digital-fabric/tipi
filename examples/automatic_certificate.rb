@@ -11,47 +11,33 @@ class CertificateManager
   def initialize(store:, challenge_handler:)
     @store = store
     @challenge_handler = challenge_handler
-    @workers = {}
     @contexts = {}
+    @requests = Polyphony::Queue.new
+    Thread.new { run }
   end
 
-  def [](name)
-    worker = worker_for_name(name)
-    p worker: worker
-  
-    worker << Fiber.current
-    # cancel_after(30) { receive }
-    receive.tap { |ctx| p got_ctx: ctx }
-  rescue Exception => e
-    p e
-    puts e.backtrace.join("\n")
-    nil
+  def <<(req)
+    @requests << req
   end
-  
-  def worker_for_name(name)
-    @workers[name] ||= spin { worker_loop(name) }
-  end
-  
-  def worker_loop(name)
-    while (client = receive)
-      puts "get request for #{name} from #{client.inspect}"
-      ctx = get_context(name)
-      client << ctx rescue nil
+
+  def run
+    while true
+      name, state = @requests.shift
+      state[:ctx] = get_context(name)
     end
   end
 
   def get_context(name)
-    @contexts[name] ||= setup_context(name)
+    @contexts[name] = setup_context(name)
   end
 
   CERTIFICATE_REGEXP = /(-----BEGIN CERTIFICATE-----\n[^-]+-----END CERTIFICATE-----\n)/.freeze
 
   def setup_context(name)
-    certificate = get_certificate(name)
+    private_key, certificate = get_certificate(name)
     ctx = OpenSSL::SSL::SSLContext.new
     chain = certificate.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
     cert = chain.shift
-    puts "Certificate expires: #{cert.not_after.inspect}"
     ctx.add_certificate(cert, private_key, chain)
     Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
     ctx
@@ -65,7 +51,7 @@ class CertificateManager
     @private_key ||= OpenSSL::PKey::RSA.new(4096)
   end
 
-  ACME_DIRECTORY = 'https://acme-staging-v02.api.letsencrypt.org/directory'
+  ACME_DIRECTORY = 'https://acme-v02.api.letsencrypt.org/directory'
 
   def acme_client
     @acme_client ||= setup_acme_client
@@ -76,7 +62,6 @@ class CertificateManager
       private_key: private_key,
       directory: ACME_DIRECTORY
     )
-    p client: client
     account = client.new_account(
       contact: 'mailto:info@noteflakes.com',
       terms_of_service_agreed: true
@@ -87,22 +72,24 @@ class CertificateManager
 
   def provision_certificate(name)
     order = acme_client.new_order(identifiers: [name])
-    p order: true
     authorization = order.authorizations.first
-    p authorization: authorization
+    # p authorization: authorization
     challenge = authorization.http
-    p challenge: challenge
+    p challenge_token: challenge.token
   
     @challenge_handler.add(challenge)
     challenge.request_validation
     p challenge_status: challenge.status
     while challenge.status == 'pending'
       sleep(1)
+      p fiber: Fiber.current
       challenge.reload
       p challenge_status: challenge.status
     end
+    exit!(31) if challenge.status == 'invalid'
   
-    csr = Acme::Client::CertificateRequest.new(private_key: @private_key, subject: { common_name: name })
+    different_private_key = OpenSSL::PKey::RSA.new(4096)
+    csr = Acme::Client::CertificateRequest.new(private_key: different_private_key, subject: { common_name: name })
     p csr: csr
     order.finalize(csr: csr)
     p order_status: order.status
@@ -111,7 +98,25 @@ class CertificateManager
       order.reload
       p order_status: order.status
     end
-    order.certificate.tap { |c| p certificate: c } # => PEM-formatted certificate
+    certificate = begin
+      order.certificate(force_chain: 'DST Root CA X3')
+    rescue Acme::Client::Error::ForcedChainNotFound
+      order.certificate
+    end
+
+    chain = certificate.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
+    cert = chain.shift
+    puts "Certificate expires: #{cert.not_after.inspect}"
+
+    [different_private_key, certificate] # => PEM-formatted certificate
+  rescue Polyphony::BaseException
+    raise
+  rescue Exception => e
+    p error: e
+    p backtrace: e.backtrace
+    exit!
+  ensure
+    @challenge_handler.remove(challenge) if challenge
   end
 end
 
@@ -125,13 +130,21 @@ class AcmeHTTPChallengeHandler
     @challenges[path] = challenge
   end
 
+  def remove(challenge)
+    path = "/.well-known/acme-challenge/#{challenge.token}"
+    @challenges.delete(path)
+  end
+
   def call(req)
+    challenge = @challenges[req.path]
+
     # handle incoming request
     challenge = @challenges[req.path]
     return req.respond(nil, ':status' => 400) unless challenge
 
+    p respond_to_challenge: challenge.token
+
     req.respond(challenge.file_content, 'content-type' => challenge.content_type)
-    @challenges.delete(req.path)
   end
 end
 
@@ -141,27 +154,59 @@ certificate_manager = CertificateManager.new(
   challenge_handler: challenge_handler
 )
 
-http_handler = Tipi.route do |r|
-  r.on('/.well-known/acme-challenge') { challenge_handler.call(r) }
-  r.default { r.redirect "https://#{r.host}#{r.path}" }
+http_handler = ->(r) do
+  puts '*' * 40
+  if r.path =~ /\/\.well\-known\/acme\-challenge/
+    challenge_handler.call(r)
+  else
+    r.redirect "https://#{r.host}#{r.path}"
+  end
 end
 
 https_handler = ->(r) { r.respond('Hello, world!') }
 
 http_listener = spin do
   opts = {
-    reuse_addr:  true,
-    dont_linger: true,
+    reuse_addr:   true,
+    reuse_port:   true,
+    dont_linger:  true,
   }
   puts 'Listening for HTTP on localhost:10080'
-  Tipi.serve('0.0.0.0', 10080, opts, &http_handler)
+  server = Polyphony::Net.tcp_listen('0.0.0.0', 10080, opts)
+  server.accept_loop do |client|
+    spin do
+      Tipi.client_loop(client, opts, &http_handler)
+    end      
+  end
+  # Tipi.serve('0.0.0.0', 10080, opts, &http_handler)
+end
+
+def wait_for_ctx(state)
+  period = 0.00001
+  while !state[:ctx]
+    sleep period
+    period *= 2 if period < 0.1
+  end
 end
 
 https_listener = spin do
   ctx = OpenSSL::SSL::SSLContext.new
-  ctx.servername_cb = proc { |_, name| p name: name; certificate_manager[name] }
+  f = Fiber.new do |peer|
+    while true
+      peer = peer.transfer :foo
+    end
+  end
+  
+  ctx.servername_cb = proc do |_socket, name|
+    p request_name: name
+    state = { ctx: nil }
+    certificate_manager << [name, state]
+    wait_for_ctx(state)
+    state[:ctx]
+  end
   opts = {
     reuse_addr:     true,
+    reuse_port:     true,
     dont_linger:    true,
     secure_context: ctx,
     alpn_protocols: Tipi::ALPN_PROTOCOLS
@@ -169,16 +214,25 @@ https_listener = spin do
 
   puts 'Listening for HTTPS on localhost:10443'
   server = Polyphony::Net.tcp_listen('0.0.0.0', 10443, opts)
-  server.accept_loop do |client|
-    spin do
-      service.incr_connection_count
-      Tipi.client_loop(client, opts) { |req| service.http_request(req) }
-    ensure
-      service.decr_connection_count
+
+  accept_loop_fiber = Fiber.current
+  accept_loop_worker = Thread.new do
+    loop do
+      connection = server.accept
+      accept_loop_fiber << connection
+    rescue OpenSSL::SSL::SSLError, SystemCallError
+      # ignore
+    rescue => e
+      puts "HTTPS accept error: #{e.inspect}"
+      puts e.backtrace.join("\n")
     end
-  rescue Exception => e
-    puts "HTTPS accept_loop error: #{e.inspect}"
-    puts e.backtrace.join("\n")
+  end
+
+  while true
+    client = receive
+    spin do
+      Tipi.client_loop(client, opts) { |req| req.respond('Hello world') }
+    end
   end
 end
 
