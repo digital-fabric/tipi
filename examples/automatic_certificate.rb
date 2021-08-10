@@ -83,8 +83,8 @@ class CertificateManager
     challenge.request_validation
     p challenge_status: challenge.status
     while challenge.status == 'pending'
+      sleep(0.25)
       p fiber: Fiber.current
-      sleep(5)
       challenge.reload
       p challenge_status: challenge.status
     end
@@ -159,10 +159,11 @@ end
 
 https_handler = ->(r) { r.respond('Hello, world!') }
 
-http_listener = Thread.new do
+http_listener = spin do
   opts = {
-    reuse_addr:  true,
-    dont_linger: true,
+    reuse_addr:   true,
+    reuse_port:   true,
+    dont_linger:  true,
   }
   puts 'Listening for HTTP on localhost:10080'
   server = Polyphony::Net.tcp_listen('0.0.0.0', 10080, opts)
@@ -172,6 +173,14 @@ http_listener = Thread.new do
     end      
   end
   # Tipi.serve('0.0.0.0', 10080, opts, &http_handler)
+end
+
+def wait_for_ctx(state)
+  period = 0.00001
+  while !state[:ctx]
+    sleep period
+    period *= 2 if period < 0.1
+  end
 end
 
 https_listener = spin do
@@ -186,12 +195,12 @@ https_listener = spin do
     p request_name: name
     state = { ctx: nil }
     certificate_manager << [name, state]
-    orig_sleep(0.1) until state[:ctx]
+    wait_for_ctx(state)
     state[:ctx]
-    # receive
   end
   opts = {
     reuse_addr:     true,
+    reuse_port:     true,
     dont_linger:    true,
     secure_context: ctx,
     alpn_protocols: Tipi::ALPN_PROTOCOLS
@@ -199,23 +208,28 @@ https_listener = spin do
 
   puts 'Listening for HTTPS on localhost:10443'
   server = Polyphony::Net.tcp_listen('0.0.0.0', 10443, opts)
-  while true
-    begin
-      client = server.accept
-      spin do
-        Tipi.client_loop(client, opts) { |req| req.respond('Hello world') }
-      end
-    rescue Polyphony::BaseException
-      raise
-    rescue Exception => e
-      puts "HTTPS accept_loop error: #{e.inspect}"
+
+  accept_loop_fiber = Fiber.current
+  accept_loop_worker = Thread.new do
+    loop do
+      server = server.accept
+      accept_loop_fiber << server
+    rescue => e
+      puts "HTTPS accept error: #{e.inspect}"
       puts e.backtrace.join("\n")
+    end
+  end
+
+  while true
+    client = receive
+    spin do
+      Tipi.client_loop(client, opts) { |req| req.respond('Hello world') }
     end
   end
 end
 
 begin
-  Fiber.await(https_listener)
+  Fiber.await(http_listener, https_listener)
 rescue Interrupt
   puts "Got SIGINT, terminating"
 rescue Exception => e
