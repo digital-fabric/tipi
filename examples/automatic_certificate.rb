@@ -106,7 +106,8 @@ class CertificateManager
 
     chain = certificate.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
     cert = chain.shift
-    puts "Certificate expires: #{cert.not_after.inspect}"
+    expired_stamp = cert.not_after
+    puts "Certificate expires: #{expired_stamp.inspect} (ttl: #{expired_stamp - Time.now}s)"
 
     [different_private_key, certificate] # => PEM-formatted certificate
   rescue Polyphony::BaseException
