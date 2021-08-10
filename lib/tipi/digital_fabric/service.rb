@@ -81,6 +81,8 @@ module DigitalFabric
       s = `ps -p #{pid} -o %cpu,rss`
       cpu, rss = s.lines[1].chomp.strip.split(' ')
       [cpu.to_f, rss.to_i]
+    rescue Polyphony::BaseException
+      raise
     rescue Exception
       [nil, nil]
     end
