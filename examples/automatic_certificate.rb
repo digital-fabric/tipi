@@ -112,6 +112,8 @@ class CertificateManager
     p error: e
     p backtrace: e.backtrace
     exit!
+  ensure
+    @challenge_handler.remove(challenge) if challenge
   end
 end
 
@@ -126,9 +128,12 @@ class AcmeHTTPChallengeHandler
     @challenges[path] = challenge
   end
 
+  def remove(challenge)
+    path = "/.well-known/acme-challenge/#{challenge.token}"
+    @challenges.delete(path)
+  end
+
   def call(req)
-    puts '-' * 40
-    p path: req.path
     challenge = @challenges[req.path]
     p challenge: challenge&.file_content
     p content_type: challenge&.content_type
