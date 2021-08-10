@@ -37,9 +37,7 @@ class CertificateManager
     private_key, certificate = get_certificate(name)
     ctx = OpenSSL::SSL::SSLContext.new
     chain = certificate.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
-    p chain_size: chain.size
     cert = chain.shift
-    puts "Certificate expires: #{cert.not_after.inspect}"
     ctx.add_certificate(cert, private_key, chain)
     Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
     ctx
@@ -83,7 +81,7 @@ class CertificateManager
     challenge.request_validation
     p challenge_status: challenge.status
     while challenge.status == 'pending'
-      sleep(0.25)
+      sleep(1)
       p fiber: Fiber.current
       challenge.reload
       p challenge_status: challenge.status
@@ -105,6 +103,11 @@ class CertificateManager
     rescue Acme::Client::Error::ForcedChainNotFound
       order.certificate
     end
+
+    chain = certificate.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
+    cert = chain.shift
+    puts "Certificate expires: #{cert.not_after.inspect}"
+
     [different_private_key, certificate] # => PEM-formatted certificate
   rescue Polyphony::BaseException
     raise
@@ -123,7 +126,6 @@ class AcmeHTTPChallengeHandler
   end
 
   def add(challenge)
-    p add_challenge: challenge.token
     path = "/.well-known/acme-challenge/#{challenge.token}"
     @challenges[path] = challenge
   end
@@ -135,15 +137,14 @@ class AcmeHTTPChallengeHandler
 
   def call(req)
     challenge = @challenges[req.path]
-    p challenge: challenge&.file_content
-    p content_type: challenge&.content_type
 
     # handle incoming request
     challenge = @challenges[req.path]
     return req.respond(nil, ':status' => 400) unless challenge
 
+    p respond_to_challenge: challenge.token
+
     req.respond(challenge.file_content, 'content-type' => challenge.content_type)
-    # @challenges.delete(req.path)
   end
 end
 
@@ -217,8 +218,10 @@ https_listener = spin do
   accept_loop_fiber = Fiber.current
   accept_loop_worker = Thread.new do
     loop do
-      server = server.accept
-      accept_loop_fiber << server
+      connection = server.accept
+      accept_loop_fiber << connection
+    rescue OpenSSL::SSL::SSLError, SystemCallError
+      # ignore
     rescue => e
       puts "HTTPS accept error: #{e.inspect}"
       puts e.backtrace.join("\n")
