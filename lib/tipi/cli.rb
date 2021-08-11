@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'tipi'
+require 'fileutils'
 
 module Tipi
   module CLI
@@ -11,16 +12,16 @@ module Tipi
    \\|/
    / \\   Tipi - A better web server for a better world
   /___\\
+"
 
-    "
-
-    def self.start(dir)
+    def self.start
       display_banner
-      # require File.expand_path(ARGV[0] || 'app.rb', dir)
+      require File.expand_path(ARGV[0] || 'app.rb', FileUtils.pwd)
     end
 
     def self.display_banner
       puts BANNER
+      puts
     end
   end
 end

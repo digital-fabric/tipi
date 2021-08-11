@@ -28,13 +28,13 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency      'rack',               '>=2.0.8', '<2.3.0'
   s.add_runtime_dependency      'websocket',          '~>1.2.8'
   s.add_runtime_dependency      'acme-client',        '~>2.0.8'
+  s.add_runtime_dependency      'localhost',          '~>1.1.4'
 
   # for digital fabric
   s.add_runtime_dependency      'msgpack',            '~>1.4.2'
 
   s.add_development_dependency  'rake-compiler',        '1.1.1'
   s.add_development_dependency  'rake',               '~>12.3.3'
-  s.add_development_dependency  'localhost',          '~>1.1.4'
   s.add_development_dependency  'minitest',           '~>5.11.3'
   s.add_development_dependency  'minitest-reporters', '~>1.4.2'
   s.add_development_dependency  'simplecov',          '~>0.17.1'

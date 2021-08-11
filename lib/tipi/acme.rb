@@ -33,6 +33,7 @@ module Tipi
 
       def setup_sni_callback
         @master_ctx.servername_cb = proc do |_socket, name|
+          p servername_cb: name
           state = { ctx: nil }
 
           if name =~ IP_REGEXP

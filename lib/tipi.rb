@@ -6,6 +6,8 @@ require_relative './tipi/http1_adapter'
 require_relative './tipi/http2_adapter'
 require_relative './tipi/configuration'
 require_relative './tipi/response_extensions'
+require_relative './tipi/acme'
+
 require 'qeweney/request'
 
 class Qeweney::Request
@@ -65,8 +67,11 @@ module Tipi
       http_port: 10080,
       https_port: 10443,
       certificate_store: InMemoryCertificateStore.new,
-      app:)
+      app: nil, &block)
     
+      app ||= block
+      raise "No app given" unless app
+
       http_handler = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
     
       ctx = OpenSSL::SSL::SSLContext.new
