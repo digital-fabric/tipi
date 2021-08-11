@@ -63,12 +63,22 @@ module Tipi
       proc { |req| req.route(&block) }
     end
 
+    CERTIFICATE_STORE_DEFAULT_DIR = File.expand_path('~/.tipi')
+    CERTIFICATE_STORE_DEFAULT_DB_PATH = File.join(
+      CERTIFICATE_STORE_DEFAULT_DIR, 'certificates.db'
+    )
+
+    def default_certificate_store
+      FileUtils.mkdir(CERTIFICATE_STORE_DEFAULT_DIR) rescue nil
+      Tipi::ACME::SQLiteCertificateStore.new(CERTIFICATE_STORE_DEFAULT_DB_PATH)
+    end
+
     def full_service(
       http_port: 10080,
       https_port: 10443,
-      certificate_store: InMemoryCertificateStore.new,
-      app: nil, &block)
-    
+      certificate_store: default_certificate_store,
+      app: nil, &block
+    )
       app ||= block
       raise "No app given" unless app
 
