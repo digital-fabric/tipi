@@ -1,20 +1,6 @@
 #!/usr/bin/env ruby
 
 require 'bundler/setup'
-require 'polyphony'
+require 'tipi/cli'
 
-config = {}
-
-puts DATA.read
-puts
-
-require File.expand_path(ARGV[0] || 'app.rb', __dir__)
-__END__
-
-          ooo
-       oo
-     o
-   \|/
-   / \   Tipi - A better web server for a better world
-  /___\
-  
+Tipi::CLI.start(__dir__)
