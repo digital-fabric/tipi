@@ -2,19 +2,13 @@
 
 require 'bundler/setup'
 require 'polyphony'
-require File.expand_path('../lib/tipi/configuration', __dir__)
 
 config = {}
-#config[:forked] = 4
 
 puts DATA.read
 puts
 
-configuration_manager = spin { Tipi::Configuration.supervise_config }
-
-configuration_manager << config
-configuration_manager.await
-
+require File.expand_path(ARGV[0] || 'app.rb', __dir__)
 __END__
 
           ooo
