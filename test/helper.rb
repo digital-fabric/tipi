@@ -17,12 +17,9 @@ require 'polyphony'
 class MiniTest::Test
   def setup
     # trace "* setup #{self.name}"
-    if Fiber.current.children.size > 0
-      trace "Children left: #{Fiber.current.children.inspect}"
-      exit!
-    end
     Fiber.current.setup_main_fiber
     Fiber.current.instance_variable_set(:@auto_watcher, nil)
+    Thread.current.backend.finalize
     Thread.current.backend = Polyphony::Backend.new
     sleep 0
   end
@@ -30,6 +27,11 @@ class MiniTest::Test
   def teardown
     # trace "* teardown #{self.name}"
     Fiber.current.shutdown_all_children
+    if Fiber.current.children.size > 0
+      puts "Children left after #{self.name}: #{Fiber.current.children.inspect}"
+      exit!
+    end
+    Fiber.current.instance_variable_set(:@auto_watcher, nil)
   rescue => e
     puts e
     puts e.backtrace.join("\n")
