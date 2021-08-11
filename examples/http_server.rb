@@ -14,7 +14,7 @@ puts 'Listening on port 10080...'
 # GC.disable
 # Thread.current.backend.idle_gc_period = 60
 
-spin_loop(interval: 10) { p Thread.current.fiber_scheduling_stats }
+spin_loop(interval: 10) { p Thread.backend.stats }
 
 spin_loop(interval: 10) do
   GC.compact

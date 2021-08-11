@@ -58,3 +58,4 @@ log
 log.*
 
 lib/tipi_ext*
+examples/certificate_store.db

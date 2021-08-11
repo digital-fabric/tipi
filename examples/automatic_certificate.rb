@@ -10,13 +10,16 @@ http_handler = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
 https_handler = ->(r) { r.respond('Hello, world!') }
 
 ctx = OpenSSL::SSL::SSLContext.new
-ctx.ciphers = 'ECDH+aRSA'
+# ctx.ciphers = 'ECDH+aRSA'
 Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
 
 challenge_handler = Tipi::ACME::HTTPChallengeHandler.new
+certificate_store = Tipi::ACME::SQLiteCertificateStore.new(
+  File.expand_path('certificate_store.db', __dir__)
+)
 certificate_manager = Tipi::ACME::CertificateManager.new(
   master_ctx: ctx,
-  store: Tipi::ACME::InMemoryCertificateStore.new,
+  store: certificate_store,
   challenge_handler: challenge_handler
 )
 
@@ -55,10 +58,6 @@ https_listener = spin do
   rescue OpenSSL::SSL::SSLError, SystemCallError => e
     p https_error: e
   end
-rescue Exception => e
-  p error: e
-  p e.backtrace
-  exit!
 ensure
   server.close
 end

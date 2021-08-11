@@ -31,9 +31,11 @@ module Tipi
 
       def setup_sni_callback
         @master_ctx.servername_cb = proc do |_socket, name|
+          p servername_cb: name
           state = { ctx: nil }
           @requests << [name, state]
           wait_for_ctx(state)
+          p state if state[:error]
           # Eventually we might want to return an error returned in
           # state[:error]. For the time being we handle errors by returning nil 
           state[:ctx]
@@ -138,6 +140,7 @@ module Tipi
       end
     
       def provision_certificate(name)
+        p provision_certificate: name
         order = acme_client.new_order(identifiers: [name])
         authorization = order.authorizations.first
         challenge = authorization.http
@@ -150,6 +153,7 @@ module Tipi
         end
         raise ACME::Error, "Invalid CSR" if challenge.status == 'invalid'
       
+        p challenge_status: challenge.status
         private_key = OpenSSL::PKey::RSA.new(4096)
         csr = Acme::Client::CertificateRequest.new(
           private_key: private_key,
@@ -231,6 +235,51 @@ module Tipi
         end
 
         entry
+      end
+    end
+
+    class SQLiteCertificateStore
+      attr_reader :db
+
+      def initialize(path)
+        require 'extralite'
+
+        @db = Extralite::Database.new(path)
+        @db.query("
+          create table if not exists certificates (
+            name primary key not null,
+            private_key not null,
+            certificate not null,
+            expired_stamp not null
+          );"
+        )
+      end
+
+      def set(name, private_key:, certificate:, expired_stamp:)
+        @db.query("
+          insert into certificates values (?, ?, ?, ?)
+        ", name, private_key.to_s, certificate, expired_stamp.to_i)
+      end
+
+      def get(name)
+        remove_expired_certificates
+
+        entry = @db.query_single_row("
+          select name, private_key, certificate, expired_stamp
+            from certificates
+           where name = ?
+        ", name)
+        return nil unless entry
+        entry[:expired_stamp] = Time.at(entry[:expired_stamp])
+        entry[:private_key] = OpenSSL::PKey::RSA.new(entry[:private_key])
+        entry
+      end
+
+      def remove_expired_certificates
+        @db.query("
+          delete from certificates
+          where expired_stamp < ?
+        ", Time.now.to_i)
       end
     end
   end
