@@ -73,7 +73,7 @@ module Tipi
         @rx += data.bytesize
         @interface << data
       end
-    rescue SystemCallError, IOError
+    rescue SystemCallError, IOError, HTTP2::Error::Error
       # ignore
     ensure
       finalize_client_loop
