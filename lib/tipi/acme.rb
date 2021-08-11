@@ -269,6 +269,9 @@ module Tipi
         @db.query("
           insert into certificates values (?, ?, ?, ?)
         ", name, private_key.to_s, certificate, expired_stamp.to_i)
+      rescue Extralite::Error => e
+        p error_in_set: e
+        raise e
       end
 
       def get(name)
@@ -283,6 +286,9 @@ module Tipi
         entry[:expired_stamp] = Time.at(entry[:expired_stamp])
         entry[:private_key] = OpenSSL::PKey::RSA.new(entry[:private_key])
         entry
+      rescue Extralite::Error => e
+        p error_in_get: e
+        raise e
       end
 
       def remove_expired_certificates
@@ -290,6 +296,9 @@ module Tipi
           delete from certificates
           where expired_stamp < ?
         ", Time.now.to_i)
+      rescue Extralite::Error => e
+        p error_in_remove_expired_certificates: e
+        raise e
       end
     end
   end

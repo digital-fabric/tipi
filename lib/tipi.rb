@@ -107,7 +107,7 @@ module Tipi
         server.accept_loop do |client|
           spin do
             Tipi.client_loop(client, opts, &wrapped_handler)
-          end      
+          end
         end
       ensure
         server.close
