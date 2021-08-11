@@ -6,14 +6,19 @@ require 'tipi/acme'
 
 ::Exception.__disable_sanitized_backtrace__ = true
 
+http_handler = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
+https_handler = ->(r) { r.respond('Hello, world!') }
+
+ctx = OpenSSL::SSL::SSLContext.new
+ctx.ciphers = 'ECDH+aRSA'
+Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
+
 challenge_handler = Tipi::ACME::HTTPChallengeHandler.new
 certificate_manager = Tipi::ACME::CertificateManager.new(
+  master_ctx: ctx,
   store: Tipi::ACME::InMemoryCertificateStore.new,
   challenge_handler: challenge_handler
 )
-
-http_handler = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
-https_handler = ->(r) { r.respond('Hello, world!') }
 
 http_listener = spin do
   opts = {
@@ -33,15 +38,11 @@ http_listener = spin do
 end
 
 https_listener = spin do
-  ctx = OpenSSL::SSL::SSLContext.new
-  certificate_manager.setup_sni_callback(ctx)
-  
   opts = {
     reuse_addr:     true,
     reuse_port:     true,
     dont_linger:    true,
     secure_context: ctx,
-    alpn_protocols: Tipi::ALPN_PROTOCOLS
   }
 
   puts 'Listening for HTTPS on localhost:10443'
@@ -54,6 +55,10 @@ https_listener = spin do
   rescue OpenSSL::SSL::SSLError, SystemCallError => e
     p https_error: e
   end
+rescue Exception => e
+  p error: e
+  p e.backtrace
+  exit!
 ensure
   server.close
 end

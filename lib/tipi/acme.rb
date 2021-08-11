@@ -10,12 +10,14 @@ module Tipi
     end
 
     class CertificateManager
-      def initialize(store:, challenge_handler:)
+      def initialize(master_ctx:, store:, challenge_handler:)
+        @master_ctx = master_ctx
         @store = store
         @challenge_handler = challenge_handler
         @contexts = {}
         @requests = Polyphony::Queue.new
         @worker = spin { run }
+        setup_sni_callback
       end
 
       ACME_CHALLENGE_PATH_REGEXP = /\/\.well\-known\/acme\-challenge/.freeze
@@ -27,10 +29,9 @@ module Tipi
         end
       end
 
-      def setup_sni_callback(ctx)
-        ctx.servername_cb = proc do |_socket, name|
+      def setup_sni_callback
+        @master_ctx.servername_cb = proc do |_socket, name|
           state = { ctx: nil }
-          p servername_cb: name
           @requests << [name, state]
           wait_for_ctx(state)
           # Eventually we might want to return an error returned in
@@ -59,12 +60,18 @@ module Tipi
       LOCALHOST_REGEXP = /\.?localhost$/.freeze
 
       def get_context(name)
-        return localhost_certificate if name =~ LOCALHOST_REGEXP
-
         @contexts[name] = setup_context(name)
       end
     
       def setup_context(name)
+        ctx = provision_context(name)
+        transfer_ctx_settings(ctx)
+        ctx
+      end
+
+      def provision_context(name)
+        return localhost_context if name =~ LOCALHOST_REGEXP
+
         info = get_certificate(name)
         ctx = OpenSSL::SSL::SSLContext.new
         chain = parse_certificate(info[:certificate])
@@ -72,6 +79,12 @@ module Tipi
         puts "Certificate expires: #{info[:expired_stamp].inspect}"
         ctx.add_certificate(cert, info[:private_key], chain)
         ctx
+      end
+
+      def transfer_ctx_settings(ctx)
+        ctx.alpn_protocols = @master_ctx.alpn_protocols
+        ctx.alpn_select_cb =  @master_ctx.alpn_select_cb
+        ctx.ciphers = @master_ctx.ciphers
       end
 
       CERTIFICATE_REGEXP = /(-----BEGIN CERTIFICATE-----\n[^-]+-----END CERTIFICATE-----\n)/.freeze
