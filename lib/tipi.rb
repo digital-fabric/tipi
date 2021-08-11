@@ -60,5 +60,67 @@ module Tipi
     def route(&block)
       proc { |req| req.route(&block) }
     end
+
+    def full_service(
+      http_port: 10080,
+      https_port: 10443,
+      certificate_store: InMemoryCertificateStore.new,
+      app:)
+    
+      http_handler = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
+    
+      ctx = OpenSSL::SSL::SSLContext.new
+      # ctx.ciphers = 'ECDH+aRSA'
+      Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
+    
+      challenge_handler = Tipi::ACME::HTTPChallengeHandler.new
+      certificate_manager = Tipi::ACME::CertificateManager.new(
+        master_ctx: ctx,
+        store: certificate_store,
+        challenge_handler: challenge_handler
+      )
+    
+      http_listener = spin do
+        opts = {
+          reuse_addr:   true,
+          reuse_port:   true,
+          dont_linger:  true,
+        }
+        puts "Listening for HTTP on localhost:#{http_port}"
+        server = Polyphony::Net.tcp_listen('0.0.0.0', http_port, opts)
+        wrapped_handler = certificate_manager.challenge_routing_app(http_handler)
+        server.accept_loop do |client|
+          spin do
+            Tipi.client_loop(client, opts, &wrapped_handler)
+          end      
+        end
+      ensure
+        server.close
+      end
+    
+      https_listener = spin do
+        opts = {
+          reuse_addr:     true,
+          reuse_port:     true,
+          dont_linger:    true,
+          secure_context: ctx,
+        }
+      
+        puts "Listening for HTTPS on localhost:#{https_port}"
+        server = Polyphony::Net.tcp_listen('0.0.0.0', https_port, opts)
+        loop do
+          client = server.accept
+          spin do
+            Tipi.client_loop(client, opts, &app)
+          end
+        rescue OpenSSL::SSL::SSLError, SystemCallError => e
+          p https_error: e
+        end
+      ensure
+        server.close
+      end
+
+      Fiber.await(http_listener, https_listener)
+    end
   end
 end

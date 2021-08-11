@@ -29,16 +29,23 @@ module Tipi
         end
       end
 
+      IP_REGEXP = /^\d+\.\d+\.\d+\.\d+$/
+
       def setup_sni_callback
         @master_ctx.servername_cb = proc do |_socket, name|
-          p servername_cb: name
           state = { ctx: nil }
-          @requests << [name, state]
-          wait_for_ctx(state)
-          p state if state[:error]
-          # Eventually we might want to return an error returned in
-          # state[:error]. For the time being we handle errors by returning nil 
-          state[:ctx]
+
+          if name =~ IP_REGEXP
+            @master_ctx
+          else
+            @requests << [name, state]
+            wait_for_ctx(state)
+            p name: name, error: state if state[:error]
+            # Eventually we might want to return an error returned in
+            # state[:error]. For the time being we handle errors by returning the
+            # master context
+            state[:ctx] || @master_ctx
+          end
         end
       end
     
@@ -78,7 +85,6 @@ module Tipi
         ctx = OpenSSL::SSL::SSLContext.new
         chain = parse_certificate(info[:certificate])
         cert = chain.shift
-        puts "Certificate expires: #{info[:expired_stamp].inspect}"
         ctx.add_certificate(cert, info[:private_key], chain)
         ctx
       end
@@ -169,10 +175,13 @@ module Tipi
         rescue Acme::Client::Error::ForcedChainNotFound
           order.certificate
         end
+        expired_stamp = get_expired_stamp(certificate)
+        puts "Certificate for #{name} expires: #{expired_stamp.inspect}"
+
         {
           private_key: private_key,
           certificate: certificate,
-          expired_stamp: get_expired_stamp(certificate)
+          expired_stamp: expired_stamp
         }
       end
     end
