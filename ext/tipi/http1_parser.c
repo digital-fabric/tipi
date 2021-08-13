@@ -23,7 +23,7 @@ ID ID_readpartial;
 ID ID_to_i;
 
 VALUE mPolyphony;
-VALUE cError;
+static VALUE cError;
 
 VALUE NUM_max_headers_read_length;
 VALUE NUM_buffer_start;

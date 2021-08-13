@@ -107,6 +107,8 @@ module Tipi
         server.accept_loop do |client|
           spin do
             Tipi.client_loop(client, opts, &wrapped_handler)
+          rescue => e
+            puts "Uncaught error in HTTP listener: #{e.inspect}"
           end
         end
       ensure
@@ -127,6 +129,8 @@ module Tipi
           client = server.accept
           spin do
             Tipi.client_loop(client, opts, &app)
+          rescue => e
+            puts "Uncaught error in HTTPS listener: #{e.inspect}"
           end
         rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError
           # ignore
