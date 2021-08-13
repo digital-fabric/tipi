@@ -26,6 +26,9 @@ module Tipi
         ->(req) do
           (req.path =~ ACME_CHALLENGE_PATH_REGEXP ? @challenge_handler : app)
             .(req)
+        rescue => e
+          puts "Error while handling request: #{e.inspect} (headers: #{req.headers})"
+          req.respond(nil, ':status' => Qeweney::Status::BAD_REQUEST)
         end
       end
 
