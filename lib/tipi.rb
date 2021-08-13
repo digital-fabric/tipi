@@ -128,8 +128,8 @@ module Tipi
           spin do
             Tipi.client_loop(client, opts, &app)
           end
-        rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError => e
-          p https_error: e
+        rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError
+          # ignore
         end
       ensure
         server.close
