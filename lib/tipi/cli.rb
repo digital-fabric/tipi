@@ -9,9 +9,10 @@ module Tipi
          ooo
        oo
      o
-   \\|/
-   / \\   Tipi - A better web server for a better world
-  /___\\
+   \\|/    Tipi - a better web server for a better world
+   / \\       
+  /   \\      https://github.com/digital-fabric/tipi
+⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺
 "
 
     def self.start
