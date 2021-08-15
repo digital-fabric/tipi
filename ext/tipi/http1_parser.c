@@ -13,8 +13,10 @@
 #define BODY_READ_MODE_UNKNOWN  -2
 #define BODY_READ_MODE_CHUNKED  -1
 
+ID ID_arity;
 ID ID_backend_read;
 ID ID_backend_recv;
+ID ID_call;
 ID ID_downcase;
 ID ID_eq;
 ID ID_polyphony_read_method;
@@ -42,7 +44,10 @@ VALUE SYM_backend_read;
 VALUE SYM_backend_recv;
 
 enum polyphony_read_method {
-  method_readpartial, method_backend_read, method_backend_recv
+  method_readpartial, // receiver.readpartial (Polyphony-specific)
+  method_backend_read, // Polyphony.backend_read (Polyphony-specific)
+  method_backend_recv, // Polyphony.backend_recv (Polyphony-specific)
+  method_call // receiver.call(len) (Universal)
 };
 
 typedef struct parser {
@@ -92,10 +97,16 @@ static VALUE Parser_allocate(VALUE klass) {
   TypedData_Get_Struct((obj), Parser_t, &Parser_type, (parser))
 
 enum polyphony_read_method detect_read_method(VALUE io) {
-  VALUE method = rb_funcall(io, ID_polyphony_read_method, 0);
-  if (method == SYM_backend_read) return method_backend_read;
-  if (method == SYM_backend_recv) return method_backend_recv;
-  return method_readpartial;
+  if (rb_respond_to(io, ID_polyphony_read_method)) {
+    VALUE method = rb_funcall(io, ID_polyphony_read_method, 0);
+    if (method == SYM_backend_read) return method_backend_read;
+    if (method == SYM_backend_recv) return method_backend_recv;
+    return method_readpartial;
+  }
+  else if (rb_respond_to(io, ID_call))
+    return method_call;
+  else
+    rb_raise(rb_eRuntimeError, "Provided reader should be an IO instance or a proc");
 }
 
 VALUE Parser_initialize(VALUE self, VALUE io) {
@@ -205,14 +216,28 @@ struct parser_state {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static inline VALUE io_read_call(VALUE io, VALUE maxlen, VALUE buf, VALUE buf_pos) {
+  VALUE result = rb_funcall(io, ID_call, 1, maxlen);
+
+  if (result == Qnil) return Qnil;
+  if (buf_pos == NUM_buffer_start) rb_str_set_len(buf, 0);
+  rb_str_append(buf, result);
+  RB_GC_GUARD(result);
+  return result;
+}
+
 static inline VALUE parser_io_read(Parser_t *parser, VALUE maxlen, VALUE buf, VALUE buf_pos) {
   switch (parser->read_method) {
     case method_backend_read:
       return rb_funcall(mPolyphony, ID_backend_read, 5, parser->io, buf, maxlen, Qfalse, buf_pos);
     case method_backend_recv:
       return rb_funcall(mPolyphony, ID_backend_recv, 4, parser->io, buf, maxlen, buf_pos);
-    default:
+    case method_readpartial:
       return rb_funcall(parser->io, ID_readpartial, 4, maxlen, buf, buf_pos, Qfalse);
+    case method_call:
+      return io_read_call(parser->io, maxlen, buf, buf_pos);
+    default:
+      return Qnil;
   }
 }
 
@@ -761,8 +786,10 @@ void Init_HTTP1_Parser() {
   rb_define_method(cHTTP1Parser, "read_body_chunk", Parser_read_body_chunk, 1);
   rb_define_method(cHTTP1Parser, "complete?", Parser_complete_p, 0);
 
+  ID_arity                  = rb_intern("arity");
   ID_backend_read           = rb_intern("backend_read");
   ID_backend_recv           = rb_intern("backend_recv");
+  ID_call                   = rb_intern("call");
   ID_downcase               = rb_intern("downcase");
   ID_eq                     = rb_intern("==");
   ID_polyphony_read_method  = rb_intern("__polyphony_read_method__");
