@@ -24,7 +24,7 @@ ID ID_read;
 ID ID_readpartial;
 ID ID_to_i;
 
-VALUE mPolyphony;
+VALUE mPolyphony = Qnil;
 static VALUE cError;
 
 VALUE NUM_max_headers_read_length;
@@ -98,15 +98,18 @@ static VALUE Parser_allocate(VALUE klass) {
 
 enum polyphony_read_method detect_read_method(VALUE io) {
   if (rb_respond_to(io, ID_polyphony_read_method)) {
+    if (mPolyphony == Qnil)
+      mPolyphony = rb_const_get(rb_cObject, rb_intern("Polyphony"));
     VALUE method = rb_funcall(io, ID_polyphony_read_method, 0);
     if (method == SYM_backend_read) return method_backend_read;
     if (method == SYM_backend_recv) return method_backend_recv;
     return method_readpartial;
   }
-  else if (rb_respond_to(io, ID_call))
+  else if (rb_respond_to(io, ID_call)) {
     return method_call;
+  }
   else
-    rb_raise(rb_eRuntimeError, "Provided reader should be an IO instance or a proc");
+    rb_raise(rb_eRuntimeError, "Provided reader should be a callable or respond to #__parser_read_method__");
 }
 
 VALUE Parser_initialize(VALUE self, VALUE io) {
@@ -122,7 +125,6 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
   rb_str_modify_expand(parser->buffer, INITIAL_BUFFER_SIZE);
 
   parser->read_method = detect_read_method(io);
-
   parser->body_read_mode = BODY_READ_MODE_UNKNOWN;
   parser->body_left = 0;
   return self;
@@ -218,12 +220,12 @@ struct parser_state {
 
 static inline VALUE io_read_call(VALUE io, VALUE maxlen, VALUE buf, VALUE buf_pos) {
   VALUE result = rb_funcall(io, ID_call, 1, maxlen);
-
   if (result == Qnil) return Qnil;
+
   if (buf_pos == NUM_buffer_start) rb_str_set_len(buf, 0);
   rb_str_append(buf, result);
   RB_GC_GUARD(result);
-  return result;
+  return buf;
 }
 
 static inline VALUE parser_io_read(Parser_t *parser, VALUE maxlen, VALUE buf, VALUE buf_pos) {
@@ -771,8 +773,6 @@ void Init_HTTP1_Parser() {
   VALUE mTipi;
   VALUE cHTTP1Parser;
 
-  mPolyphony = rb_const_get(rb_cObject, rb_intern("Polyphony"));
-
   mTipi = rb_define_module("Tipi");
   cHTTP1Parser = rb_define_class_under(mTipi, "HTTP1Parser", rb_cObject);
   rb_define_alloc_func(cHTTP1Parser, Parser_allocate);
@@ -812,4 +812,6 @@ void Init_HTTP1_Parser() {
 
   SYM_backend_read = ID2SYM(ID_backend_read);
   SYM_backend_recv = ID2SYM(ID_backend_recv);
+
+  rb_global_variable(&mTipi);
 }

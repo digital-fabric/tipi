@@ -552,15 +552,15 @@ class HTTP1ParserTest < MiniTest::Test
 
   def test_parser_with_callable
     buf = []
-    request = "GET /foo HTTP/1.1\r\nHost: bar\r\n\r\n"
+    request = +"GET /foo HTTP/1.1\r\nHost: bar\r\n\r\n"
     callable = proc do |len|
       buf << {len: len}
       request
     end
 
     parser = Tipi::HTTP1Parser.new(callable)
-    headers = parser.parse_headers
 
+    headers = parser.parse_headers
     assert_equal({
       ':method' => 'get',
       ':path' => '/foo',
@@ -570,5 +570,17 @@ class HTTP1ParserTest < MiniTest::Test
 
     }, headers)
     assert_equal [{len: 4096}], buf
+
+    request = +"GET /bar HTTP/1.1\r\nHost: baz\r\n\r\n"
+    headers = parser.parse_headers
+    assert_equal({
+      ':method' => 'get',
+      ':path' => '/bar',
+      ':protocol' => 'http/1.1',
+      'host' => 'baz',
+      ':rx' => request.bytesize,
+
+    }, headers)
+    assert_equal [{len: 4096}, {len: 4096}], buf
   end
 end
