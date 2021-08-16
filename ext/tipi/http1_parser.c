@@ -299,7 +299,9 @@ static inline int parse_method(struct parser_state *state, VALUE headers) {
       case '\n':
         goto bad_request;
       default:
-        INC_BUFFER_POS_UTF8(state, len);
+        INC_BUFFER_POS(state);
+        len++;
+        // INC_BUFFER_POS_UTF8(state, len);
         if (len > MAX_METHOD_LENGTH) goto bad_request;
     }
   }
@@ -326,7 +328,9 @@ static int parse_request_target(struct parser_state *state, VALUE headers) {
       case '\n':
         goto bad_request;
       default:
-        INC_BUFFER_POS_UTF8(state, len);
+        INC_BUFFER_POS(state);
+        len++;
+        // INC_BUFFER_POS_UTF8(state, len);
         if (len > MAX_PATH_LENGTH) goto bad_request;
     }
   }
@@ -418,7 +422,9 @@ static inline int parse_header_key(struct parser_state *state, VALUE *key) {
         INC_BUFFER_POS_NO_FILL(state);
         goto done;
       default:
-        INC_BUFFER_POS_UTF8(state, len);
+        INC_BUFFER_POS(state);
+        len++;
+        // INC_BUFFER_POS_UTF8(state, len);
         if (len > MAX_HEADER_KEY_LENGTH) goto bad_request;
     }
   }

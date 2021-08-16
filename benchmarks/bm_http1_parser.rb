@@ -54,7 +54,7 @@ def fork_benchmark(method, iterations)
   Process.wait(pid)
 end
 
-x = 100000
+x = 500000
 fork_benchmark(:benchmark_other_http1_parser, x)
 fork_benchmark(:benchmark_tipi_http1_parser, x)
 
