@@ -40,4 +40,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency  'simplecov',          '~>0.17.1'
 
   s.add_development_dependency  'cuba',               '~>3.9.3'
+  s.add_development_dependency  'http_parser.rb',     '0.7.0'
 end
