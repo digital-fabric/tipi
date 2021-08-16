@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -e
+rake compile
+ruby test/test_http1_parser.rb
+ruby benchmarks/bm_http1_parser.rb

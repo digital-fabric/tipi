@@ -77,7 +77,7 @@ class IO
 
   def self.mockup_connection(input, output, output2)
     eg(
-      __polyphony_read_method__: ->() { :readpartial },
+      __parser_read_method__: ->() { :readpartial },
       read:         ->(*args) { input.read(*args) },
       read_loop:    ->(*args, &block) { input.read_loop(*args, &block) },
       recv_loop:    ->(*args, &block) { input.read_loop(*args, &block) },

@@ -19,12 +19,12 @@ ID ID_backend_recv;
 ID ID_call;
 ID ID_downcase;
 ID ID_eq;
-ID ID_polyphony_read_method;
+ID ID_parser_read_method;
 ID ID_read;
 ID ID_readpartial;
 ID ID_to_i;
 
-VALUE mPolyphony = Qnil;
+static VALUE mPolyphony = Qnil;
 static VALUE cError;
 
 VALUE NUM_max_headers_read_length;
@@ -43,11 +43,11 @@ VALUE STR_transfer_encoding;
 VALUE SYM_backend_read;
 VALUE SYM_backend_recv;
 
-enum polyphony_read_method {
-  method_readpartial, // receiver.readpartial (Polyphony-specific)
-  method_backend_read, // Polyphony.backend_read (Polyphony-specific)
-  method_backend_recv, // Polyphony.backend_recv (Polyphony-specific)
-  method_call // receiver.call(len) (Universal)
+enum read_method {
+  method_readpartial,   // receiver.readpartial (Polyphony-specific)
+  method_backend_read,  // Polyphony.backend_read (Polyphony-specific)
+  method_backend_recv,  // Polyphony.backend_recv (Polyphony-specific)
+  method_call           // receiver.call(len) (Universal)
 };
 
 typedef struct parser {
@@ -57,7 +57,7 @@ typedef struct parser {
   int   pos;
   int   current_request_rx;
 
-  enum  polyphony_read_method read_method;
+  enum  read_method read_method;
   int   body_read_mode;
   int   body_left;
   int   request_completed;
@@ -96,11 +96,11 @@ static VALUE Parser_allocate(VALUE klass) {
 #define GetParser(obj, parser) \
   TypedData_Get_Struct((obj), Parser_t, &Parser_type, (parser))
 
-enum polyphony_read_method detect_read_method(VALUE io) {
-  if (rb_respond_to(io, ID_polyphony_read_method)) {
+enum read_method detect_read_method(VALUE io) {
+  if (rb_respond_to(io, ID_parser_read_method)) {
     if (mPolyphony == Qnil)
       mPolyphony = rb_const_get(rb_cObject, rb_intern("Polyphony"));
-    VALUE method = rb_funcall(io, ID_polyphony_read_method, 0);
+    VALUE method = rb_funcall(io, ID_parser_read_method, 0);
     if (method == SYM_backend_read) return method_backend_read;
     if (method == SYM_backend_recv) return method_backend_recv;
     return method_readpartial;
@@ -792,7 +792,7 @@ void Init_HTTP1_Parser() {
   ID_call                   = rb_intern("call");
   ID_downcase               = rb_intern("downcase");
   ID_eq                     = rb_intern("==");
-  ID_polyphony_read_method  = rb_intern("__polyphony_read_method__");
+  ID_parser_read_method     = rb_intern("__parser_read_method__");
   ID_read                   = rb_intern("read");
   ID_readpartial            = rb_intern("readpartial");
   ID_to_i                   = rb_intern("to_i");
