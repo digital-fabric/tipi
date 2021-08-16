@@ -1,7 +1,7 @@
 PATH
   remote: ../polyphony
   specs:
-    polyphony (0.67)
+    polyphony (0.69)
 
 PATH
   remote: ../qeweney
@@ -12,13 +12,13 @@ PATH
 PATH
   remote: .
   specs:
-    tipi (0.41)
+    tipi (0.42)
       acme-client (~> 2.0.8)
       extralite (~> 1.2)
       http-2 (~> 0.11)
       localhost (~> 1.1.4)
       msgpack (~> 1.4.2)
-      polyphony (~> 0.67)
+      polyphony (~> 0.69)
       qeweney (~> 0.14)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)

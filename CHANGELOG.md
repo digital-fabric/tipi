@@ -1,3 +1,14 @@
+## 0.42 2021-08-16
+
+- HTTP/1 parser:  disable UTF-8 parsing for all but header values
+- Add support for parsing HTTP/1 from callable source
+- Introduce full_service API for automatic HTTPS
+- Introduce automatic SSL certificate provisioning
+- Improve handling of exceptions
+- Various fixes to DF service and agent pxoy
+- Fix upgrading to HTTP2 with a request body
+- Switch to new HTTP/1 parser
+
 ## 0.41 2021-07-26
 
 - Fix Rack adapter (#11)
