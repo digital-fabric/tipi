@@ -98,8 +98,10 @@ static VALUE Parser_allocate(VALUE klass) {
 
 enum read_method detect_read_method(VALUE io) {
   if (rb_respond_to(io, ID_parser_read_method)) {
-    if (mPolyphony == Qnil)
+    if (mPolyphony == Qnil) {
       mPolyphony = rb_const_get(rb_cObject, rb_intern("Polyphony"));
+      rb_gc_register_mark_object(mPolyphony);
+    }
     VALUE method = rb_funcall(io, ID_parser_read_method, 0);
     if (method == SYM_backend_read) return method_backend_read;
     if (method == SYM_backend_recv) return method_backend_recv;
@@ -782,9 +784,11 @@ void Init_HTTP1_Parser() {
 
   mTipi = rb_define_module("Tipi");
   cHTTP1Parser = rb_define_class_under(mTipi, "HTTP1Parser", rb_cObject);
+  rb_gc_register_mark_object(cHTTP1Parser);
   rb_define_alloc_func(cHTTP1Parser, Parser_allocate);
 
   cError = rb_define_class_under(cHTTP1Parser, "Error", rb_eRuntimeError);
+  rb_gc_register_mark_object(cError);
 
   // backend methods
   rb_define_method(cHTTP1Parser, "initialize", Parser_initialize, 1);
