@@ -64,17 +64,14 @@ def listen_https
     c = IO.read('../../reality/ssl/cacert.pem')
     certificates = c.scan(CERTIFICATE_REGEXP).map { |p|  OpenSSL::X509::Certificate.new(p.first) }
     ctx = OpenSSL::SSL::SSLContext.new
+    ctx.security_level = 0
     cert = certificates.shift
     log "SSL Certificate expires: #{cert.not_after.inspect}"
     ctx.add_certificate(cert, private_key, certificates)
     ctx.ciphers = 'ECDH+aRSA'
-    ctx.send(
-      :set_minmax_proto_version,
-      OpenSSL::SSL::SSL3_VERSION,
-      OpenSSL::SSL::TLS1_3_VERSION
-    )
-    # ctx.min_version = OpenSSL::SSL::SSL3_VERSION #OpenSSL::SSL::TLS1_VERSION
-    # ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION
+    ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION
+    ctx.min_version = OpenSSL::SSL::SSL3_VERSION
+    ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
     # TODO: further limit ciphers
     # ref: https://github.com/socketry/falcon/blob/3ec805b3ceda0a764a2c5eb68cde33897b6a35ff/lib/falcon/environments/tls.rb
@@ -91,10 +88,10 @@ def listen_https
     server = Polyphony::Net.tcp_listen('0.0.0.0', 10443, opts)
     id = 0
     loop do
-      log('Before HTTPS server.accept')
-      client = server.accept
-      log('After HTTPS server.accept')
-      log('Accept HTTPS client connection', client: client)
+      client = server.accept rescue nil
+      next unless client
+
+      # log('Accept HTTPS client connection', client: client)
       spin("https#{id += 1}") do
         @service.incr_connection_count
         Tipi.client_loop(client, opts) { |req| @service.http_request(req) }
@@ -104,12 +101,12 @@ def listen_https
         # log("Done with HTTP connection", client: client)
         @service.decr_connection_count
       end
-    rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError => e
-      log('HTTPS accept error', error: e)
+    # rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError => e
+    #   log('HTTPS accept error', error: e)
     rescue Polyphony::BaseException
       raise
     rescue Exception => e
-      log 'HTTPS accept (unknown) error', error: e, backtrace: e.backtrace
+      log 'HTTPS listener error: ', error: e, backtrace: e.backtrace
     end
   end
 end
