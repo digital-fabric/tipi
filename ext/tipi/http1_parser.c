@@ -141,7 +141,8 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
 #define BUFFER_CUR(state) ((state)->ptr[(state)->parser->pos])
 #define BUFFER_AT(state, pos) ((state)->ptr[pos])
 #define BUFFER_PTR(state, pos) ((state)->ptr + pos)
-#define BUFFER_STR(state, pos, len) (rb_utf8_str_new((state)->ptr + pos, len))
+#define BUFFER_STR(state, pos, len) (rb_obj_freeze(rb_utf8_str_new((state)->ptr + pos, len)))
+#define BUFFER_STR_DOWNCASE(state, pos, len) (rb_obj_freeze(str_downcase(rb_utf8_str_new((state)->ptr + pos, len))))
 
 #define INC_BUFFER_POS(state) { \
   BUFFER_POS(state)++; \
@@ -191,7 +192,7 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
 }
 
 #define SET_HEADER_DOWNCASE_VALUE_FROM_BUFFER(state, headers, key, pos, len) { \
-  VALUE value = str_downcase(BUFFER_STR(state, pos, len)); \
+  VALUE value = BUFFER_STR_DOWNCASE(state, pos, len); \
   rb_hash_aset(headers, key, value); \
   RB_GC_GUARD(value); \
 }
@@ -208,7 +209,7 @@ VALUE Parser_initialize(VALUE self, VALUE io) {
   INC_BUFFER_POS_NO_FILL(state); \
 }
 
-#define GLOBAL_STR(v, s) v = rb_str_new_literal(s); rb_global_variable(&v)
+#define GLOBAL_STR(v, s) v = rb_str_new_literal(s); rb_global_variable(&v); rb_obj_freeze(v)
 
 struct parser_state {
   struct parser *parser;
@@ -430,7 +431,7 @@ static inline int parse_header_key(struct parser_state *state, VALUE *key) {
   }
 done:
   if (len == 0) return -1;
-  (*key) = str_downcase(BUFFER_STR(state, pos, len));
+  (*key) = BUFFER_STR_DOWNCASE(state, pos, len);
   return 1;
 bad_request:
   RAISE_BAD_REQUEST("Invalid header key");
