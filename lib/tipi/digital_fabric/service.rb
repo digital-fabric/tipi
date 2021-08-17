@@ -50,6 +50,8 @@ module DigitalFabric
       switch_rate = backend_stats[:switch_count] / elapsed
       poll_rate = backend_stats[:poll_count] / elapsed
 
+      object_space_stats = ObjectSpace.count_objects
+
       {
         service: {
           agent_count: @agents.size,
@@ -73,6 +75,8 @@ module DigitalFabric
         process: {
           cpu_usage: cpu,
           rss: rss.to_f / 1024,
+          objects_total: object_space_stats[:TOTAL],
+          objects_free:  object_space_stats[:FREE]
         }
       }
     end
