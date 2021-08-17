@@ -8,6 +8,8 @@ listeners = [
   listen_unix
 ]
 
+spin_loop(interval: 60) { GC.compact } if GC.respond_to?(:compact)
+
 begin
   log('Starting DF server')
   Fiber.await(*listeners)
