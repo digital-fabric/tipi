@@ -1,3 +1,8 @@
+## 0.43 2021-08-20
+
+- Extract HTTP/1 parser into a separate gem:
+  [H1P](https://github.com/digital-fabric/h1p)
+
 ## 0.42 2021-08-16
 
 - HTTP/1 parser:  disable UTF-8 parsing for all but header values
