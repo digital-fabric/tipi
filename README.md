@@ -31,7 +31,7 @@ without having to employ a reverse-proxy such as Nginx.
 Here are the results of an ad-hoc benchmark showing throughput in requests/sec
 for different Ruby web servers:
 
-| |tipi|puma|falcon|unicorn|
+| |Tipi|Puma|Falcon|Unicorn|
 |-|---:|---:|-----:|------:|
 |HTTP/1.1|138629|34573|40714|7438|
 |HTTPS/2|52814|?|34226|n/a|
