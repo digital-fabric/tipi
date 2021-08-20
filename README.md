@@ -28,8 +28,7 @@ without having to employ a reverse-proxy such as Nginx.
 
 ## Benchmarks
 
-Here are the results of an ad-hoc benchmark showing throughput in requests/sec
-for different Ruby web servers:
+<img src="bm.png" style="width: 480px">
 
 | |Tipi|Puma|Falcon|Unicorn|
 |-|---:|---:|-----:|------:|
