@@ -28,6 +28,11 @@ without having to employ a reverse-proxy such as Nginx.
 
 ## Benchmarks
 
+> Caveat emptor: the following results were obtained with an ad-hoc, manual
+> process. I am not really familiar with the servers I compared Tipi against,
+> and I ran them in their default configuration (apart from setting the number
+> of workers). Take these results with a bunch of salt.
+
 <img src="bm.png" style="width: 480px">
 
 | |Tipi|Puma|Falcon|Unicorn|
@@ -37,6 +42,8 @@ without having to employ a reverse-proxy such as Nginx.
 
 ### Methodology
 
+- All servers ran the same "Hello world" [Rack
+  application](https://github.com/digital-fabric/tipi/blob/master/examples/hello.ru)
 - Each server was run with 4 forked worker processes:
   - Tipi: `examples/rack_server_forked.rb examples/hello.ru` and
     `examples/rack_server_https_forked.rb examples/hello.ru`
@@ -52,10 +59,6 @@ without having to employ a reverse-proxy such as Nginx.
   created. I'll get around to it eventually for the sake of completeness.
 - Unicorn with HTTPS: as far as I could tell Unicorn does not support SSL
   termination. Please let me know if this is not the case.
-
-```
-wrk -d60 -t4 -c64 <url>
-```
 
 ## Documentation
 
