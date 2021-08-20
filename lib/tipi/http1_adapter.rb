@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-require 'tipi_ext'
-require_relative './http2_adapter'
+require 'h1p'
 require 'qeweney/request'
+
+require_relative './http2_adapter'
 
 module Tipi
   # HTTP1 protocol implementation
@@ -14,7 +15,7 @@ module Tipi
       @conn = conn
       @opts = opts
       @first = true
-      @parser = Tipi::HTTP1Parser.new(@conn)
+      @parser = H1P::Parser.new(@conn)
     end
     
     def each(&block)
@@ -26,7 +27,7 @@ module Tipi
         # upgraded
         break if handle_request(headers, &block)
       end
-    rescue Tipi::HTTP1Parser::Error
+    rescue H1P::Error
       # ignore
     rescue SystemCallError, IOError
       # ignore

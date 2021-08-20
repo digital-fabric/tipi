@@ -39,7 +39,7 @@ class RequestHeadersTest < MiniTest::Test
     assert_equal 'blah.com', req.headers['host']
     assert_equal 'bar', req.headers['foo']
     assert_equal ['1', '2', '3'], req.headers['hi']
-    assert_equal 'get', req.headers[':method']
+    assert_equal 'GET', req.headers[':method']
     assert_equal '/titi', req.headers[':path']
   end
 
