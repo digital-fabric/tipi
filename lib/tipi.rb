@@ -132,8 +132,12 @@ module Tipi
           rescue => e
             puts "Uncaught error in HTTPS listener: #{e.inspect}"
           end
+        rescue Polyphony::BaseException
+          raise
         rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError
           # ignore
+        rescue Exception => e
+          puts "HTTPS listener uncaught exception: #{e.inspect}"
         end
       ensure
         server.close
