@@ -35,29 +35,50 @@ module Tipi
       IP_REGEXP = /^\d+\.\d+\.\d+\.\d+$/
 
       def setup_sni_callback
-        @master_ctx.servername_cb = proc do |_socket, name|
-          p servername_cb: name
-          state = { ctx: nil }
-
-          if name =~ IP_REGEXP
-            @master_ctx
-          else
-            @requests << [name, state]
-            wait_for_ctx(state)
-            p name: name, error: state if state[:error]
-            # Eventually we might want to return an error returned in
-            # state[:error]. For the time being we handle errors by returning the
-            # master context
-            state[:ctx] || @master_ctx
-          end
-        end
+        @master_ctx.servername_cb = proc { |_socket, name| get_ctx(name) }
       end
-    
+
+      def get_ctx(name)
+        STDOUT.orig_write "get_ctx: #{name.inspect}\n"
+        state = { ctx: nil }
+
+        return @master_ctx if name =~ IP_REGEXP
+        
+        # p get_ctx: 2
+        ready_ctx = @contexts[name]
+        # p get_ctx: { ready: !!ready_ctx }
+        return ready_ctx if ready_ctx
+        
+        # p get_ctx: 3
+        @requests << [name, state]
+        # p get_ctx: 4
+        wait_for_ctx(state)
+        # p get_ctx: 5
+        p name: name, error: state if state[:error]
+        # Eventually we might want to return an error returned in
+        # state[:error]. For the time being we handle errors by returning the
+        # master context
+        # p get_ctx: { ctx: !!state[:ctx] }
+        state[:ctx] || @master_ctx
+      rescue => e
+        # p name: name, error: e, backtrace: e.backtrace
+        @master_ctx
+      ensure
+        # p get_ctx_return: name
+      end
+
+      MAX_WAIT_FOR_CTX_DURATION = 30
+
       def wait_for_ctx(state)
+        t0 = Time.now
         period = 0.00001
         while !state[:ctx] && !state[:error]
           orig_sleep period
-          period *= 2 if period < 0.1
+          if period < 0.1
+            period *= 2
+          elsif Time.now - t0 > MAX_WAIT_FOR_CTX_DURATION
+            raise "Timeout waiting for certificate provisioning"
+          end
         end
       end
       
@@ -150,7 +171,7 @@ module Tipi
       end
     
       def provision_certificate(name)
-        p provision_certificate: name
+        # p provision_certificate: name
         order = acme_client.new_order(identifiers: [name])
         authorization = order.authorizations.first
         challenge = authorization.http
@@ -163,7 +184,7 @@ module Tipi
         end
         raise ACME::Error, "Invalid CSR" if challenge.status == 'invalid'
       
-        p challenge_status: challenge.status
+        # p challenge_status: challenge.status
         private_key = OpenSSL::PKey::RSA.new(4096)
         csr = Acme::Client::CertificateRequest.new(
           private_key: private_key,
