@@ -1,12 +1,7 @@
 PATH
-  remote: ../h1p
-  specs:
-    h1p (0.2)
-
-PATH
   remote: ../polyphony
   specs:
-    polyphony (0.70)
+    polyphony (0.71)
 
 PATH
   remote: ../qeweney
@@ -58,6 +53,7 @@ GEM
     faraday-net_http_persistent (1.2.0)
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
+    h1p (0.2)
     http-2 (0.11.0)
     json (2.5.1)
     localhost (1.1.8)
@@ -80,7 +76,6 @@ PLATFORMS
 
 DEPENDENCIES
   cuba (~> 3.9.3)
-  h1p!
   memory_profiler (~> 1.0.0)
   minitest (~> 5.11.3)
   polyphony!
