@@ -68,7 +68,7 @@ def listen_https
     cert = certificates.shift
     log "SSL Certificate expires: #{cert.not_after.inspect}"
     ctx.add_certificate(cert, private_key, certificates)
-    ctx.ciphers = 'ECDH+aRSA'
+    # ctx.ciphers = 'ECDH+aRSA'
     ctx.max_version = OpenSSL::SSL::TLS1_3_VERSION
     ctx.min_version = OpenSSL::SSL::SSL3_VERSION
     ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
