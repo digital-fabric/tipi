@@ -10,27 +10,50 @@ authority = Localhost::Authority.fetch
 opts = {
   reuse_addr:     true,
   dont_linger:    true,
-  secure_context: authority.server_context
 }
 
 puts "pid: #{Process.pid}"
 puts 'Listening on port 1234...'
-Tipi.serve('0.0.0.0', 1234, opts) do |req|
-  p path: req.path
-  if req.path == '/stream'
-    req.send_headers('Foo' => 'Bar')
-    sleep 0.5
-    req.send_chunk("foo\n")
-    sleep 0.5
-    req.send_chunk("bar\n", done: true)
-  elsif req.path == '/upload'
-    body = req.read
-    req.respond("Body: #{body.inspect} (#{body.bytesize} bytes)")
-  else
-    req.respond("Hello world!\n")
+
+ctx = authority.server_context
+server = Polyphony::Net.tcp_listen('0.0.0.0', 1234, opts)
+loop do
+  socket = server.accept
+  client = OpenSSL::SSL::SSLSocket.new(socket, ctx)
+  client.sync_close = true
+  spin do
+    state = {}
+    accept_thread = Thread.new do
+      puts "call client accept"
+      client.accept
+      state[:result] = :ok
+    rescue Exception => e
+      puts error: e
+      state[:result] = e
+    end
+    "wait for accept thread"
+    accept_thread.join
+    "accept thread done"
+    if state[:result].is_a?(Exception)
+      puts "Exception in SSL handshake: #{state[:result].inspect}"
+      next
+    end
+    Tipi.client_loop(client, opts) do |req|
+      p path: req.path
+      if req.path == '/stream'
+        req.send_headers('Foo' => 'Bar')
+        sleep 0.5
+        req.send_chunk("foo\n")
+        sleep 0.5
+        req.send_chunk("bar\n", done: true)
+      elsif req.path == '/upload'
+        body = req.read
+        req.respond("Body: #{body.inspect} (#{body.bytesize} bytes)")
+      else
+        req.respond("Hello world!\n")
+      end
+    end
+  ensure
+    client ? client.close : socket.close
   end
-  # req.send_headers
-  # req.send_chunk("Method: #{req.method}\n")
-  # req.send_chunk("Path: #{req.path}\n")
-  # req.send_chunk("Query: #{req.query.inspect}\n", done: true)
 end
