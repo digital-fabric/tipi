@@ -96,6 +96,7 @@ module Tipi
     end
 
     def self.start_rack_app(opts)
+      puts "Loading Rack app from #{File.expand_path(opts[:path])}"
       app = Tipi::RackAdapter.load(opts[:path])
       serve_app(app, opts)
     end
@@ -114,6 +115,7 @@ module Tipi
           req.respond(nil, ':status' => Qeweney::Status::NOT_FOUND)
         end
       end
+      puts "Serving static files from #{File.expand_path(path)}"
       serve_app(app, opts)
     end
 
