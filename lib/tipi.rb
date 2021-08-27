@@ -82,6 +82,14 @@ module Tipi
       app ||= block
       raise "No app given" unless app
 
+      old_app = app
+      app = proc do |req|
+        conn = req.adapter.conn
+        req.headers[':peer'] = conn.peeraddr(false)[2]
+        req.headers[':scheme'] ||= conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
+        old_app.(req)
+      end
+
       http_handler = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
     
       ctx = OpenSSL::SSL::SSLContext.new
@@ -120,18 +128,13 @@ module Tipi
           reuse_addr:     true,
           reuse_port:     true,
           dont_linger:    true,
-          secure_context: ctx,
         }
       
         puts "Listening for HTTPS on localhost:#{https_port}"
         server = Polyphony::Net.tcp_listen('0.0.0.0', https_port, opts)
         loop do
-          client = server.accept
-          spin do
-            Tipi.client_loop(client, opts, &app)
-          rescue => e
-            puts "Uncaught error in HTTPS listener: #{e.inspect}"
-          end
+          socket = server.accept
+          start_https_connection_fiber(socket, ctx, opts, app)
         rescue Polyphony::BaseException
           raise
         rescue OpenSSL::SSL::SSLError, SystemCallError, TypeError
@@ -144,6 +147,38 @@ module Tipi
       end
 
       Fiber.await(http_listener, https_listener)
+    end
+
+    def start_https_connection_fiber(socket, ctx, opts, app)
+      spin do
+        client = OpenSSL::SSL::SSLSocket.new(socket, ctx)
+        client.sync_close = true
+
+        state = {}
+        accept_thread = Thread.new do
+          client.accept
+          state[:result] = :ok
+        rescue Exception => e
+          state[:result] = e
+        end
+        move_on_after(30) { accept_thread.join }
+        case state[:result]
+        when Exception
+          puts "Exception in SSL handshake: #{state[:result].inspect}"
+          next
+        when :ok
+          # ok, continue
+        else
+          accept_thread.orig_kill rescue nil
+          puts "Accept thread failed to complete SSL handshake"
+        end
+
+        Tipi.client_loop(client, opts, &app)
+      rescue => e
+        puts "Uncaught error in HTTPS connection fiber: #{e.inspect} bt: #{e.backtrace.inspect}"
+      ensure
+        (client ? client.close : socket.close) rescue nil
+      end
     end
   end
 end

@@ -4,7 +4,7 @@ require_relative 'helper'
 require 'tipi'
 
 class String
-  def http_lines
+  def crlf_lines
     gsub "\n", "\r\n"
   end
 end
@@ -33,7 +33,7 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.0\r\n\r\n"
 
     response = connection.readpartial(8192)
-    expected = <<~HTTP.chomp.http_lines.chomp
+    expected = <<~HTTP.chomp.crlf_lines.chomp
       HTTP/1.1 200
       Content-Length: 13
 
@@ -51,7 +51,7 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.1\r\n\r\n"
 
     response = connection.readpartial(8192)
-    expected = <<~HTTP.http_lines.chomp
+    expected = <<~HTTP.crlf_lines.chomp
       HTTP/1.1 200
       Content-Length: 13
 
@@ -73,7 +73,7 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.1\r\n\r\n"
     response = connection.readpartial(8192)
     assert !connection.eof?
-    expected = <<~HTTP.http_lines.chomp
+    expected = <<~HTTP.crlf_lines.chomp
       HTTP/1.1 200
       Content-Length: 2
 
@@ -100,7 +100,7 @@ class HTTP1ServerTest < MiniTest::Test
     sleep 0.01
     response = connection.readpartial(8192)
 
-    expected = <<~HTTP.http_lines.chomp
+    expected = <<~HTTP.crlf_lines.chomp
       HTTP/1.1 200
       Content-Length: 13
 
@@ -125,7 +125,7 @@ class HTTP1ServerTest < MiniTest::Test
       req.finish
     end
 
-    connection << <<~HTTP.http_lines
+    connection << <<~HTTP.crlf_lines
       POST / HTTP/1.1
       Transfer-Encoding: chunked
 
@@ -151,7 +151,7 @@ class HTTP1ServerTest < MiniTest::Test
 
     response = connection.readpartial(8192)
 
-    expected = <<~HTTP.http_lines
+    expected = <<~HTTP.crlf_lines
       HTTP/1.1 200
       Transfer-Encoding: chunked
 
@@ -172,7 +172,7 @@ class HTTP1ServerTest < MiniTest::Test
       upgrade: {
         echo: lambda do |adapter, _headers|
           conn = adapter.conn
-          conn << <<~HTTP.http_lines
+          conn << <<~HTTP.crlf_lines
             HTTP/1.1 101 Switching Protocols
             Upgrade: echo
             Connection: Upgrade
@@ -192,7 +192,7 @@ class HTTP1ServerTest < MiniTest::Test
     connection << "GET / HTTP/1.1\r\n\r\n"
     response = connection.readpartial(8192)
     assert !connection.eof?
-    expected = <<~HTTP.http_lines.chomp
+    expected = <<~HTTP.crlf_lines.chomp
       HTTP/1.1 200
       Content-Length: 2
 
@@ -200,7 +200,7 @@ class HTTP1ServerTest < MiniTest::Test
     HTTP
     assert_equal(expected, response)
 
-    connection << <<~HTTP.http_lines
+    connection << <<~HTTP.crlf_lines
       GET / HTTP/1.1
       Upgrade: echo
       Connection: upgrade
@@ -210,7 +210,7 @@ class HTTP1ServerTest < MiniTest::Test
     snooze
     response = connection.readpartial(8192)
     assert !connection.eof?
-    expected = <<~HTTP.http_lines
+    expected = <<~HTTP.crlf_lines
       HTTP/1.1 101 Switching Protocols
       Upgrade: echo
       Connection: Upgrade
@@ -259,7 +259,7 @@ class HTTP1ServerTest < MiniTest::Test
     end
 
     chunks = "#{chunk_size.to_s(16)}\n#{'*' * chunk_size}\n" * chunk_count
-    expected = <<~HTTP.http_lines
+    expected = <<~HTTP.crlf_lines
       HTTP/1.1 200
       Transfer-Encoding: chunked
 
