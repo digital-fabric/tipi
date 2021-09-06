@@ -2,6 +2,7 @@
 
 require 'tipi'
 require 'fileutils'
+require 'tipi/supervisor'
 
 module Tipi
   ARGV_SINGLE_DASH_REGEXP = /^(\-\w)(.+)?$/.freeze
@@ -20,6 +21,7 @@ module Tipi
   end
 
   DEFAULT_OPTS = {
+    mode: :polyphony,
     workers: 1,
     threads: 1,
     path: '.',
@@ -41,7 +43,7 @@ module Tipi
     while (part = shift_argv(argv))
       case part
       when '-c', '--compat'
-        opts[:compatible_mode] = true
+        opts[:mode] = :stock
       when '-h', '--help'
         puts HELP
         exit!
@@ -59,7 +61,20 @@ module Tipi
         opts[:path] = part
       end
     end
+    opts[:app_type] = detect_app_type(opts)
     opts
+  end
+
+  def self.detect_app_type(opts)
+    path = opts[:path]
+    if File.file?(path)
+      File.extname(path) == '.ru' ? :web : :bare
+    elsif File.directory?(opts[:path])
+      :web
+    else
+      puts "Invalid path specified #{opts[:path]}"
+      exit!
+    end
   end
 
   module CLI
@@ -75,72 +90,13 @@ module Tipi
 
     def self.start
       opts = Tipi.opts_from_argv(ARGV)
-
       display_banner if STDOUT.tty? && !opts[:silent]
-      if File.file?(opts[:path])
-        start_app(opts)
-      elsif File.directory?(opts[:path])
-        start_static_server(opts)
-      else
-        puts "Invalid path specified #{opts[:path]}"
-        exit!
-      end
-    end
-
-    def self.start_app(opts)
-      if File.extname(opts[:path]) == '.ru'
-        start_rack_app(opts)
-      else
-        require(opts[:path])
-      end
-    end
-
-    def self.start_rack_app(opts)
-      puts "Loading Rack app from #{File.expand_path(opts[:path])}"
-      app = Tipi::RackAdapter.load(opts[:path])
-      serve_app(app, opts)
+      
+      Tipi::Supervisor.run(opts)
     end
 
     def self.display_banner
       puts BANNER
-    end
-
-    def self.start_static_server(opts)
-      path = opts[:path]
-      app = proc do |req|
-        full_path = find_path(path, req.path)
-        if full_path
-          req.serve_file(full_path)
-        else
-          req.respond(nil, ':status' => Qeweney::Status::NOT_FOUND)
-        end
-      end
-      puts "Serving static files from #{File.expand_path(path)}"
-      serve_app(app, opts)
-    end
-
-    def self.serve_app(app, opts)
-      Tipi.full_service(&app)
-    end
-
-    INVALID_PATH_REGEXP = /\/?(\.\.|\.)\//
-
-    def self.find_path(base, path)
-      p find_path: [base, path]
-      return nil if path =~ INVALID_PATH_REGEXP
-
-      full_path = File.join(base, path)
-      return full_path if File.file?(full_path)
-      return find_path(full_path, 'index') if File.directory?(full_path)
-
-      qualified = "#{full_path}.html"
-      return qualified if File.file?(qualified)
-
-      nil
-    end
-
-    def self.supervise(opts)
-
     end
   end
 end
