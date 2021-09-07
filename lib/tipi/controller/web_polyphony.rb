@@ -44,10 +44,12 @@ module Tipi
       trap('SIGTERM') { supervisor.terminate(true) }
       trap('SIGINT') do
         trap('SIGINT') { exit! }
-        supervisor&.terminate(true)
+        supervisor.terminate(true)
       end
 
       supervisor.await
+    rescue Polyphony::Terminate
+      # TODO: find out how Terminate can leak etc.
     end
 
     def run_worker
