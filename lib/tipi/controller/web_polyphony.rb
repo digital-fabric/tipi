@@ -8,21 +8,60 @@ module Tipi
       @opts = opts
       @path = @opts['path']
       @service = prepare_service
+
+      p opts: opts
     end
 
-    def stop
-      @server.terminate(true)
-    end
+    WORKER_COUNT_RANGE = (1..32).freeze
 
     def run
-      @server = start_server(@service)
-      raise 'Server not started' unless @server
-      @server.await
-    rescue Polyphony::Terminate
-      # ignore
+      puts "Listening for HTTP on localhost:10080"
+      puts "Listening for HTTPS on localhost:10443"
+
+      worker_count = (@opts['workers'] || 1).to_i.clamp(WORKER_COUNT_RANGE)
+      return run_worker if worker_count == 1
+
+      supervise_workers(worker_count)
     end
 
   private
+
+    def supervise_workers(worker_count)
+      supervisor = spin do
+        worker_count.times do
+          spin do
+            pid = Polyphony.fork { run_worker }
+            puts "Forked worker pid: #{pid}"
+            Polyphony.backend_waitpid(pid)
+            puts "Done worker pid: #{pid}"
+          end
+        end
+        supervise(restart: :always)
+      end
+      trap('SIGTERM') { supervisor.terminate(true) }
+      trap('SIGINT') do
+        trap('SIGINT') { exit! }
+        supervisor&.terminate(true)
+      end
+
+      supervisor.await
+    end
+
+    def run_worker
+      server = start_server(@service)
+      trap('SIGTERM') { p signal: 'TERM', pid: Process.pid, server: server; server&.terminate(true); p :ok }
+      trap('SIGINT') do
+        trap('SIGINT') { exit! }
+        server&.terminate(true)
+      end
+      raise 'Server not started' unless server
+      server.await
+    rescue Polyphony::Terminate
+      # TODO: find out why this exception leaks from the server fiber
+      # ignore
+    ensure
+      p run_worker: :ensure, pid: Process.pid
+    end
 
     def prepare_service
       if File.file?(@path)
@@ -67,8 +106,7 @@ module Tipi
     end
 
     def web_service(http_port: 10080, https_port: 10443,
-                             certificate_store: default_certificate_store, app: nil,
-                             &block)
+                    app: nil, &block)
       app ||= block
       raise "No app given" unless app
 
@@ -76,25 +114,28 @@ module Tipi
       app = add_connection_headers(app)
 
       ctx = OpenSSL::SSL::SSLContext.new
-      # ctx.ciphers = 'ECDH+aRSA'
+      ctx.ciphers = 'ECDH+aRSA'
       Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
-
-      challenge_handler = Tipi::ACME::HTTPChallengeHandler.new
-      certificate_manager = Tipi::ACME::CertificateManager.new(
-      master_ctx: ctx,
-      store: certificate_store,
-      challenge_handler: challenge_handler
-      )
-
-      http_app = certificate_manager.challenge_routing_app(redirect_app)
+  
+      certificate_store = create_certificate_store
 
       proc do
+        challenge_handler = Tipi::ACME::HTTPChallengeHandler.new
+        certificate_manager = Tipi::ACME::CertificateManager.new(
+          master_ctx: ctx,
+          store: certificate_store,
+          challenge_handler: challenge_handler
+        )
+        http_app = certificate_manager.challenge_routing_app(redirect_app)
+  
         http_listener = spin_accept_loop('HTTP', http_port) do |socket|
           Tipi.client_loop(socket, @opts, &http_app)
         end
+
+        ssl_accept_thread_pool = Polyphony::ThreadPool.new(4)
   
         https_listener = spin_accept_loop('HTTPS', https_port) do |socket|
-          start_https_connection_fiber(socket, ctx, app)
+          start_https_connection_fiber(socket, ctx, ssl_accept_thread_pool, app)
         rescue Exception => e
           puts "Exception in https_listener block: #{e.inspect}\n#{e.backtrace.inspect}"
         end
@@ -122,13 +163,12 @@ module Tipi
       dont_linger:  true,
     }.freeze
 
-    def spin_accept_loop(name, port)
+    def spin_accept_loop(name, port, &block)
       spin do
-        puts "Listening for #{name} on localhost:#{port}"
         server = Polyphony::Net.tcp_listen('0.0.0.0', port, SOCKET_OPTS)
         loop do
           socket = server.accept
-          spin_connection_handler(socket)
+          spin_connection_handler(name, socket, block)
         rescue Polyphony::BaseException => e
           raise
         rescue Exception => e
@@ -139,13 +179,14 @@ module Tipi
       end
     end
 
-    def spin_connection_handler(socket)
+    def spin_connection_handler(name, socket, block)
       spin do
-        yield socket
+        block.(socket)
       rescue Polyphony::BaseException
         raise
       rescue Exception => e
-        puts "Uncaught error in HTTP listener: #{e.inspect}"
+        puts "Uncaught error in #{name} handler: #{e.inspect}"
+        p e.backtrace
       end
     end
 
@@ -176,8 +217,6 @@ module Tipi
       end
     end
 
-    SSL_ACCEPT_THREAD_POOL = Polyphony::ThreadPool.new(4)
-
     def ssl_accept(client)
       client.accept
       true
@@ -185,11 +224,11 @@ module Tipi
       e
     end
 
-    def start_https_connection_fiber(socket, ctx, app)
+    def start_https_connection_fiber(socket, ctx, thread_pool, app)
       client = OpenSSL::SSL::SSLSocket.new(socket, ctx)
       client.sync_close = true
 
-      result = SSL_ACCEPT_THREAD_POOL.process { ssl_accept(client) }
+      result = thread_pool.process { ssl_accept(client) }
       if result.is_a?(Exception)
         puts "Exception in SSL handshake: #{result.inspect}"
         return
@@ -206,7 +245,7 @@ module Tipi
     CERTIFICATE_STORE_DEFAULT_DB_PATH = File.join(
       CERTIFICATE_STORE_DEFAULT_DIR, 'certificates.db').freeze
 
-    def default_certificate_store
+    def create_certificate_store
       FileUtils.mkdir(CERTIFICATE_STORE_DEFAULT_DIR) rescue nil
       Tipi::ACME::SQLiteCertificateStore.new(CERTIFICATE_STORE_DEFAULT_DB_PATH)
     end

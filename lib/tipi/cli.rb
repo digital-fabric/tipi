@@ -56,7 +56,7 @@ module Tipi
       when '-v', '--verbose'
         opts[:verbose] = true
       when '-w', '--workers'
-        opts[:workers] = shift_argv(argv)
+        opts[:workers] = shift_argv(argv).to_i
       else
         opts[:path] = part
       end
