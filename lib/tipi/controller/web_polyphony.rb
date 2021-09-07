@@ -89,9 +89,9 @@ module Tipi
       http_app = certificate_manager.challenge_routing_app(redirect_app)
 
       proc do
-        # http_listener = spin_accept_loop('HTTP', http_port) do |socket|
-        #   Tipi.client_loop(socket, @opts, &http_app)
-        # end
+        http_listener = spin_accept_loop('HTTP', http_port) do |socket|
+          Tipi.client_loop(socket, @opts, &http_app)
+        end
   
         https_listener = spin_accept_loop('HTTPS', https_port) do |socket|
           start_https_connection_fiber(socket, ctx, app)
