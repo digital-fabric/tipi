@@ -11,4 +11,8 @@ require_relative mod_path
 
 controller = Tipi::Controller.new(opts)
 trap('SIGTERM') { controller.stop }
+trap('SIGINT') do
+  trap('SIGINT') { exit! }
+  controller.stop
+end
 controller.run

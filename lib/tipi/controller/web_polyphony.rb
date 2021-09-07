@@ -15,9 +15,11 @@ module Tipi
     end
 
     def run
-      start_service(@service)
+      @server = start_server(@service)
       raise 'Server not started' unless @server
       @server.await
+    rescue Polyphony::Terminate
+      # ignore
     end
 
   private
@@ -95,7 +97,6 @@ module Tipi
           start_https_connection_fiber(socket, ctx, app)
         rescue Exception => e
           puts "Exception in https_listener block: #{e.inspect}\n#{e.backtrace.inspect}"
-          raise
         end
       end
     end
@@ -127,21 +128,24 @@ module Tipi
         server = Polyphony::Net.tcp_listen('0.0.0.0', port, SOCKET_OPTS)
         loop do
           socket = server.accept
-          spin do
-            yield socket
-          rescue Polyphony::BaseException
-            raise
-          rescue Exception => e
-            puts "Uncaught error in HTTP listener: #{e.inspect}"
-          end
-        rescue Polyphony::BaseException
+          spin_connection_handler(socket)
+        rescue Polyphony::BaseException => e
           raise
         rescue Exception => e
           puts "#{name} listener uncaught exception: #{e.inspect}"
         end
       ensure
-        puts "spin_accept_loop ensure graceful: #{Fiber.current.graceful_shutdown?.inspect}"
         finalize_listener(server) if server
+      end
+    end
+
+    def spin_connection_handler(socket)
+      spin do
+        yield socket
+      rescue Polyphony::BaseException
+        raise
+      rescue Exception => e
+        puts "Uncaught error in HTTP listener: #{e.inspect}"
       end
     end
 
@@ -149,6 +153,10 @@ module Tipi
       fiber  = Fiber.current
       gracefully_terminate_conections(fiber) if fiber.graceful_shutdown?
       server.close
+    rescue Polyphony::BaseException
+      raise
+    rescue Exception => e
+      trace "Exception in finalize_listener: #{e.inspect}"
     end
 
     def gracefully_terminate_conections(fiber)
@@ -203,8 +211,8 @@ module Tipi
       Tipi::ACME::SQLiteCertificateStore.new(CERTIFICATE_STORE_DEFAULT_DB_PATH)
     end
 
-    def start_service(service)
-      @server = spin do
+    def start_server(service)
+      spin do
         service.call
         supervise(restart: :always)
       end
