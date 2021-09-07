@@ -7,6 +7,7 @@ module Tipi
     def initialize(opts)
       @opts = opts
       @path = @opts['path']
+      @service = prepare_service
     end
 
     def stop
@@ -14,16 +15,21 @@ module Tipi
     end
 
     def run
-      if File.file?(@path)
-        start_app
-      elsif File.directory?(@path)
-        start_static_server
-      else
-        puts "Invalid path specified #{@path}"
-        exit!
-      end
+      start_service(@service)
       raise 'Server not started' unless @server
       @server.await
+    end
+
+  private
+
+    def prepare_service
+      if File.file?(@path)
+        File.extname(@path) == '.ru' ? rack_service : tipi_service
+      elsif File.directory?(@path)
+        static_service
+      else
+        raise "Invalid path specified #{@path}"
+      end
     end
 
     def start_app
@@ -34,13 +40,19 @@ module Tipi
       end
     end
 
-    def start_rack_app
+    def rack_service
       puts "Loading Rack app from #{File.expand_path(@path)}"
       app = Tipi::RackAdapter.load(@path)
-      start_server(app)
+      web_service(&app)
     end
 
-    def start_static_server
+    def tipi_service
+      require(@path)
+      proc { spin { Object.run } }
+    end
+
+    def static_service
+      puts "Serving static files from #{File.expand_path(@path)}"
       app = proc do |req|
         full_path = find_path(@path, req.path)
         if full_path
@@ -49,21 +61,48 @@ module Tipi
           req.respond(nil, ':status' => Qeweney::Status::NOT_FOUND)
         end
       end
-      puts "Serving static files from #{File.expand_path(@path)}"
-      start_server(app)
+      web_service(&app)
     end
 
-    def start_server(app)
-      @server = spin do
-        full_service(&app)
-        supervise(restart: :always)
+    def web_service(http_port: 10080, https_port: 10443,
+                             certificate_store: default_certificate_store, app: nil,
+                             &block)
+      app ||= block
+      raise "No app given" unless app
+
+      redirect_app = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
+      app = add_connection_headers(app)
+
+      ctx = OpenSSL::SSL::SSLContext.new
+      # ctx.ciphers = 'ECDH+aRSA'
+      Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
+
+      challenge_handler = Tipi::ACME::HTTPChallengeHandler.new
+      certificate_manager = Tipi::ACME::CertificateManager.new(
+      master_ctx: ctx,
+      store: certificate_store,
+      challenge_handler: challenge_handler
+      )
+
+      http_app = certificate_manager.challenge_routing_app(redirect_app)
+
+      proc do
+        # http_listener = spin_accept_loop('HTTP', http_port) do |socket|
+        #   Tipi.client_loop(socket, @opts, &http_app)
+        # end
+  
+        https_listener = spin_accept_loop('HTTPS', https_port) do |socket|
+          start_https_connection_fiber(socket, ctx, app)
+        rescue Exception => e
+          puts "Exception in https_listener block: #{e.inspect}\n#{e.backtrace.inspect}"
+          raise
+        end
       end
     end
 
     INVALID_PATH_REGEXP = /\/?(\.\.|\.)\//
 
     def find_path(base, path)
-      p find_path: [base, path]
       return nil if path =~ INVALID_PATH_REGEXP
 
       full_path = File.join(base, path)
@@ -82,39 +121,6 @@ module Tipi
       dont_linger:  true,
     }.freeze
 
-    def full_service(http_port: 10080, https_port: 10443,
-                     certificate_store: default_certificate_store, app: nil,
-                     &block)
-      app ||= block
-      raise "No app given" unless app
-
-      redirect_app = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
-      app = add_connection_headers(app)
-    
-      ctx = OpenSSL::SSL::SSLContext.new
-      # ctx.ciphers = 'ECDH+aRSA'
-      Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
-    
-      challenge_handler = Tipi::ACME::HTTPChallengeHandler.new
-      certificate_manager = Tipi::ACME::CertificateManager.new(
-        master_ctx: ctx,
-        store: certificate_store,
-        challenge_handler: challenge_handler
-      )
-
-      http_app = certificate_manager.challenge_routing_app(redirect_app)
-
-      http_listener = spin_accept_loop('HTTP', http_port) do |socket|
-        Tipi.client_loop(socket, @opts, &http_app)
-      end
-
-      https_listener = spin_accept_loop('HTTPS', https_port) do |socket|
-        start_https_connection_fiber(socket, ctx, @opts, &app)
-      end
-
-      [http_listener, https_listener]
-    end
-
     def spin_accept_loop(name, port)
       spin do
         puts "Listening for #{name} on localhost:#{port}"
@@ -126,7 +132,7 @@ module Tipi
           rescue Polyphony::BaseException
             raise
           rescue Exception => e
-              puts "Uncaught error in HTTP listener: #{e.inspect}"
+            puts "Uncaught error in HTTP listener: #{e.inspect}"
           end
         rescue Polyphony::BaseException
           raise
@@ -162,46 +168,46 @@ module Tipi
       end
     end
 
-    def start_https_connection_fiber(socket, ctx, opts, &app)
-      spin do
-        client = OpenSSL::SSL::SSLSocket.new(socket, ctx)
-        client.sync_close = true
+    SSL_ACCEPT_THREAD_POOL = Polyphony::ThreadPool.new(4)
 
-        state = {}
-        accept_thread = Thread.new do
-          client.accept
-          state[:result] = :ok
-        rescue Exception => e
-          state[:result] = e
-        end
-        move_on_after(30) { accept_thread.join }
-        case state[:result]
-        when Exception
-          puts "Exception in SSL handshake: #{state[:result].inspect}"
-          next
-        when :ok
-          # ok, continue
-        else
-          accept_thread.orig_kill rescue nil
-          puts "Accept thread failed to complete SSL handshake"
-        end
-
-        Tipi.client_loop(client, opts, &app)
-      rescue => e
-        puts "Uncaught error in HTTPS connection fiber: #{e.inspect} bt: #{e.backtrace.inspect}"
-      ensure
-        (client ? client.close : socket.close) rescue nil
-      end
+    def ssl_accept(client)
+      client.accept
+      true
+    rescue Exception => e
+      e
     end
 
-    CERTIFICATE_STORE_DEFAULT_DIR = File.expand_path('~/.tipi')
+    def start_https_connection_fiber(socket, ctx, app)
+      client = OpenSSL::SSL::SSLSocket.new(socket, ctx)
+      client.sync_close = true
+
+      result = SSL_ACCEPT_THREAD_POOL.process { ssl_accept(client) }
+      if result.is_a?(Exception)
+        puts "Exception in SSL handshake: #{result.inspect}"
+        return
+      end
+
+      Tipi.client_loop(client, @opts, &app)
+    rescue => e
+      puts "Uncaught error in HTTPS connection fiber: #{e.inspect} bt: #{e.backtrace.inspect}"
+    ensure
+      (client ? client.close : socket.close) rescue nil
+    end
+
+    CERTIFICATE_STORE_DEFAULT_DIR = File.expand_path('~/.tipi').freeze
     CERTIFICATE_STORE_DEFAULT_DB_PATH = File.join(
-      CERTIFICATE_STORE_DEFAULT_DIR, 'certificates.db'
-    )
+      CERTIFICATE_STORE_DEFAULT_DIR, 'certificates.db').freeze
 
     def default_certificate_store
       FileUtils.mkdir(CERTIFICATE_STORE_DEFAULT_DIR) rescue nil
       Tipi::ACME::SQLiteCertificateStore.new(CERTIFICATE_STORE_DEFAULT_DB_PATH)
+    end
+
+    def start_service(service)
+      @server = spin do
+        service.call
+        supervise(restart: :always)
+      end
     end
   end
 end
