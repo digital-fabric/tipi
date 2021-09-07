@@ -37,6 +37,9 @@ module Tipi
           end
         end
         supervise(restart: :always)
+      rescue Polyphony::Terminate
+        # TODO: find out how Terminate can leak like that (it's supposed to be
+        # caught in Fiber#run)
       end
       trap('SIGTERM') { supervisor.terminate(true) }
       trap('SIGINT') do
