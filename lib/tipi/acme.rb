@@ -41,10 +41,9 @@ module Tipi
       def get_ctx(name)
         state = { ctx: nil }
 
-        return @master_ctx if name =~ IP_REGEXP
-        
         ready_ctx = @contexts[name]
         return ready_ctx if ready_ctx
+        return @master_ctx if name =~ IP_REGEXP
         
         @requests << [name, state]
         wait_for_ctx(state)
