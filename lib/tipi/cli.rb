@@ -3,23 +3,9 @@
 require 'tipi'
 require 'fileutils'
 require 'tipi/supervisor'
+require 'optparse'
 
 module Tipi
-  ARGV_SINGLE_DASH_REGEXP = /^(\-\w)(.+)?$/.freeze
-
-  def self.shift_argv(argv)
-    part = argv.shift
-    return nil unless part
-
-    if (m = part.match(ARGV_SINGLE_DASH_REGEXP))
-      opt, rest = m[1..2]
-      argv.unshift(rest) if rest
-      opt
-    else
-      part
-    end
-  end
-
   DEFAULT_OPTS = {
     mode: :polyphony,
     workers: 1,
@@ -27,40 +13,31 @@ module Tipi
     path: '.',
   }
 
-  HELP = <<~EOF
-    tipi <options> <PATH>
-        -c, --compat        Turn on compatibility mode (don't load Polyphony)
-        -h, --help          Display this message
-        -r, --rack PATH     Run a rack app
-        -s, --silent        Turn on silent mode
-        -t, --threads NUM   Set number of threads per worker
-        -v, --verbose       Turn on verbose mode
-        -w, --workers NUM   Set number of workers
-  EOF
-
   def self.opts_from_argv(argv)
     opts = DEFAULT_OPTS.dup
-    while (part = shift_argv(argv))
-      case part
-      when '-c', '--compat'
-        opts[:mode] = :stock
-      when '-h', '--help'
-        puts HELP
-        exit!
-      when '-r', '--rack'
-        opts[:rack_app] = shift_argv(argv)
-      when '-s', '--silent'
-        opts[:silent] = true
-      when '-t', '--threads'
-        opts[:threads] = shift_argv(argv)
-      when '-v', '--verbose'
-        opts[:verbose] = true
-      when '-w', '--workers'
-        opts[:workers] = shift_argv(argv).to_i
-      else
-        opts[:path] = part
+    parser = OptionParser.new do |o|
+      o.banner = "Usage: tipi [options] path"
+      o.on('-h', '--help') { puts o; exit }
+      o.on('-wNUM', '--workers NUM', 'Number of worker processes') do |v|
+        opts[:workers] = v
       end
-    end
+      o.on('-tNUM', '--threads NUM', 'Number of worker threads') do |v|
+        opts[:workers] = v
+      end
+      o.on('-lSPEC', '--listen SPEC', 'Listen spec (HTTP)') do |v|
+        opts[:listen] = parse_listen_spec('http', v)
+      end
+      o.on('-sSPEC', '--secure SPEC', 'Listen spec (HTTPS)') do |v|
+        opts[:listen] = parse_listen_spec('https', v)
+      end
+      o.on('-fSPEC', '--full-service SPEC', 'Listen spec (HTTP+HTTPS)') do |v|
+        opts[:listen] = parse_listen_spec('https', v)
+      end
+      o.on('-v', '--verbose', 'Verbose output') do
+        opts[:verbose] = true
+      end
+    end.parse!
+    opts[:path] = ARGV.shift unless ARGV.empty?
     opts[:app_type] = detect_app_type(opts)
     opts
   end

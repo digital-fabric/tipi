@@ -47,7 +47,7 @@ module Tipi
           case (msg = receive)
           when :replace_controller
             replace_controller
-          when Integer 
+          when Integer
             pid = msg
             if pid == @controller_pid
               puts 'Detected dead controller. Restarting...'

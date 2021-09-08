@@ -54,7 +54,7 @@ module Tipi
 
     def run_worker
       server = start_server(@service)
-      trap('SIGTERM') { p signal: 'TERM', pid: Process.pid, server: server; server&.terminate(true); p :ok }
+      trap('SIGTERM') { server&.terminate(true) }
       trap('SIGINT') do
         trap('SIGINT') { exit! }
         server&.terminate(true)
@@ -64,8 +64,6 @@ module Tipi
     rescue Polyphony::Terminate
       # TODO: find out why this exception leaks from the server fiber
       # ignore
-    ensure
-      p run_worker: :ensure, pid: Process.pid
     end
 
     def prepare_service
@@ -214,12 +212,13 @@ module Tipi
     end
 
     def add_connection_headers(app)
-      proc do |req|
-        conn = req.adapter.conn
-        req.headers[':peer'] = conn.peeraddr(false)[2]
-        req.headers[':scheme'] ||= conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
-        app.(req)
-      end
+      app
+      # proc do |req|
+      #   conn = req.adapter.conn
+      #   # req.headers[':peer'] = conn.peeraddr(false)[2]
+      #   req.headers[':scheme'] ||= conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
+      #   app.(req)
+      # end
     end
 
     def ssl_accept(client)
