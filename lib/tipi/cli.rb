@@ -7,9 +7,11 @@ require 'optparse'
 
 module Tipi
   DEFAULT_OPTS = {
+    app_type: :web,
     mode: :polyphony,
     workers: 1,
     threads: 1,
+    listen: ['http', 'localhost', 1234],
     path: '.',
   }
 
@@ -31,27 +33,26 @@ module Tipi
         opts[:listen] = parse_listen_spec('https', v)
       end
       o.on('-fSPEC', '--full-service SPEC', 'Listen spec (HTTP+HTTPS)') do |v|
-        opts[:listen] = parse_listen_spec('https', v)
+        opts[:listen] = parse_listen_spec('full', v)
       end
       o.on('-v', '--verbose', 'Verbose output') do
         opts[:verbose] = true
       end
     end.parse!
     opts[:path] = ARGV.shift unless ARGV.empty?
-    opts[:app_type] = detect_app_type(opts)
+    verify_path(opts[:path])
     opts
   end
 
-  def self.detect_app_type(opts)
-    path = opts[:path]
-    if File.file?(path)
-      File.extname(path) == '.ru' ? :web : :bare
-    elsif File.directory?(opts[:path])
-      :web
-    else
-      puts "Invalid path specified #{opts[:path]}"
-      exit!
-    end
+  def self.parse_listen_spec(type, spec)
+    [type, *spec.split(':')]
+  end
+
+  def self.verify_path(path)
+    return if File.file?(path) || File.directory?(path)
+
+    puts "Invalid path specified #{opts[:path]}"
+    exit!
   end
 
   module CLI

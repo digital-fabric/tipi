@@ -1,23 +1,19 @@
 # frozen_string_literal: true
 
 require 'tipi'
+require 'localhost/authority'
 
 module Tipi
   class Controller
     def initialize(opts)
       @opts = opts
-      @path = @opts['path']
+      @path = File.expand_path(@opts['path'])
       @service = prepare_service
-
-      p opts: opts
     end
 
     WORKER_COUNT_RANGE = (1..32).freeze
 
     def run
-      puts "Listening for HTTP on localhost:10080"
-      puts "Listening for HTTPS on localhost:10443"
-
       worker_count = (@opts['workers'] || 1).to_i.clamp(WORKER_COUNT_RANGE)
       return run_worker if worker_count == 1
 
@@ -85,18 +81,21 @@ module Tipi
     end
 
     def rack_service
-      puts "Loading Rack app from #{File.expand_path(@path)}"
+      puts "Loading Rack app from #{@path}"
       app = Tipi::RackAdapter.load(@path)
-      web_service(&app)
+      web_service(app)
     end
 
     def tipi_service
+      puts "Loading Tipi app from #{@path}"
       require(@path)
-      proc { spin { Object.run } }
+      app = Object.send(:app)
+      web_service(app)
+      # proc { spin { Object.run } }
     end
 
     def static_service
-      puts "Serving static files from #{File.expand_path(@path)}"
+      puts "Serving static files from #{@path}"
       app = proc do |req|
         full_path = find_path(@path, req.path)
         if full_path
@@ -105,21 +104,96 @@ module Tipi
           req.respond(nil, ':status' => Qeweney::Status::NOT_FOUND)
         end
       end
-      web_service(&app)
+      web_service(app)
     end
 
-    def web_service(http_port: 10080, https_port: 10443,
-                    app: nil, &block)
-      app ||= block
-      raise "No app given" unless app
-
-      redirect_app = ->(r) { r.redirect("https://#{r.host}#{r.path}") }
+    def web_service(app)
       app = add_connection_headers(app)
 
+      prepare_listener(@opts['listen'], app)
+    end
+
+    def prepare_listener(spec, app)
+      case spec.shift
+      when 'http'
+        case spec.size
+        when 2
+          host, port = spec
+          port ||= 80
+        when 1
+          host = '0.0.0.0'
+          port = spec.first || 80
+        else
+          raise "Invalid listener spec"
+        end
+        prepare_http_listener(port, app)
+      when 'https'
+        case spec.size
+        when 2
+          host, port = spec
+          port ||= 80
+        when 1
+          host = 'localhost'
+          port = spec.first || 80
+        else
+          raise "Invalid listener spec"
+        end
+        port ||= 443
+        prepare_https_listener(host, port, app)
+      when 'full'
+        host, http_port, https_port = spec
+        http_port ||= 80
+        https_port ||= 443
+        prepare_full_service_listeners(host, http_port, https_port, app)
+      end
+    end
+
+    def prepare_http_listener(port, app)
+      puts "Listening for HTTP on localhost:#{port}"
+
+      proc do
+        spin_accept_loop('HTTP', port) do |socket|
+          Tipi.client_loop(socket, @opts, &app)
+        end
+      end
+    end
+
+    LOCALHOST_REGEXP = /^(.+\.)?localhost$/.freeze
+
+    def prepare_https_listener(host, port, app)
+      localhost = host =~ LOCALHOST_REGEXP
+      return prepare_localhost_https_listener(port, app) if localhost
+      
+      raise "No certificate found for #{host}"
+      # TODO: implement loading certificate
+    end
+
+    def prepare_localhost_https_listener(port, app)
+      puts "Listening for HTTPS on localhost:#{port}"
+
+      authority = Localhost::Authority.fetch
+      ctx = authority.server_context
+      ctx.ciphers = 'ECDH+aRSA'
+      Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
+
+      proc do
+        https_listener = spin_accept_loop('HTTPS', port) do |socket|
+          start_https_connection_fiber(socket, ctx, nil, app)
+        rescue Exception => e
+          puts "Exception in https_listener block: #{e.inspect}\n#{e.backtrace.inspect}"
+        end
+      end
+    end
+
+    def prepare_full_service_listeners(host, http_port, https_port, app)
+      puts "Listening for HTTP on localhost:#{http_port}"
+      puts "Listening for HTTPS on localhost:#{https_port}"
+
+      redirect_host = (https_port == 443) ? host : "#{host}:#{https_port}"
+      redirect_app = ->(r) { r.redirect("https://#{redirect_host}#{r.path}") }
       ctx = OpenSSL::SSL::SSLContext.new
       ctx.ciphers = 'ECDH+aRSA'
       Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
-  
       certificate_store = create_certificate_store
 
       proc do
@@ -143,6 +217,7 @@ module Tipi
           puts "Exception in https_listener block: #{e.inspect}\n#{e.backtrace.inspect}"
         end
       end
+
     end
 
     INVALID_PATH_REGEXP = /\/?(\.\.|\.)\//
@@ -224,7 +299,10 @@ module Tipi
     def ssl_accept(client)
       client.accept
       true
+    rescue Polyphony::BaseException
+      raise
     rescue Exception => e
+      p e
       e
     end
 
@@ -232,7 +310,9 @@ module Tipi
       client = OpenSSL::SSL::SSLSocket.new(socket, ctx)
       client.sync_close = true
 
-      result = thread_pool.process { ssl_accept(client) }
+      result = thread_pool ?
+        thread_pool.process { ssl_accept(client) } : ssl_accept(client)
+
       if result.is_a?(Exception)
         puts "Exception in SSL handshake: #{result.inspect}"
         return
