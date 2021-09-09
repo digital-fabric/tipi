@@ -65,6 +65,7 @@ GEM
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
     http-2 (0.11.0)
+    http_parser.rb (0.7.0)
     json (2.5.1)
     localhost (1.1.8)
     memory_profiler (1.0.0)
@@ -88,6 +89,7 @@ DEPENDENCIES
   cuba (~> 3.9.3)
   ever!
   h1p!
+  http_parser.rb (~> 0.7.0)
   memory_profiler (~> 1.0.0)
   minitest (~> 5.11.3)
   polyphony!
