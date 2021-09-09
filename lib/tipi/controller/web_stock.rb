@@ -3,6 +3,8 @@
 require 'ever'
 require 'localhost/authority'
 require 'http/parser'
+require 'qeweney'
+require 'tipi/rack_adapter'
 
 module Tipi
   class Listener
@@ -26,25 +28,49 @@ module Tipi
   class HTTP1Connection < Connection
     attr_reader :io
   
-    def initialize(io, evloop)
+    def initialize(io, evloop, &app)
       @io = io
       @evloop = evloop
       @parser = Http::Parser.new(self)
+      @app = app
       setup_read_request
     end
   
     def setup_read_request
       @request_complete = nil
-      @request_headers = nil
-      @request_body = +''
+      @request = nil
+      @response_buffer = nil
     end
   
     def on_headers_complete(headers)
-      @request_headers = headers
+      headers = normalize_headers(headers)
+      headers[':path'] = @parser.request_url
+      headers[':method'] = @parser.http_method.downcase
+      scheme = (proto = headers['x-forwarded-proto']) ?
+                proto.downcase : scheme_from_connection
+      headers[':scheme'] = scheme
+      @request = Qeweney::Request.new(headers, self)
     end
-  
+
+    def normalize_headers(headers)
+      headers.each_with_object({}) do |(k, v), h|
+        k = k.downcase
+        hk = h[k]
+        if hk
+          hk = h[k] = [hk] unless hk.is_a?(Array)
+          v.is_a?(Array) ? hk.concat(v) : hk << v
+        else
+          h[k] = v
+        end
+      end
+    end
+
+    def scheme_from_connection
+      @io.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
+    end
+
     def on_body(chunk)
-      @request_body << chunk
+      @request.buffer_body_chunk(chunk)
     end
   
     def on_message_complete
@@ -71,8 +97,9 @@ module Tipi
       else
         @parser << result
         if @request_complete
-          @response = handle_request(@request_headers, @request_body)
-          handle_write_response
+          handle_request
+          # @response = handle_request(@request_headers, @request_body)
+          # handle_write_response
         else
           watch_io(false)
         end
@@ -90,13 +117,138 @@ module Tipi
       @evloop.emit([:close_io, self, @io])
     end
     
-    def handle_request(headers, body)
-      response_body = "Hello, world!"
-      "HTTP/1.1 200 OK\nContent-Length: #{response_body.bytesize}\n\n#{response_body}"
+    def handle_request
+      @app.call(@request)
+      # req = Qeweney::Request.new(headers, self)
+      # response_body = "Hello, world!"
+      # "HTTP/1.1 200 OK\nContent-Length: #{response_body.bytesize}\n\n#{response_body}"
+    end
+
+    # response API
+
+    CRLF = "\r\n"
+    CRLF_ZERO_CRLF_CRLF = "\r\n0\r\n\r\n"
+
+    # Sends response including headers and body. Waits for the request to complete
+    # if not yet completed. The body is sent using chunked transfer encoding.
+    # @param request [Qeweney::Request] HTTP request
+    # @param body [String] response body
+    # @param headers
+    def respond(request, body, headers)
+      formatted_headers = format_headers(headers, body, false)
+      request.tx_incr(formatted_headers.bytesize + (body ? body.bytesize : 0))
+      if body        
+        handle_write(formatted_headers + body)
+      else
+        handle_write(formatted_headers)
+      end
+    end
+
+    # Sends response headers. If empty_response is truthy, the response status
+    # code will default to 204, otherwise to 200.
+    # @param request [Qeweney::Request] HTTP request
+    # @param headers [Hash] response headers
+    # @param empty_response [boolean] whether a response body will be sent
+    # @param chunked [boolean] whether to use chunked transfer encoding
+    # @return [void]
+    def send_headers(request, headers, empty_response: false, chunked: true)
+      formatted_headers = format_headers(headers, !empty_response, http1_1?(request) && chunked)
+      request.tx_incr(formatted_headers.bytesize)
+      handle_write(formatted_headers)
+    end
+
+    def http1_1?(request)
+      request.headers[':protocol'] == 'http/1.1'
     end
     
-    def handle_write_response
-      result = @io.write_nonblock(@response, exception: false)
+    # Sends a response body chunk. If no headers were sent, default headers are
+    # sent using #send_headers. if the done option is true(thy), an empty chunk
+    # will be sent to signal response completion to the client.
+    # @param request [Qeweney::Request] HTTP request
+    # @param chunk [String] response body chunk
+    # @param done [boolean] whether the response is completed
+    # @return [void]
+    def send_chunk(request, chunk, done: false)
+      data = +''
+      data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n" if chunk
+      data << "0\r\n\r\n" if done
+      return if data.empty?
+
+      request.tx_incr(data.bytesize)
+      handle_write(data)
+    end
+    
+    # Finishes the response to the current request. If no headers were sent,
+    # default headers are sent using #send_headers.
+    # @return [void]
+    def finish(request)
+      request.tx_incr(5)
+      handle_write("0\r\n\r\n")
+    end
+
+    INTERNAL_HEADER_REGEXP = /^:/.freeze
+
+    # Formats response headers into an array. If empty_response is true(thy),
+    # the response status code will default to 204, otherwise to 200.
+    # @param headers [Hash] response headers
+    # @param body [boolean] whether a response body will be sent
+    # @param chunked [boolean] whether to use chunked transfer encoding
+    # @return [String] formatted response headers
+    def format_headers(headers, body, chunked)
+      status = headers[':status']
+      status ||= (body ? Qeweney::Status::OK : Qeweney::Status::NO_CONTENT)
+      lines = format_status_line(body, status, chunked)
+      headers.each do |k, v|
+        next if k =~ INTERNAL_HEADER_REGEXP
+        
+        collect_header_lines(lines, k, v)
+      end
+      lines << CRLF
+      lines
+    end
+    
+    def format_status_line(body, status, chunked)
+      if !body
+        empty_status_line(status)
+      else
+        with_body_status_line(status, body, chunked)
+      end
+    end
+    
+    def empty_status_line(status)
+      if status == 204
+        +"HTTP/1.1 #{status}\r\n"
+      else
+        +"HTTP/1.1 #{status}\r\nContent-Length: 0\r\n"
+      end
+    end
+    
+    def with_body_status_line(status, body, chunked)
+      if chunked
+        +"HTTP/1.1 #{status}\r\nTransfer-Encoding: chunked\r\n"
+      else
+        +"HTTP/1.1 #{status}\r\nContent-Length: #{body.is_a?(String) ? body.bytesize : body.to_i}\r\n"
+      end
+    end
+
+    def collect_header_lines(lines, key, value)
+      if value.is_a?(Array)
+        value.inject(lines) { |_, item| lines << "#{key}: #{item}\r\n" }
+      else
+        lines << "#{key}: #{value}\r\n"
+      end
+    end
+
+    def handle_write(data = nil)
+      if data
+        if @response_buffer
+          @response_buffer << data
+        else
+          @response_buffer = +data
+        end
+      end
+
+      result = @io.write_nonblock(@response_buffer, exception: false)
       case result
       when :wait_readable
         watch_io(false)
@@ -215,6 +367,7 @@ module Tipi
     def static_service
       puts "Serving static files from #{@path}"
       app = proc do |req|
+        p req: req
         full_path = find_path(@path, req.path)
         if full_path
           req.serve_file(full_path)
