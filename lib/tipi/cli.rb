@@ -19,20 +19,24 @@ module Tipi
     opts = DEFAULT_OPTS.dup
     parser = OptionParser.new do |o|
       o.banner = "Usage: tipi [options] path"
-      o.on('-h', '--help') { puts o; exit }
-      o.on('-wNUM', '--workers NUM', 'Number of worker processes') do |v|
+      o.on('-h', '--help', 'Show this help') { puts o; exit }
+      o.on('-wNUM', '--workers NUM', 'Number of worker processes (default: 1)') do |v|
         opts[:workers] = v
       end
-      o.on('-tNUM', '--threads NUM', 'Number of worker threads') do |v|
-        opts[:workers] = v
+      o.on('-tNUM', '--threads NUM', 'Number of worker threads (default: 1)') do |v|
+        opts[:threads] = v
+        opts[:mode] = :stock
       end
-      o.on('-lSPEC', '--listen SPEC', 'Listen spec (HTTP)') do |v|
+      o.on('-c', '--compatibility', 'Use compatibility mode') do
+        opts[:mode] = :stock
+      end
+      o.on('-lSPEC', '--listen SPEC', 'Setup HTTP listener') do |v|
         opts[:listen] = parse_listen_spec('http', v)
       end
-      o.on('-sSPEC', '--secure SPEC', 'Listen spec (HTTPS)') do |v|
+      o.on('-sSPEC', '--secure SPEC', 'Setup HTTPS listener (for localhost)') do |v|
         opts[:listen] = parse_listen_spec('https', v)
       end
-      o.on('-fSPEC', '--full-service SPEC', 'Listen spec (HTTP+HTTPS)') do |v|
+      o.on('-fSPEC', '--full-service SPEC', 'Setup HTTP/HTTPS listeners (with automatic certificates)') do |v|
         opts[:listen] = parse_listen_spec('full', v)
       end
       o.on('-v', '--verbose', 'Verbose output') do
