@@ -147,11 +147,17 @@ module DigitalFabric
         msg = Protocol.http_request(id, req.headers, req.next_chunk(true), req.complete?)
         send_df_message(msg)
         while (message = receive)
+          kind = message[Protocol::Attribute::KIND]
           unless t1
             t1 = Time.now
-            @service.record_latency_measurement(t1 - t0, req)
+            if kind == Protocol::HTTP_RESPONSE
+              headers = message[Protocol::Attribute::HttpResponse::HEADERS]
+              status = (headers && headers[':status']) || 200
+              if status < Qeweney::Status::BAD_REQUEST
+                @service.record_latency_measurement(t1 - t0, req)
+              end
+            end
           end
-          kind = message[Protocol::Attribute::KIND]
           attributes = message[Protocol::Attribute::HttpRequest::HEADERS..-1]
           return if http_request_message(id, req, kind, attributes)
         end
