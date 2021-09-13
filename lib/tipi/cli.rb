@@ -2,64 +2,61 @@
 
 require 'tipi'
 require 'fileutils'
+require 'tipi/supervisor'
+require 'optparse'
 
 module Tipi
-  ARGV_SINGLE_DASH_REGEXP = /^(\-\w)(.+)?$/.freeze
-
-  def self.shift_argv(argv)
-    part = argv.shift
-    return nil unless part
-
-    if (m = part.match(ARGV_SINGLE_DASH_REGEXP))
-      opt, rest = m[1..2]
-      argv.unshift(rest) if rest
-      opt
-    else
-      part
-    end
-  end
-
   DEFAULT_OPTS = {
+    app_type: :web,
+    mode: :polyphony,
     workers: 1,
     threads: 1,
+    listen: ['http', 'localhost', 1234],
     path: '.',
   }
 
-  HELP = <<~EOF
-    tipi <options> <PATH>
-        -c, --compat        Turn on compatibility mode (don't load Polyphony)
-        -h, --help          Display this message
-        -r, --rack PATH     Run a rack app
-        -s, --silent        Turn on silent mode
-        -t, --threads NUM   Set number of threads per worker
-        -v, --verbose       Turn on verbose mode
-        -w, --workers NUM   Set number of workers
-  EOF
-
   def self.opts_from_argv(argv)
     opts = DEFAULT_OPTS.dup
-    while (part = shift_argv(argv))
-      case part
-      when '-c', '--compat'
-        opts[:compatible_mode] = true
-      when '-h', '--help'
-        puts HELP
-        exit!
-      when '-r', '--rack'
-        opts[:rack_app] = shift_argv(argv)
-      when '-s', '--silent'
-        opts[:silent] = true
-      when '-t', '--threads'
-        opts[:threads] = shift_argv(argv)
-      when '-v', '--verbose'
-        opts[:verbose] = true
-      when '-w', '--workers'
-        opts[:workers] = shift_argv(argv)
-      else
-        opts[:path] = part
+    parser = OptionParser.new do |o|
+      o.banner = "Usage: tipi [options] path"
+      o.on('-h', '--help', 'Show this help') { puts o; exit }
+      o.on('-wNUM', '--workers NUM', 'Number of worker processes (default: 1)') do |v|
+        opts[:workers] = v
       end
-    end
+      o.on('-tNUM', '--threads NUM', 'Number of worker threads (default: 1)') do |v|
+        opts[:threads] = v
+        opts[:mode] = :stock
+      end
+      o.on('-c', '--compatibility', 'Use compatibility mode') do
+        opts[:mode] = :stock
+      end
+      o.on('-lSPEC', '--listen SPEC', 'Setup HTTP listener') do |v|
+        opts[:listen] = parse_listen_spec('http', v)
+      end
+      o.on('-sSPEC', '--secure SPEC', 'Setup HTTPS listener (for localhost)') do |v|
+        opts[:listen] = parse_listen_spec('https', v)
+      end
+      o.on('-fSPEC', '--full-service SPEC', 'Setup HTTP/HTTPS listeners (with automatic certificates)') do |v|
+        opts[:listen] = parse_listen_spec('full', v)
+      end
+      o.on('-v', '--verbose', 'Verbose output') do
+        opts[:verbose] = true
+      end
+    end.parse!
+    opts[:path] = ARGV.shift unless ARGV.empty?
+    verify_path(opts[:path])
     opts
+  end
+
+  def self.parse_listen_spec(type, spec)
+    [type, *spec.split(':')]
+  end
+
+  def self.verify_path(path)
+    return if File.file?(path) || File.directory?(path)
+
+    puts "Invalid path specified #{opts[:path]}"
+    exit!
   end
 
   module CLI
@@ -75,72 +72,13 @@ module Tipi
 
     def self.start
       opts = Tipi.opts_from_argv(ARGV)
-
       display_banner if STDOUT.tty? && !opts[:silent]
-      if File.file?(opts[:path])
-        start_app(opts)
-      elsif File.directory?(opts[:path])
-        start_static_server(opts)
-      else
-        puts "Invalid path specified #{opts[:path]}"
-        exit!
-      end
-    end
-
-    def self.start_app(opts)
-      if File.extname(opts[:path]) == '.ru'
-        start_rack_app(opts)
-      else
-        require(opts[:path])
-      end
-    end
-
-    def self.start_rack_app(opts)
-      puts "Loading Rack app from #{File.expand_path(opts[:path])}"
-      app = Tipi::RackAdapter.load(opts[:path])
-      serve_app(app, opts)
+      
+      Tipi::Supervisor.run(opts)
     end
 
     def self.display_banner
       puts BANNER
-    end
-
-    def self.start_static_server(opts)
-      path = opts[:path]
-      app = proc do |req|
-        full_path = find_path(path, req.path)
-        if full_path
-          req.serve_file(full_path)
-        else
-          req.respond(nil, ':status' => Qeweney::Status::NOT_FOUND)
-        end
-      end
-      puts "Serving static files from #{File.expand_path(path)}"
-      serve_app(app, opts)
-    end
-
-    def self.serve_app(app, opts)
-      Tipi.full_service(&app)
-    end
-
-    INVALID_PATH_REGEXP = /\/?(\.\.|\.)\//
-
-    def self.find_path(base, path)
-      p find_path: [base, path]
-      return nil if path =~ INVALID_PATH_REGEXP
-
-      full_path = File.join(base, path)
-      return full_path if File.file?(full_path)
-      return find_path(full_path, 'index') if File.directory?(full_path)
-
-      qualified = "#{full_path}.html"
-      return qualified if File.file?(qualified)
-
-      nil
-    end
-
-    def self.supervise(opts)
-
     end
   end
 end

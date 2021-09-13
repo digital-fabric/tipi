@@ -3,7 +3,7 @@
 # Tipi - the All-in-one Web Server for Ruby Apps
 
 [![Gem Version](https://badge.fury.io/rb/tipi.svg)](http://rubygems.org/gems/tipi)
-[![Modulation Test](https://github.com/digital-fabric/tipi/workflows/Tests/badge.svg)](https://github.com/digital-fabric/tipi/actions?query=workflow%3ATests)
+[![Tipi Test](https://github.com/digital-fabric/tipi/workflows/Tests/badge.svg)](https://github.com/digital-fabric/tipi/actions?query=workflow%3ATests)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/digital-fabric/tipi/blob/master/LICENSE)
 
 ## What is Tipi?

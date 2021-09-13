@@ -39,32 +39,20 @@ module Tipi
       end
 
       def get_ctx(name)
-        STDOUT.orig_write "get_ctx: #{name.inspect}\n"
         state = { ctx: nil }
 
+        ready_ctx = @contexts[name]
+        return ready_ctx if ready_ctx
         return @master_ctx if name =~ IP_REGEXP
         
-        # p get_ctx: 2
-        ready_ctx = @contexts[name]
-        # p get_ctx: { ready: !!ready_ctx }
-        return ready_ctx if ready_ctx
-        
-        # p get_ctx: 3
         @requests << [name, state]
-        # p get_ctx: 4
         wait_for_ctx(state)
-        # p get_ctx: 5
-        p name: name, error: state if state[:error]
         # Eventually we might want to return an error returned in
         # state[:error]. For the time being we handle errors by returning the
         # master context
-        # p get_ctx: { ctx: !!state[:ctx] }
         state[:ctx] || @master_ctx
       rescue => e
-        # p name: name, error: e, backtrace: e.backtrace
         @master_ctx
-      ensure
-        # p get_ctx_return: name
       end
 
       MAX_WAIT_FOR_CTX_DURATION = 30
@@ -171,7 +159,6 @@ module Tipi
       end
     
       def provision_certificate(name)
-        # p provision_certificate: name
         order = acme_client.new_order(identifiers: [name])
         authorization = order.authorizations.first
         challenge = authorization.http
@@ -184,7 +171,6 @@ module Tipi
         end
         raise ACME::Error, "Invalid CSR" if challenge.status == 'invalid'
       
-        # p challenge_status: challenge.status
         private_key = OpenSSL::PKey::RSA.new(4096)
         csr = Acme::Client::CertificateRequest.new(
           private_key: private_key,
