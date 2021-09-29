@@ -21,7 +21,7 @@ module Tipi
       adapter = new(socket, opts, headers, body)
       adapter.each(&block)
     end
-    
+
     def initialize(conn, opts, upgrade_headers = nil, upgrade_body = nil)
       @conn = conn
       @opts = opts
@@ -36,7 +36,7 @@ module Tipi
       @interface.on(:frame, &method(:send_frame))
       @streams = {}
     end
-    
+
     def send_frame(data)
       if @transfer_count_request
         @transfer_count_request.tx_incr(data.bytesize)
@@ -47,14 +47,14 @@ module Tipi
     rescue Exception => e
       @connection_fiber.transfer e
     end
-    
+
     UPGRADE_MESSAGE = <<~HTTP.gsub("\n", "\r\n")
     HTTP/1.1 101 Switching Protocols
     Connection: Upgrade
     Upgrade: h2c
-    
+
     HTTP
-    
+
     def upgrade
       @conn << UPGRADE_MESSAGE
       @tx += UPGRADE_MESSAGE.bytesize
@@ -63,7 +63,7 @@ module Tipi
     ensure
       @upgrade_headers = nil
     end
-    
+
     # Iterates over incoming requests
     def each(&block)
       @interface.on(:stream) { |stream| start_stream(stream, &block) }
@@ -84,26 +84,26 @@ module Tipi
       @rx = 0
       count
     end
-    
+
     def get_tx_count
       count = @tx
       @tx = 0
       count
     end
-    
+
     def start_stream(stream, &block)
       stream = HTTP2StreamHandler.new(self, stream, @conn, @first, &block)
       @first = nil if @first
       @streams[stream] = true
     end
-    
+
     def finalize_client_loop
       @interface = nil
       @streams.each_key(&:stop)
       @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close
     end
-    
+
     def close
       @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close

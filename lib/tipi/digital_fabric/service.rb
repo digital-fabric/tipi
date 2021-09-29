@@ -90,7 +90,7 @@ module DigitalFabric
     rescue Exception
       [nil, nil]
     end
-    
+
     def get_stats
       calculate_stats
     end
@@ -123,14 +123,14 @@ module DigitalFabric
 
       puts format('slow request (%.1f): %p', latency, req.headers)
     end
-  
+
     def http_request(req, allow_df_upgrade = false)
       @current_request_count += 1
       @counters[:http_requests] += 1
       @counters[:connections] += 1 if req.headers[':first']
 
       return upgrade_request(req, allow_df_upgrade) if req.upgrade_protocol
- 
+
       inject_request_headers(req)
       agent = find_agent(req)
       unless agent
@@ -159,7 +159,7 @@ module DigitalFabric
       req.headers['x-forwarded-for'] = conn.peeraddr(false)[2]
       req.headers['x-forwarded-proto'] ||= conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
     end
-  
+
     def upgrade_request(req, allow_df_upgrade)
       case (protocol = req.upgrade_protocol)
       when 'df'
@@ -178,7 +178,7 @@ module DigitalFabric
         agent.http_upgrade(req, protocol)
       end
     end
-  
+
     def df_upgrade(req)
       # we don't want to count connected agents
       @current_request_count -= 1
@@ -191,7 +191,7 @@ module DigitalFabric
     ensure
       @current_request_count += 1
     end
-  
+
     def mount(route, agent)
       if route[:path]
         route[:path_regexp] = path_regexp(route[:path])
@@ -200,7 +200,7 @@ module DigitalFabric
       @agents[agent] = route
       @routing_changed = true
     end
-  
+
     def unmount(agent)
       route = @agents[agent]
       return unless route
@@ -211,7 +211,7 @@ module DigitalFabric
     end
 
     INVALID_HOST = 'INVALID_HOST'
-    
+
     def find_agent(req)
       compile_agent_routes if @routing_changed
 

@@ -4,28 +4,28 @@ module Tipi
   module Configuration
     class Interpreter
       # make_blank_slate
-      
+
       def initialize(assembler)
         @assembler = assembler
       end
-      
+
       def gzip_response
         @assembler.emit 'req = Tipi::GZip.wrap(req)'
       end
-      
+
       def log(out)
         @assembler.wrap_current_frame 'logger.log_request(req) do |req|'
       end
-        
+
       def error(&block)
         assembler.emit_exception_handler &block
       end
-        
+
       def match(pattern, &block)
         @assembler.emit_conditional "if req.path =~ #{pattern.inspect}", &block
       end
     end
-      
+
     class Assembler
       def self.from_source(code)
         new.from_source code
@@ -36,7 +36,7 @@ module Tipi
         @app_procs = {}
         @interpreter = Interpreter.new self
         @interpreter.instance_eval code
-        
+
         loop do
           frame = @stack.pop
           return assemble_app_proc(frame).join("\n") if @stack.empty?
@@ -51,7 +51,7 @@ module Tipi
           body: []
         }
       end
-        
+
       def add_frame(&block)
         @stack.push new_frame
         yield
@@ -67,20 +67,20 @@ module Tipi
         @stack.push wrapper
         @stack.push frame
       end
-        
+
       def emit(code)
         @stack.last[:body] << code
       end
-      
+
       def emit_prelude(code)
         @stack.last[:prelude] << code
       end
-      
+
       def emit_exception_handler(&block)
         proc_id = add_app_proc block
         @stack.last[:rescue_proc_id] = proc_id
       end
-      
+
       def emit_block(conditional, &block)
         proc_id = add_app_proc block
         @stack.last[:branched] = true
@@ -93,7 +93,7 @@ module Tipi
         @app_procs[id] = proc
         id
       end
-      
+
       def assemble_frame(frame)
         indent = 0
         lines = []

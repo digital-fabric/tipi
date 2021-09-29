@@ -20,14 +20,14 @@ module Tipi
     ensure
       socket.close
     end
-    
+
     ALPN_PROTOCOLS = %w[h2 http/1.1].freeze
     H2_PROTOCOL = 'h2'
 
     def protocol_adapter(socket, opts)
       use_http2 = socket.respond_to?(:alpn_protocol) &&
                   socket.alpn_protocol == H2_PROTOCOL
-      
+
       klass = use_http2 ? HTTP2Adapter : HTTP1Adapter
       klass.new(socket, opts)
     end

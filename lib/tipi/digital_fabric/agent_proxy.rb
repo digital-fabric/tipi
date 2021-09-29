@@ -56,7 +56,7 @@ module DigitalFabric
     def unmount
       return unless @mounted
 
-      @service.unmount(self) 
+      @service.unmount(self)
       @mounted = nil
     end
 
@@ -247,7 +247,7 @@ module DigitalFabric
       else
         req.send_headers(headers) if headers && !req.headers_sent?
         req.send_chunk(body, done: complete) if body or complete
-        
+
         if complete && transfer_count_key
           rx, tx = req.transfer_counts
           send_transfer_count(transfer_count_key, rx, tx)
@@ -291,7 +291,7 @@ module DigitalFabric
         response = receive
         case response[0]
         when Protocol::WS_RESPONSE
-          headers = response[2] || {} 
+          headers = response[2] || {}
           status = headers[':status'] || Qeweney::Status::SWITCHING_PROTOCOLS
           if status != Qeweney::Status::SWITCHING_PROTOCOLS
             req.respond(nil, headers)

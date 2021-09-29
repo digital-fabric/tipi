@@ -46,7 +46,7 @@ class SampleAgent < DigitalFabric::Agent
         true
       ))
     end
-  
+
   end
 
   def ws_request(req)
@@ -82,7 +82,7 @@ class SampleAgent < DigitalFabric::Agent
       true
     ))
   end
-  
+
 end
 
 agent = SampleAgent.new('127.0.0.1', 4411, { path: '/agent' })
