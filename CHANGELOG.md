@@ -1,3 +1,9 @@
+## 0.44 2021-09-29
+
+- Implement compatibility mode for HTTP/1 (WIP)
+- Add option parsing for CLI tool
+- Implement supervisor-controller-worker model in CLI tool
+
 ## 0.43 2021-08-20
 
 - Extract HTTP/1 parser into a separate gem:
