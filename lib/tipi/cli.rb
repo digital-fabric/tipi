@@ -49,7 +49,16 @@ module Tipi
   end
 
   def self.parse_listen_spec(type, spec)
-    [type, *spec.split(':')]
+    [type, *spec.split(':').map { |s| str_to_native_type(s) }]
+  end
+
+  def self.str_to_native_type(str)
+    case str
+    when /^\d+$/
+      str.to_i
+    else
+      str
+    end
   end
 
   def self.verify_path(path)

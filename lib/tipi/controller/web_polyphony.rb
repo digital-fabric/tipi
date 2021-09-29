@@ -189,8 +189,7 @@ module Tipi
       puts "Listening for HTTP on localhost:#{http_port}"
       puts "Listening for HTTPS on localhost:#{https_port}"
 
-      redirect_host = (https_port == 443) ? host : "#{host}:#{https_port}"
-      redirect_app = ->(r) { r.redirect("https://#{redirect_host}#{r.path}") }
+      redirect_app = http_redirect_app(https_port)
       ctx = OpenSSL::SSL::SSLContext.new
       ctx.ciphers = 'ECDH+aRSA'
       Polyphony::Net.setup_alpn(ctx, Tipi::ALPN_PROTOCOLS)
@@ -217,7 +216,15 @@ module Tipi
           puts "Exception in https_listener block: #{e.inspect}\n#{e.backtrace.inspect}"
         end
       end
+    end
 
+    def http_redirect_app(https_port)
+      case https_port
+      when 443, 10443
+        ->(req) { req.redirect("https://#{req.host}#{req.path}") }
+      else
+        ->(req) { req.redirect("https://#{req.host}:#{https_port}#{req.path}") }
+      end
     end
 
     INVALID_PATH_REGEXP = /\/?(\.\.|\.)\//
