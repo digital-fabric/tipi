@@ -17,7 +17,7 @@ end
 module Tipi
   ALPN_PROTOCOLS = %w[h2 http/1.1].freeze
   H2_PROTOCOL = 'h2'
-  
+
   class << self
     def serve(host, port, opts = {}, &handler)
       opts[:alpn_protocols] = ALPN_PROTOCOLS
@@ -26,7 +26,7 @@ module Tipi
     ensure
       server&.close
     end
-    
+
     def listen(host, port, opts = {})
       opts[:alpn_protocols] = ALPN_PROTOCOLS
       Polyphony::Net.tcp_listen(host, port, opts).tap do |socket|
@@ -35,7 +35,7 @@ module Tipi
         end
       end
     end
-    
+
     def accept_loop(server, opts, &handler)
       server.accept_loop do |client|
         spin { client_loop(client, opts, &handler) }
@@ -43,7 +43,7 @@ module Tipi
         # disregard
       end
     end
-    
+
     def client_loop(client, opts, &handler)
       client.no_delay if client.respond_to?(:no_delay)
       adapter = protocol_adapter(client, opts)

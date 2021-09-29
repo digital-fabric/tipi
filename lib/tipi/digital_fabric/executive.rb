@@ -83,7 +83,7 @@ module DigitalFabric
         raise 'Invalid output from top (cpu)'
       end
       cpu_utilization = 100 - Regexp.last_match(1).to_i
-      
+
       unless top =~ TOP_MEM_REGEXP && Regexp.last_match(1) =~ TOP_MEM_FREE_REGEXP
         raise 'Invalid output from top (mem)'
       end

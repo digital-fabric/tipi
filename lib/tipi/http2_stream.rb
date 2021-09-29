@@ -8,7 +8,7 @@ module Tipi
   class HTTP2StreamHandler
     attr_accessor :__next__
     attr_reader :conn
-    
+
     def initialize(adapter, stream, conn, first, &block)
       @adapter = adapter
       @stream = stream
@@ -32,7 +32,7 @@ module Tipi
       stream.on(:data, &method(:on_data))
       stream.on(:half_close, &method(:on_half_close))
     end
-    
+
     def run(&block)
       request = receive
       error = nil
@@ -45,7 +45,7 @@ module Tipi
     ensure
       @connection_fiber.schedule error
     end
-    
+
     def on_headers(headers)
       @request = Qeweney::Request.new(headers.to_h, self)
       @request.rx_incr(@adapter.get_rx_count)
@@ -59,7 +59,7 @@ module Tipi
 
     def on_data(data)
       data = data.to_s # chunks might be wrapped in a HTTP2::Buffer
-      
+
       (@buffered_chunks ||= []) << data
       @get_body_chunk_fiber&.schedule
     end
@@ -68,7 +68,7 @@ module Tipi
       @get_body_chunk_fiber&.schedule
       @complete = true
     end
-    
+
     def protocol
       'h2'
     end
@@ -84,7 +84,7 @@ module Tipi
       @buffered_chunks ||= []
       return @buffered_chunks.shift unless @buffered_chunks.empty?
       return nil if @complete
-      
+
       begin
         @get_body_chunk_fiber = Fiber.current
         suspend
@@ -112,7 +112,7 @@ module Tipi
     def complete?(request)
       @complete
     end
-    
+
     # response API
     def respond(request, chunk, headers)
       headers[':status'] ||= Qeweney::Status::OK
@@ -149,10 +149,10 @@ module Tipi
         end
       end
     end
-    
+
     def send_headers(request, headers, empty_response: false)
       return if @headers_sent
-      
+
       headers[':status'] ||= (empty_response ? Qeweney::Status::NO_CONTENT : Qeweney::Status::OK).to_s
       with_transfer_count(request) do
         @stream.headers(transform_headers(headers), end_stream: false)
@@ -161,10 +161,10 @@ module Tipi
     rescue HTTP2::Error::StreamClosed
       # ignore
     end
-    
+
     def send_chunk(request, chunk, done: false)
       send_headers({}, false) unless @headers_sent
-      
+
       if chunk
         with_transfer_count(request) do
           @stream.data(chunk, end_stream: done)
@@ -175,7 +175,7 @@ module Tipi
     rescue HTTP2::Error::StreamClosed
       # ignore
     end
-    
+
     def finish(request)
       if @headers_sent
         @stream.close
@@ -188,10 +188,10 @@ module Tipi
     rescue HTTP2::Error::StreamClosed
       # ignore
     end
-    
+
     def stop
       return if @complete
-      
+
       @stream.close
       @stream_fiber.schedule(Polyphony::MoveOn.new)
     end

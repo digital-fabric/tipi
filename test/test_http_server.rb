@@ -228,7 +228,7 @@ class HTTP1ServerTest < MiniTest::Test
 
     connection.close
     assert !done
-    
+
     sleep 0.01
     assert done
   end
@@ -251,7 +251,7 @@ class HTTP1ServerTest < MiniTest::Test
     count = 0
 
     connection << "GET / HTTP/1.1\r\n\r\n"
-    
+
     while (data = connection.read(chunk_size))
       response << data
       count += 1

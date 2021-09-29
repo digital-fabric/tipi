@@ -3,12 +3,12 @@
 require 'rack'
 
 module Tipi
-  module RackAdapter    
+  module RackAdapter
     class << self
       def run(app)
         ->(req) { respond(req, app.(env(req))) }
       end
-      
+
       def load(path)
         src = IO.read(path)
         instance_eval(src, path, 1)

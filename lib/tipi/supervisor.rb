@@ -51,6 +51,7 @@ module Tipi
             pid = msg
             if pid == @controller_pid
               puts 'Detected dead controller. Restarting...'
+              exit!
               @controller_watcher.restart
             end
           else
@@ -63,10 +64,10 @@ module Tipi
         puts "Replacing controller"
         old_watcher = @controller_watcher
         @controller_watcher = start_controller_watcher
-        
+
         # TODO: we'll want to get some kind of signal from the new controller once it's ready
         sleep 1
-        
+
         old_watcher.terminate(true)
       end
     end

@@ -20,12 +20,12 @@ module Tipi
       @version = headers['sec-websocket-version'].to_i
       @reader = ::WebSocket::Frame::Incoming::Server.new(version: @version)
     end
-    
+
     def recv
       if (msg = @reader.next)
         return msg.to_s
       end
-    
+
       @conn.recv_loop do |data|
         @reader << data
         if (msg = @reader.next)
@@ -48,7 +48,7 @@ module Tipi
         end
       end
     end
-    
+
     OutgoingFrame = ::WebSocket::Frame::Outgoing::Server
 
     def send(data)

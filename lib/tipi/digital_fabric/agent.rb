@@ -46,7 +46,7 @@ module DigitalFabric
       df_upgrade
       @connected = true
       @msgpack_reader = MessagePack::Unpacker.new
-      
+
       process_incoming_requests
     rescue IOError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EPIPE, TimeoutError
       log 'Disconnected' if @connected
@@ -70,9 +70,9 @@ module DigitalFabric
     Upgrade: df
     DF-Token: %s
     DF-Mount: %s
-  
+
     HTTP
-  
+
     def df_upgrade
       @socket << format(UPGRADE_REQUEST, @token, mount_point)
       while (line = @socket.gets)

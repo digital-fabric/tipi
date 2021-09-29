@@ -141,7 +141,7 @@ module DigitalFabric
       def ws_data(id, data)
         [ WS_DATA, id, data ]
       end
-        
+
       def ws_close(id)
         [ WS_CLOSE, id ]
       end

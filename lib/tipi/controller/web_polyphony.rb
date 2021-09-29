@@ -163,7 +163,7 @@ module Tipi
     def prepare_https_listener(host, port, app)
       localhost = host =~ LOCALHOST_REGEXP
       return prepare_localhost_https_listener(port, app) if localhost
-      
+
       raise "No certificate found for #{host}"
       # TODO: implement loading certificate
     end
@@ -203,13 +203,13 @@ module Tipi
           challenge_handler: challenge_handler
         )
         http_app = certificate_manager.challenge_routing_app(redirect_app)
-  
+
         http_listener = spin_accept_loop('HTTP', http_port) do |socket|
           Tipi.client_loop(socket, @opts, &http_app)
         end
 
         ssl_accept_thread_pool = Polyphony::ThreadPool.new(4)
-  
+
         https_listener = spin_accept_loop('HTTPS', https_port) do |socket|
           start_https_connection_fiber(socket, ctx, ssl_accept_thread_pool, app)
         rescue Exception => e
@@ -289,7 +289,7 @@ module Tipi
       supervisor = spin { supervise }.detach
       fiber.attach_all_children_to(supervisor)
 
-      # terminating the supervisor will 
+      # terminating the supervisor will
       supervisor.terminate(true)
     end
 
