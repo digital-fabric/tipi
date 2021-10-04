@@ -27,7 +27,10 @@ module Tipi
         # upgraded
         break if handle_request(headers, &block)
       end
-    rescue H1P::Error
+    rescue H1P::Error, ArgumentError
+      # an ArgumentError might be raised in the parser if an invalid input
+      # string is given as the HTTP method (String#upcase will raise on invalid HTTP string)
+      #
       # ignore
     rescue SystemCallError, IOError
       # ignore
