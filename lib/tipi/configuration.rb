@@ -12,7 +12,7 @@ module Tipi
           old_runner&.stop
         end
       end
-      
+
       def run(config)
         start_listeners(config)
         config[:forked] ? forked_supervise(config) : simple_supervise(config)
@@ -29,7 +29,7 @@ module Tipi
         suspend
         # supervise(restart: true)
       end
-      
+
       def forked_supervise(config)
         config[:forked].times do
           spin { Polyphony.watch_process { simple_supervise(config) } }

@@ -30,7 +30,7 @@ class SampleAgent < DigitalFabric::Agent
       do_some_activity
       req.send_chunk({ id: @id, time: Time.now.to_i }.to_json)
     end
-  
+
     req.finish
   rescue Polyphony::Terminate
     req.respond(' * shutting down *') if Fiber.current.graceful_shutdown?

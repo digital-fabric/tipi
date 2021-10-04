@@ -27,7 +27,7 @@ module Tipi
 
   class HTTP1Connection < Connection
     attr_reader :io
-  
+
     def initialize(io, evloop, &app)
       @io = io
       @evloop = evloop
@@ -35,13 +35,13 @@ module Tipi
       @app = app
       setup_read_request
     end
-  
+
     def setup_read_request
       @request_complete = nil
       @request = nil
       @response_buffer = nil
     end
-  
+
     def on_headers_complete(headers)
       headers = normalize_headers(headers)
       headers[':path'] = @parser.request_url
@@ -72,7 +72,7 @@ module Tipi
     def on_body(chunk)
       @request.buffer_body_chunk(chunk)
     end
-  
+
     def on_message_complete
       @request_complete = true
     end
@@ -93,7 +93,7 @@ module Tipi
       when :wait_writable
         watch_io(true)
       when nil
-        close_io      
+        close_io
       else
         @parser << result
         if @request_complete
@@ -116,7 +116,7 @@ module Tipi
     def close_io
       @evloop.emit([:close_io, self, @io])
     end
-    
+
     def handle_request
       @app.call(@request)
       # req = Qeweney::Request.new(headers, self)
@@ -137,7 +137,7 @@ module Tipi
     def respond(request, body, headers)
       formatted_headers = format_headers(headers, body, false)
       request.tx_incr(formatted_headers.bytesize + (body ? body.bytesize : 0))
-      if body        
+      if body
         handle_write(formatted_headers + body)
       else
         handle_write(formatted_headers)
@@ -160,7 +160,7 @@ module Tipi
     def http1_1?(request)
       request.headers[':protocol'] == 'http/1.1'
     end
-    
+
     # Sends a response body chunk. If no headers were sent, default headers are
     # sent using #send_headers. if the done option is true(thy), an empty chunk
     # will be sent to signal response completion to the client.
@@ -177,7 +177,7 @@ module Tipi
       request.tx_incr(data.bytesize)
       handle_write(data)
     end
-    
+
     # Finishes the response to the current request. If no headers were sent,
     # default headers are sent using #send_headers.
     # @return [void]
@@ -200,13 +200,13 @@ module Tipi
       lines = format_status_line(body, status, chunked)
       headers.each do |k, v|
         next if k =~ INTERNAL_HEADER_REGEXP
-        
+
         collect_header_lines(lines, k, v)
       end
       lines << CRLF
       lines
     end
-    
+
     def format_status_line(body, status, chunked)
       if !body
         empty_status_line(status)
@@ -214,7 +214,7 @@ module Tipi
         with_body_status_line(status, body, chunked)
       end
     end
-    
+
     def empty_status_line(status)
       if status == 204
         +"HTTP/1.1 #{status}\r\n"
@@ -222,7 +222,7 @@ module Tipi
         +"HTTP/1.1 #{status}\r\nContent-Length: 0\r\n"
       end
     end
-    
+
     def with_body_status_line(status, body, chunked)
       if chunked
         +"HTTP/1.1 #{status}\r\nTransfer-Encoding: chunked\r\n"
@@ -262,7 +262,7 @@ module Tipi
       end
     end
   end
-  
+
   class Controller
     def initialize(opts)
       @opts = opts
@@ -330,7 +330,7 @@ module Tipi
             io.close
           end
         end
-      end      
+      end
     end
 
     def prepare_service
@@ -439,7 +439,7 @@ module Tipi
     def prepare_https_listener(host, port, app)
       localhost = host =~ LOCALHOST_REGEXP
       return prepare_localhost_https_listener(port, app) if localhost
-      
+
       raise "No certificate found for #{host}"
       # TODO: implement loading certificate
     end
@@ -480,13 +480,13 @@ module Tipi
           challenge_handler: challenge_handler
         )
         http_app = certificate_manager.challenge_routing_app(redirect_app)
-  
+
         http_listener = spin_accept_loop('HTTP', http_port) do |socket|
           Tipi.client_loop(socket, @opts, &http_app)
         end
 
         ssl_accept_thread_pool = Polyphony::ThreadPool.new(4)
-  
+
         https_listener = spin_accept_loop('HTTPS', https_port) do |socket|
           start_https_connection_fiber(socket, ctx, ssl_accept_thread_pool, app)
         rescue Exception => e
@@ -572,7 +572,7 @@ module Tipi
       supervisor = spin { supervise }.detach
       fiber.attach_all_children_to(supervisor)
 
-      # terminating the supervisor will 
+      # terminating the supervisor will
       supervisor.terminate(true)
     end
 

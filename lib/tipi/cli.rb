@@ -82,7 +82,7 @@ module Tipi
     def self.start
       opts = Tipi.opts_from_argv(ARGV)
       display_banner if STDOUT.tty? && !opts[:silent]
-      
+
       Tipi::Supervisor.run(opts)
     end
 

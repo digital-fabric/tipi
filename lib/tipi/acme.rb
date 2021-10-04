@@ -44,7 +44,7 @@ module Tipi
         ready_ctx = @contexts[name]
         return ready_ctx if ready_ctx
         return @master_ctx if name =~ IP_REGEXP
-        
+
         @requests << [name, state]
         wait_for_ctx(state)
         # Eventually we might want to return an error returned in
@@ -69,7 +69,7 @@ module Tipi
           end
         end
       end
-      
+
       def run
         loop do
           name, state = @requests.shift
@@ -78,13 +78,13 @@ module Tipi
           state[:error] = e if state
         end
       end
-    
+
       LOCALHOST_REGEXP = /\.?localhost$/.freeze
 
       def get_context(name)
         @contexts[name] = setup_context(name)
       end
-    
+
       def setup_context(name)
         ctx = provision_context(name)
         transfer_ctx_settings(ctx)
@@ -109,7 +109,7 @@ module Tipi
       end
 
       CERTIFICATE_REGEXP = /(-----BEGIN CERTIFICATE-----\n[^-]+-----END CERTIFICATE-----\n)/.freeze
-    
+
       def parse_certificate(certificate)
         certificate
           .scan(CERTIFICATE_REGEXP)
@@ -135,17 +135,17 @@ module Tipi
         @localhost_authority ||= Localhost::Authority.fetch
         @localhost_authority.server_context
       end
-    
+
       def private_key
         @private_key ||= OpenSSL::PKey::RSA.new(4096)
       end
-    
+
       ACME_DIRECTORY = 'https://acme-v02.api.letsencrypt.org/directory'
-    
+
       def acme_client
         @acme_client ||= setup_acme_client
       end
-    
+
       def setup_acme_client
         client = Acme::Client.new(
           private_key: private_key,
@@ -157,12 +157,12 @@ module Tipi
         )
         client
       end
-    
+
       def provision_certificate(name)
         order = acme_client.new_order(identifiers: [name])
         authorization = order.authorizations.first
         challenge = authorization.http
-      
+
         @challenge_handler.add(challenge)
         challenge.request_validation
         while challenge.status == 'pending'
@@ -170,7 +170,7 @@ module Tipi
           challenge.reload
         end
         raise ACME::Error, "Invalid CSR" if challenge.status == 'invalid'
-      
+
         private_key = OpenSSL::PKey::RSA.new(4096)
         csr = Acme::Client::CertificateRequest.new(
           private_key: private_key,
@@ -196,33 +196,33 @@ module Tipi
         }
       end
     end
-  
+
     class HTTPChallengeHandler
       def initialize
         @challenges = {}
       end
-    
+
       def add(challenge)
         path = "/.well-known/acme-challenge/#{challenge.token}"
         @challenges[path] = challenge
       end
-    
+
       def remove(challenge)
         path = "/.well-known/acme-challenge/#{challenge.token}"
         @challenges.delete(path)
       end
-    
+
       def call(req)
         challenge = @challenges[req.path]
-    
+
         # handle incoming request
         challenge = @challenges[req.path]
         return req.respond(nil, ':status' => 400) unless challenge
-    
+
         req.respond(challenge.file_content, 'content-type' => challenge.content_type)
       end
-    end    
-  
+    end
+
     class CertificateStore
       def set(name, private_key:, certificate:, expired_stamp:)
         raise NotImplementedError

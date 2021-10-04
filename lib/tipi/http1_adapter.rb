@@ -17,12 +17,12 @@ module Tipi
       @first = true
       @parser = H1P::Parser.new(@conn)
     end
-    
+
     def each(&block)
       while true
         headers = @parser.parse_headers
         break unless headers
-        
+
         # handle_request returns true if connection is not persistent or was
         # upgraded
         break if handle_request(headers, &block)
@@ -37,7 +37,7 @@ module Tipi
     ensure
       finalize_client_loop
     end
-    
+
     def handle_request(headers, &block)
       scheme = (proto = headers['x-forwarded-proto']) ?
                 proto.downcase : scheme_from_connection
@@ -47,9 +47,9 @@ module Tipi
         headers[':first'] = true
         @first = nil
       end
-      
+
       return true if upgrade_connection(headers, &block)
-      
+
       request = Qeweney::Request.new(headers, self)
       if !@parser.complete?
         request.buffer_body_chunk(@parser.read_body_chunk(true))
@@ -66,14 +66,14 @@ module Tipi
         return connection && connection != 'close'
       end
     end
-    
+
     def finalize_client_loop
       @parser = nil
       @splicing_pipe = nil
       @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close
     end
-    
+
     # Reads a body chunk for the current request. Transfers control to the parse
     # loop, and resumes once the parse_loop has fired the on_body callback
     def get_body_chunk(request, buffered_only = false)
@@ -87,11 +87,11 @@ module Tipi
     def complete?(request)
       @parser.complete?
     end
-    
+
     def protocol
       @protocol
     end
-    
+
     # Upgrades the connection to a different protocol, if the 'Upgrade' header is
     # given. By default the only supported upgrade protocol is HTTP2. Additional
     # protocols, notably WebSocket, can be specified by passing a hash to the
@@ -117,28 +117,28 @@ module Tipi
     def upgrade_connection(headers, &block)
       upgrade_protocol = headers['upgrade']
       return nil unless upgrade_protocol
-      
+
       upgrade_protocol = upgrade_protocol.downcase.to_sym
       upgrade_handler = @opts[:upgrade] && @opts[:upgrade][upgrade_protocol]
       return upgrade_with_handler(upgrade_handler, headers) if upgrade_handler
       return upgrade_to_http2(headers, &block) if upgrade_protocol == :h2c
-      
+
       nil
     end
-    
+
     def upgrade_with_handler(handler, headers)
       @parser = nil
       handler.(self, headers)
       true
     end
-    
+
     def upgrade_to_http2(headers, &block)
       headers = http2_upgraded_headers(headers)
       body = @parser.read_body
       HTTP2Adapter.upgrade_each(@conn, @opts, headers, body, &block)
       true
     end
-    
+
     # Returns headers for HTTP2 upgrade
     # @param headers [Hash] request headers
     # @return [Hash] headers for HTTP2 upgrade
@@ -156,10 +156,10 @@ module Tipi
     def scheme_from_connection
       @conn.is_a?(OpenSSL::SSL::SSLSocket) ? 'https' : 'http'
     end
-    
+
     # response API
 
-    CRLF = "\r\n"    
+    CRLF = "\r\n"
     CRLF_ZERO_CRLF_CRLF = "\r\n0\r\n\r\n"
 
     # Sends response including headers and body. Waits for the request to complete
@@ -180,7 +180,7 @@ module Tipi
     def respond_from_io(request, io, headers, chunk_size = 2**14)
       formatted_headers = format_headers(headers, true, true)
       request.tx_incr(formatted_headers.bytesize)
-      
+
       # assume chunked encoding
       Thread.current.backend.splice_chunks(
         io,
@@ -209,7 +209,7 @@ module Tipi
     def http1_1?(request)
       request.headers[':protocol'] == 'http/1.1'
     end
-    
+
     # Sends a response body chunk. If no headers were sent, default headers are
     # sent using #send_headers. if the done option is true(thy), an empty chunk
     # will be sent to signal response completion to the client.
@@ -226,7 +226,7 @@ module Tipi
       request.tx_incr(data.bytesize)
       @conn.write(data)
     end
-    
+
     def send_chunk_from_io(request, io, r, w, chunk_size)
       len = w.splice(io, chunk_size)
       if len > 0
@@ -248,12 +248,12 @@ module Tipi
       request.tx_incr(5)
       @conn << "0\r\n\r\n"
     end
-    
+
     def close
       @conn.shutdown if @conn.respond_to?(:shutdown) rescue nil
       @conn.close
     end
-    
+
     private
 
     INTERNAL_HEADER_REGEXP = /^:/.freeze
@@ -270,13 +270,13 @@ module Tipi
       lines = format_status_line(body, status, chunked)
       headers.each do |k, v|
         next if k =~ INTERNAL_HEADER_REGEXP
-        
+
         collect_header_lines(lines, k, v)
       end
       lines << CRLF
       lines
     end
-    
+
     def format_status_line(body, status, chunked)
       if !body
         empty_status_line(status)
@@ -284,7 +284,7 @@ module Tipi
         with_body_status_line(status, body, chunked)
       end
     end
-    
+
     def empty_status_line(status)
       if status == 204
         +"HTTP/1.1 #{status}\r\n"
@@ -292,7 +292,7 @@ module Tipi
         +"HTTP/1.1 #{status}\r\nContent-Length: 0\r\n"
       end
     end
-    
+
     def with_body_status_line(status, body, chunked)
       if chunked
         +"HTTP/1.1 #{status}\r\nTransfer-Encoding: chunked\r\n"

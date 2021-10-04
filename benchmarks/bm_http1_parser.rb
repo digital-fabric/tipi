@@ -26,7 +26,7 @@ end
 def benchmark_other_http1_parser(iterations)
   STDOUT << "http_parser.rb: "
   require 'http_parser.rb'
-  
+
   i, o = IO.pipe
   parser = Http::Parser.new
   done = false
