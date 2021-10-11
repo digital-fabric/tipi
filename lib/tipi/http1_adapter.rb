@@ -177,6 +177,8 @@ module Tipi
       end
     end
 
+    CHUNK_LENGTH_PROC = ->(len) { "#{len.to_s(16)}\r\n" }
+
     def respond_from_io(request, io, headers, chunk_size = 2**14)
       formatted_headers = format_headers(headers, true, true)
       request.tx_incr(formatted_headers.bytesize)
@@ -187,7 +189,7 @@ module Tipi
         @conn,
         formatted_headers,
         "0\r\n\r\n",
-        ->(len) { "#{len.to_s(16)}\r\n" },
+        CHUNK_LENGTH_PROC,
         "\r\n",
         chunk_size
       )
