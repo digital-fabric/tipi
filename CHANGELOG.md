@@ -1,3 +1,9 @@
+## 0.45 2021-10-25
+
+- Remove `http_parser.rb` dependency (#14) - thanks @SwagDevOps
+- Use `argv` argument in `Tipi.opts_from_argv` (#13) - thanks @SwagDevOps
+- Ignore `ArgumentError` in `#parse_headers`
+
 ## 0.44 2021-09-29
 
 - Implement compatibility mode for HTTP/1 (WIP)
