@@ -1,4 +1,14 @@
 PATH
+  remote: ../ever
+  specs:
+    ever (0.1)
+
+PATH
+  remote: ../h1p
+  specs:
+    h1p (0.2)
+
+PATH
   remote: ../polyphony
   specs:
     polyphony (0.71)
@@ -34,7 +44,6 @@ GEM
       rack (>= 1.6.0)
     docile (1.4.0)
     escape_utils (1.2.1)
-    ever (0.1)
     extralite (1.4)
     faraday (1.8.0)
       faraday-em_http (~> 1.0)
@@ -55,9 +64,7 @@ GEM
     faraday-net_http_persistent (1.2.0)
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
-    h1p (0.2)
     http-2 (0.11.0)
-    http_parser.rb (0.7.0)
     json (2.5.1)
     localhost (1.1.9)
     memory_profiler (1.0.0)
@@ -79,7 +86,8 @@ PLATFORMS
 
 DEPENDENCIES
   cuba (~> 3.9.3)
-  http_parser.rb (~> 0.7.0)
+  ever!
+  h1p!
   memory_profiler (~> 1.0.0)
   minitest (~> 5.11.3)
   polyphony!
