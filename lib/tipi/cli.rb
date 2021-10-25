@@ -42,8 +42,8 @@ module Tipi
       o.on('-v', '--verbose', 'Verbose output') do
         opts[:verbose] = true
       end
-    end.parse!
-    opts[:path] = ARGV.shift unless ARGV.empty?
+    end.parse!(argv)
+    opts[:path] = argv.shift unless argv.empty?
     verify_path(opts[:path])
     opts
   end
@@ -79,8 +79,8 @@ module Tipi
       "  /   \\      https://github.com/digital-fabric/tipi\n" +
       "⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺⎺\n"
 
-    def self.start
-      opts = Tipi.opts_from_argv(ARGV)
+    def self.start(argv = ARGV.dup)
+      opts = Tipi.opts_from_argv(argv)
       display_banner if STDOUT.tty? && !opts[:silent]
 
       Tipi::Supervisor.run(opts)
