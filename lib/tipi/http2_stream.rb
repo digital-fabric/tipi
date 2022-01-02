@@ -6,7 +6,6 @@ require 'qeweney/request'
 module Tipi
   # Manages an HTTP 2 stream
   class HTTP2StreamHandler
-    attr_accessor :__next__
     attr_reader :conn
 
     def initialize(adapter, stream, conn, first, &block)
