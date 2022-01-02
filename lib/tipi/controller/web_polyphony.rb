@@ -277,8 +277,8 @@ module Tipi
 
     def finalize_listener(server)
       fiber  = Fiber.current
-      gracefully_terminate_conections(fiber) if fiber.graceful_shutdown?
       server.close
+      gracefully_terminate_conections(fiber) if fiber.graceful_shutdown?
     rescue Polyphony::BaseException
       raise
     rescue Exception => e
