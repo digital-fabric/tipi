@@ -2,6 +2,7 @@
 
 require 'tipi'
 require 'localhost/authority'
+require_relative './extensions'
 
 module Tipi
   class Controller
@@ -89,7 +90,7 @@ module Tipi
     def tipi_service
       puts "Loading Tipi app from #{@path}"
       require(@path)
-      app = Object.send(:app)
+      app = Tipi.app
       web_service(app)
       # proc { spin { Object.run } }
     end

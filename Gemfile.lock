@@ -11,12 +11,12 @@ PATH
 PATH
   remote: ../polyphony
   specs:
-    polyphony (0.71)
+    polyphony (0.73.1)
 
 PATH
   remote: ../qeweney
   specs:
-    qeweney (0.14)
+    qeweney (0.15)
       escape_utils (~> 1.2.1)
 
 PATH
@@ -97,4 +97,4 @@ DEPENDENCIES
   tipi!
 
 BUNDLED WITH
-   2.1.4
+   2.3.3

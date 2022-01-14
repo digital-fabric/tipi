@@ -5,6 +5,7 @@ require 'localhost/authority'
 require 'http/parser'
 require 'qeweney'
 require 'tipi/rack_adapter'
+require_relative './extensions'
 
 module Tipi
   class Listener
@@ -360,7 +361,10 @@ module Tipi
     def tipi_service
       puts "Loading Tipi app from #{@path}"
       require(@path)
-      app = Object.send(:app)
+      app = Tipi.app
+      if !app
+        raise "No app define. The app to run should be set using `Tipi.app = ...`"
+      end
       web_service(app)
     end
 
