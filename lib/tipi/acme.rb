@@ -10,10 +10,11 @@ module Tipi
     end
 
     class CertificateManager
-      def initialize(master_ctx:, store:, challenge_handler:)
+      def initialize(master_ctx:, store:, challenge_handler:, valid_hosts:)
         @master_ctx = master_ctx
         @store = store
         @challenge_handler = challenge_handler
+        @valid_hosts = valid_hosts
         @contexts = {}
         @requests = Polyphony::Queue.new
         @worker = spin { run }
@@ -40,6 +41,10 @@ module Tipi
 
       def get_ctx(name)
         state = { ctx: nil }
+
+        if @valid_hosts
+          return nil unless @valid_hosts.include?(name)
+        end
 
         ready_ctx = @contexts[name]
         return ready_ctx if ready_ctx

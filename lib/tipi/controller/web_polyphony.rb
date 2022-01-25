@@ -201,7 +201,8 @@ module Tipi
         certificate_manager = Tipi::ACME::CertificateManager.new(
           master_ctx: ctx,
           store: certificate_store,
-          challenge_handler: challenge_handler
+          challenge_handler: challenge_handler,
+          valid_hosts: app.respond_to?(:valid_hosts) ? app.valid_hosts : nil
         )
         http_app = certificate_manager.challenge_routing_app(redirect_app)
 
