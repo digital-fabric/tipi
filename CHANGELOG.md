@@ -1,3 +1,9 @@
+## 0.46 2022-02-01
+
+- Allow setting valid hosts
+- Change interface of Qeweney apps to use #run (#15)
+- Close server listener before terminating connections
+
 ## 0.45 2021-10-25
 
 - Remove `http_parser.rb` dependency (#14) - thanks @SwagDevOps
