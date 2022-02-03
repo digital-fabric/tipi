@@ -6,12 +6,12 @@ PATH
 PATH
   remote: ../h1p
   specs:
-    h1p (0.2)
+    h1p (0.3)
 
 PATH
   remote: ../polyphony
   specs:
-    polyphony (0.73.1)
+    polyphony (0.74)
 
 PATH
   remote: ../qeweney
@@ -26,7 +26,7 @@ PATH
       acme-client (~> 2.0.8)
       ever (~> 0.1)
       extralite (~> 1.2)
-      h1p (~> 0.2)
+      h1p (~> 0.3)
       http-2 (~> 0.11)
       localhost (~> 1.1.4)
       msgpack (~> 1.4.2)
