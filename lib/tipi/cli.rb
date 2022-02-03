@@ -64,7 +64,7 @@ module Tipi
   def self.verify_path(path)
     return if File.file?(path) || File.directory?(path)
 
-    puts "Invalid path specified #{opts[:path]}"
+    puts "Invalid path specified #{path}"
     exit!
   end
 
