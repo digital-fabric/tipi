@@ -1,36 +1,20 @@
 PATH
-  remote: ../ever
-  specs:
-    ever (0.1)
-
-PATH
-  remote: ../h1p
-  specs:
-    h1p (0.3)
-
-PATH
   remote: ../polyphony
   specs:
-    polyphony (0.74)
-
-PATH
-  remote: ../qeweney
-  specs:
-    qeweney (0.16)
-      escape_utils (~> 1.2.1)
+    polyphony (0.75)
 
 PATH
   remote: .
   specs:
     tipi (0.47)
-      acme-client (~> 2.0.8)
+      acme-client (~> 2.0.9)
       ever (~> 0.1)
       extralite (~> 1.2)
       h1p (~> 0.3)
       http-2 (~> 0.11)
       localhost (~> 1.1.4)
       msgpack (~> 1.4.2)
-      polyphony (~> 0.71)
+      polyphony (~> 0.75)
       qeweney (~> 0.14)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)
@@ -69,9 +53,9 @@ GEM
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
     faraday-retry (1.0.3)
-    h1p (0.2)
+    h1p (0.3)
     http-2 (0.11.0)
-    json (2.5.1)
+    json (2.6.1)
     localhost (1.1.9)
     memory_profiler (1.0.0)
     minitest (5.11.3)
