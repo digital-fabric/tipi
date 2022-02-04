@@ -1,3 +1,8 @@
+## 0.48 2022-02-04
+
+- Update dependencies
+- Fix variable name in `Tipi.verify_path` (#16) - thanks @dm1try
+
 ## 0.47 2202-02-03
 
 - Update H1P dependency
