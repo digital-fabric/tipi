@@ -28,7 +28,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency      'http-2',             '~>0.11'
   s.add_runtime_dependency      'rack',               '>=2.0.8', '<2.3.0'
   s.add_runtime_dependency      'websocket',          '~>1.2.8'
-  s.add_runtime_dependency      'acme-client',        '~>2.0.8'
+  s.add_runtime_dependency      'acme-client',        '~>2.0.9'
   s.add_runtime_dependency      'localhost',          '~>1.1.4'
 
   # for digital fabric
