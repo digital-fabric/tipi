@@ -15,7 +15,7 @@ module Tipi
       @conn = conn
       @opts = opts
       @first = true
-      @parser = H1P::Parser.new(@conn)
+      @parser = H1P::Parser.new(@conn, :server)
     end
 
     def each(&block)

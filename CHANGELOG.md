@@ -1,3 +1,7 @@
+## 0.47 2202-02-03
+
+- Update H1P dependency
+
 ## 0.46 2022-02-01
 
 - Allow setting valid hosts

@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency      'ever',               '~>0.1'
   s.add_runtime_dependency      'qeweney',            '~>0.14'
   s.add_runtime_dependency      'extralite',          '~>1.2'
-  s.add_runtime_dependency      'h1p',                '~>0.2'
+  s.add_runtime_dependency      'h1p',                '~>0.3'
 
   s.add_runtime_dependency      'http-2',             '~>0.11'
   s.add_runtime_dependency      'rack',               '>=2.0.8', '<2.3.0'
