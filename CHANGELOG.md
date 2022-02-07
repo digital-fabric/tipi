@@ -1,3 +1,7 @@
+## 0.49 2022-02-07
+
+- Update Polyphony
+
 ## 0.48 2022-02-04
 
 - Update dependencies
