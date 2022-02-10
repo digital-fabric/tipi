@@ -16,7 +16,7 @@ PATH
 PATH
   remote: ../qeweney
   specs:
-    qeweney (0.16)
+    qeweney (0.17)
       escape_utils (~> 1.2.1)
 
 PATH
@@ -31,7 +31,7 @@ PATH
       localhost (~> 1.1.4)
       msgpack (~> 1.4.2)
       polyphony (~> 0.77)
-      qeweney (~> 0.14)
+      qeweney (~> 0.17)
       rack (>= 2.0.8, < 2.3.0)
       websocket (~> 1.2.8)
 

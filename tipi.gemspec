@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency      'polyphony',          '~>0.77'
   s.add_runtime_dependency      'ever',               '~>0.1'
-  s.add_runtime_dependency      'qeweney',            '~>0.14'
+  s.add_runtime_dependency      'qeweney',            '~>0.17'
   s.add_runtime_dependency      'extralite',          '~>1.2'
   s.add_runtime_dependency      'h1p',                '~>0.3'
 
