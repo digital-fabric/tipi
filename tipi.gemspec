@@ -10,12 +10,15 @@ Gem::Specification.new do |s|
   s.files       = `git ls-files`.split
   s.homepage    = 'http://github.com/digital-fabric/tipi'
   s.metadata    = {
-    "source_code_uri" => "https://github.com/digital-fabric/tipi"
+    "source_code_uri" => "https://github.com/digital-fabric/tipi",
+    "documentation_uri" => "https://www.rubydoc.info/gems/tipi",
+    "homepage_uri" => "https://github.com/digital-fabric/tipi",
+    "changelog_uri" => "https://github.com/digital-fabric/tipi/blob/master/CHANGELOG.md"
   }
   s.rdoc_options = ["--title", "tipi", "--main", "README.md"]
   s.extra_rdoc_files = ["README.md"]
   s.require_paths = ["lib"]
-  s.required_ruby_version = '>= 2.6'
+  s.required_ruby_version = '>= 2.7'
 
   s.executables   = ['tipi']
 

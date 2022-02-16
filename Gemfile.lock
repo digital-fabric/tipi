@@ -1,25 +1,4 @@
 PATH
-  remote: ../ever
-  specs:
-    ever (0.1)
-
-PATH
-  remote: ../h1p
-  specs:
-    h1p (0.3)
-
-PATH
-  remote: ../polyphony
-  specs:
-    polyphony (0.77)
-
-PATH
-  remote: ../qeweney
-  specs:
-    qeweney (0.17)
-      escape_utils (~> 1.2.1)
-
-PATH
   remote: .
   specs:
     tipi (0.50)
@@ -44,6 +23,7 @@ GEM
       rack (>= 1.6.0)
     docile (1.4.0)
     escape_utils (1.2.1)
+    ever (0.1)
     extralite (1.11)
     faraday (1.9.3)
       faraday-em_http (~> 1.0)
@@ -68,6 +48,7 @@ GEM
     faraday-patron (1.0.0)
     faraday-rack (1.0.0)
     faraday-retry (1.0.3)
+    h1p (0.3)
     http-2 (0.11.0)
     json (2.6.1)
     localhost (1.1.9)
@@ -75,6 +56,9 @@ GEM
     minitest (5.11.3)
     msgpack (1.4.4)
     multipart-post (2.1.1)
+    polyphony (0.77)
+    qeweney (0.17)
+      escape_utils (~> 1.2.1)
     rack (2.2.3)
     rake (13.0.6)
     ruby2_keywords (0.0.5)
@@ -90,12 +74,8 @@ PLATFORMS
 
 DEPENDENCIES
   cuba (~> 3.9.3)
-  ever!
-  h1p!
   memory_profiler (~> 1.0.0)
   minitest (~> 5.11.3)
-  polyphony!
-  qeweney!
   rake (~> 13.0.6)
   simplecov (~> 0.17.1)
   tipi!
