@@ -24,9 +24,9 @@ module Tipi
   private
 
     def supervise_workers(worker_count)
-      supervisor = spin do
+      supervisor = spin(:web_worker_supervisor) do
         worker_count.times do
-          spin do
+          spin(:web_worker) do
             pid = Polyphony.fork { run_worker }
             puts "Forked worker pid: #{pid}"
             Polyphony.backend_waitpid(pid)
@@ -251,7 +251,7 @@ module Tipi
     }.freeze
 
     def spin_accept_loop(name, port, &block)
-      spin do
+      spin(:accept_loop) do
         server = Polyphony::Net.tcp_listen('0.0.0.0', port, SOCKET_OPTS)
         loop do
           socket = server.accept
@@ -267,7 +267,7 @@ module Tipi
     end
 
     def spin_connection_handler(name, socket, block)
-      spin do
+      spin(:connection_handler) do
         block.(socket)
       rescue Polyphony::BaseException
         raise
@@ -288,7 +288,7 @@ module Tipi
     end
 
     def gracefully_terminate_conections(fiber)
-      supervisor = spin { supervise }.detach
+      supervisor = spin(:connection_termination_supervisor) { supervise }.detach
       fiber.attach_all_children_to(supervisor)
 
       # terminating the supervisor will
@@ -344,7 +344,7 @@ module Tipi
     end
 
     def start_server(service)
-      spin do
+      spin(:web_server) do
         service.call
         supervise(restart: :always)
       end
