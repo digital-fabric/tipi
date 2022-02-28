@@ -162,11 +162,11 @@ if ENV['TRACE'] == '1'
   Thread.backend.trace_proc = proc do |event, fiber, value, pri|
     fiber_id = fiber.tag || fiber.inspect
     case event
-    when :fiber_schedule
+    when :schedule
       log format("=> %s %s %s %s", event, fiber_id, value.inspect, pri ? '(priority)' : '')
-    when :fiber_run
+    when :unblock
       log format("=> %s %s %s", event, fiber_id, value.inspect)
-    when :fiber_create, :fiber_terminate
+    when :spin, :terminate
       log format("=> %s %s", event, fiber_id)
     else
       log format("=> %s", event)
