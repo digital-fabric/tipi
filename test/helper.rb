@@ -76,16 +76,16 @@ class IO
 
   def self.mockup_connection(input, output, output2)
     eg(
-      __parser_read_method__: ->() { :readpartial },
-      read:         ->(*args) { input.read(*args) },
-      read_loop:    ->(*args, &block) { input.read_loop(*args, &block) },
-      recv_loop:    ->(*args, &block) { input.read_loop(*args, &block) },
-      readpartial:  ->(*args) { input.readpartial(*args) },
-      recv:         ->(*args) { input.readpartial(*args) },
-      '<<':         ->(*args) { output.write(*args) },
-      write:        ->(*args) { output.write(*args) },
-      close:        -> { output.close },
-      eof?:         -> { output2.closed? }
+      __read_method__:  -> { :readpartial },
+      read:             ->(*args) { input.read(*args) },
+      read_loop:        ->(*args, &block) { input.read_loop(*args, &block) },
+      recv_loop:        ->(*args, &block) { input.read_loop(*args, &block) },
+      readpartial:      ->(*args) { input.readpartial(*args) },
+      recv:             ->(*args) { input.readpartial(*args) },
+      '<<':             ->(*args) { output.write(*args) },
+      write:            ->(*args) { output.write(*args) },
+      close:            -> { output.close },
+      eof?:             -> { output2.closed? }
     )
   end
 end
