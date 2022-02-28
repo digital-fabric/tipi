@@ -1,3 +1,7 @@
+## 0.51 2022-02-28
+
+- Update dependencies
+
 ## 0.50 2022-02-10
 
 - Update Qeweney
