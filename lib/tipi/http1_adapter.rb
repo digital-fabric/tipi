@@ -220,10 +220,15 @@ module Tipi
     # @param done [boolean] whether the response is completed
     # @return [void]
     def send_chunk(request, chunk, done: false)
-      data = +''
-      data << "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n" if chunk
-      data << "0\r\n\r\n" if done
-      return if data.empty?
+      if done
+        data = chunk ?
+          "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n0\r\n\r\n" :
+          "0\r\n\r\n"
+      elsif chunk
+        data = "#{chunk.bytesize.to_s(16)}\r\n#{chunk}\r\n"
+      else
+        return
+      end
 
       request.tx_incr(data.bytesize)
       @conn.write(data)
