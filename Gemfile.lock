@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    tipi (0.51)
+    tipi (0.52)
       acme-client (~> 2.0.9)
       ever (~> 0.1)
       extralite (~> 1.14)
@@ -56,7 +56,7 @@ GEM
     minitest (5.11.3)
     msgpack (1.4.5)
     multipart-post (2.1.1)
-    polyphony (0.80)
+    polyphony (0.81)
     qeweney (0.18)
       escape_utils (~> 1.2.1)
     rack (2.2.3)

@@ -1,3 +1,7 @@
+## 0.52 2022-03-03
+
+- Treat HTTP/2 headers as immutable
+
 ## 0.51 2022-02-28
 
 - Update dependencies
