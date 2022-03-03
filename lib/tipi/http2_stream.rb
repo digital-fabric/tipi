@@ -113,21 +113,19 @@ module Tipi
     end
 
     # response API
-    def respond(request, chunk, headers)
-      headers[':status'] ||= Qeweney::Status::OK
-      headers[':status'] = headers[':status'].to_s
+    def respond(request, body, headers)
+      headers = normalize_status_header(headers)
       with_transfer_count(request) do
         @stream.headers(transform_headers(headers))
         @headers_sent = true
-        @stream.data(chunk || '')
+        @stream.data(body || '')
       end
     rescue HTTP2::Error::StreamClosed
       # ignore
     end
 
     def respond_from_io(request, io, headers, chunk_size = 2**16)
-      headers[':status'] ||= Qeweney::Status::OK
-      headers[':status'] = headers[':status'].to_s
+      headers = normalize_status_header(headers)
       with_transfer_count(request) do
         @stream.headers(transform_headers(headers))
         @headers_sent = true
@@ -152,7 +150,8 @@ module Tipi
     def send_headers(request, headers, empty_response: false)
       return if @headers_sent
 
-      headers[':status'] ||= (empty_response ? Qeweney::Status::NO_CONTENT : Qeweney::Status::OK).to_s
+      status = empty_response ? Qeweney::Status::NO_CONTENT : Qeweney::Status::OK
+      headers = normalize_status_header(headers, status)
       with_transfer_count(request) do
         @stream.headers(transform_headers(headers), end_stream: false)
       end
@@ -193,6 +192,18 @@ module Tipi
 
       @stream.close
       @stream_fiber.schedule(Polyphony::MoveOn.new)
+    end
+
+    private
+
+    def normalize_status_header(headers, default_status = Qeweney::Status::OK)
+      if !headers[':status']
+        headers.merge(':status' => default_status.to_s)
+      elsif !headers[':status'].is_a?(String)
+        headers.merge(headers[':status'].to_s)
+      else
+        headers
+      end
     end
   end
 end
