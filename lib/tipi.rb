@@ -48,6 +48,8 @@ module Tipi
       client.no_delay if client.respond_to?(:no_delay)
       adapter = protocol_adapter(client, opts)
       adapter.each(&handler)
+    rescue SystemCallError
+      # disregard
     ensure
       client.close rescue nil
     end
