@@ -1,52 +1,12 @@
-## Add an API for reading a request body chunk into an IO (pipe)
+## Rethink design
 
-      ```ruby
-      # currently
-      chunk = req.next_chunk
-      # or
-      req.each_chunk { |c| do_something(c) }
+- Remove DF code
+- Remove non-Polyphony code
 
-      # what we'd like to do
-      r, w = IO.pipe
-      len = req.splice_chunk(w)
-      sock << "Here comes a chunk of #{len} bytes\n"
-      sock.splice(r, len)
+# Miscellaneous
 
-      # or:
-      r, w = IO.pipe
-      req.splice_each_chunk(w) do |len|
-        sock << "Here comes a chunk of #{len} bytes\n"
-        sock.splice(r, len)
-      end
-      ```
-
-# HTTP/1.1 parser
-
-- httparser.rb is not actively updated
-- the httparser.rb C parser code comes originally from https://github.com/nodejs/llhttp
-- there's a Ruby gem https://github.com/metabahn/llhttp, but its API is too low-level
-  (lots of callbacks, headers need to be retained across callbacks)
-- the basic idea is to import the C-code, then build a parser object with the following
-  callbacks:
-
-  ```ruby
-  on_headers_complete(headers)
-  on_body_chunk(chunk)
-  on_message_complete
-  ```
-
-- The llhttp gem's C-code is here: https://github.com/metabahn/llhttp/tree/main/mri
-
-- Actually, if you do a C extension, instead of a callback-based API, we can
-  design a blocking API:
-
-  ```ruby
-  parser = Tipi::HTTP1::Parser.new
-  parser.each_request(socket) do |headers|
-    request = Request.new(normalize_headers(headers))
-    handle_request(request)
-  end
-  ```
+- Try using `TCP_DEFER_ACCEPT` with Polyphony on io_uring - does it provide any
+  performance benefit?
 
 # What about HTTP/2?
 
@@ -61,26 +21,8 @@ end
 ```
 
 
-
-# DF
-
-- Add attack protection for IP-address HTTP host:
-
-  ```ruby
-  IPV4_REGEXP = /^\d+\.\d+\.\d+\.\d+$/.freeze
-
-  def is_attack_request?(req)
-    return true if req.host =~ IPV4_REGEXP && req.query[:q] != 'ping'
-  end
-  ```
-
-- Add attack route to Qeweney routing API
-
-
-
 # Roadmap
 
-- Update README (get rid of non-http stuff)
 - Improve Rack spec compliance, add tests
 - Homogenize HTTP 1 and HTTP 2 headers - downcase symbols
 

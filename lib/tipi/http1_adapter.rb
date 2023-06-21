@@ -160,7 +160,7 @@ module Tipi
     # response API
 
     CRLF = "\r\n"
-    
+
     # Sends response including headers and body. Waits for the request to complete
     # if not yet completed. The body is sent using chunked transfer encoding.
     # @param request [Qeweney::Request] HTTP request
