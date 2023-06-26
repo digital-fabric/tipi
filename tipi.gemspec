@@ -18,11 +18,11 @@ Gem::Specification.new do |s|
   s.rdoc_options = ["--title", "tipi", "--main", "README.md"]
   s.extra_rdoc_files = ["README.md"]
   s.require_paths = ["lib"]
-  s.required_ruby_version = '>= 2.7'
+  s.required_ruby_version = '>= 3.1'
 
   s.executables   = ['tipi']
 
-  s.add_runtime_dependency      'polyphony',          '~>1.0.2'
+  s.add_runtime_dependency      'polyphony',          '1.2.0'
   s.add_runtime_dependency      'ever',               '~>0.2'
   s.add_runtime_dependency      'qeweney',            '~>0.18'
   s.add_runtime_dependency      'extralite',          '~>1.27'
