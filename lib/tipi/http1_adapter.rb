@@ -27,13 +27,8 @@ module Tipi
         # upgraded
         break if handle_request(headers, &block)
       end
-    rescue H1P::Error, ArgumentError
-      # an ArgumentError might be raised in the parser if an invalid input
-      # string is given as the HTTP method (String#upcase will raise on invalid HTTP string)
-      #
-      # ignore
-    rescue SystemCallError, IOError
-      # ignore
+    rescue SystemCallError, IOError, H1P::Error
+      # connection or parser error, ignore
     ensure
       finalize_client_loop
     end
@@ -160,7 +155,6 @@ module Tipi
     # response API
 
     CRLF = "\r\n"
-    CRLF_ZERO_CRLF_CRLF = "\r\n0\r\n\r\n"
 
     # Sends response including headers and body. Waits for the request to complete
     # if not yet completed. The body is sent using chunked transfer encoding.
@@ -168,13 +162,8 @@ module Tipi
     # @param body [String] response body
     # @param headers
     def respond(request, body, headers)
-      formatted_headers = format_headers(headers, body, false)
-      request.tx_incr(formatted_headers.bytesize + (body ? body.bytesize : 0))
-      if body
-        @conn.write(formatted_headers, body)
-      else
-        @conn.write(formatted_headers)
-      end
+      written = H1P.send_response(@conn, headers, body)
+      request.tx_incr(written)
     end
 
     CHUNK_LENGTH_PROC = ->(len) { "#{len.to_s(16)}\r\n" }

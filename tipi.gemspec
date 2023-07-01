@@ -18,29 +18,29 @@ Gem::Specification.new do |s|
   s.rdoc_options = ["--title", "tipi", "--main", "README.md"]
   s.extra_rdoc_files = ["README.md"]
   s.require_paths = ["lib"]
-  s.required_ruby_version = '>= 2.7'
+  s.required_ruby_version = '>= 3.1'
 
   s.executables   = ['tipi']
 
-  s.add_runtime_dependency      'polyphony',          '~>0.94'
-  s.add_runtime_dependency      'ever',               '~>0.1'
+  s.add_runtime_dependency      'polyphony',          '~>1.4'
+  s.add_runtime_dependency      'ever',               '~>0.2'
   s.add_runtime_dependency      'qeweney',            '~>0.18'
-  s.add_runtime_dependency      'extralite',          '~>1.16'
-  s.add_runtime_dependency      'h1p',                '~>0.5'
+  s.add_runtime_dependency      'extralite',          '~>1.27'
+  s.add_runtime_dependency      'h1p',                '~>1.1'
 
   s.add_runtime_dependency      'http-2',             '~>0.11'
   s.add_runtime_dependency      'rack',               '>=2.0.8', '<3.1.0'
-  s.add_runtime_dependency      'websocket',          '~>1.2.8'
-  s.add_runtime_dependency      'acme-client',        '~>2.0.9'
-  s.add_runtime_dependency      'localhost',          '~>1.1.4'
+  s.add_runtime_dependency      'websocket',          '~>1.2.9'
+  s.add_runtime_dependency      'acme-client',        '~>2.0.14'
+  s.add_runtime_dependency      'localhost',          '~>1.1.10'
 
   # for digital fabric
-  s.add_runtime_dependency      'msgpack',            '~>1.4.2'
+  s.add_runtime_dependency      'msgpack',            '~>1.7.1'
 
   s.add_development_dependency  'rake',               '~>13.0.6'
-  s.add_development_dependency  'minitest',           '~>5.11.3'
-  s.add_development_dependency  'simplecov',          '~>0.17.1'
-  s.add_development_dependency  'memory_profiler',    '~>1.0.0'
+  s.add_development_dependency  'minitest',           '~>5.18.1'
+  s.add_development_dependency  'simplecov',          '~>0.22.0'
+  s.add_development_dependency  'memory_profiler',    '~>1.0.1'
 
   s.add_development_dependency  'cuba',               '~>3.9.3'
 end

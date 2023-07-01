@@ -14,7 +14,7 @@ module Tipi
 
     def app
       return @app if @app
-      
+
       raise 'No app define. The app to run should be set using `Tipi.app = ...`'
     end
 

@@ -1,3 +1,12 @@
+## 0.54 2023-05-28
+
+- Use `H1P.send_response` for sending response
+- Update Polyphony and H1P versions
+
+## 0.53 2022-10-04
+
+- Disregard `SystemCallError` in `Tipi.client_loop`
+
 ## 0.52 2022-03-03
 
 - Treat HTTP/2 headers as immutable
