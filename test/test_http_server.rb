@@ -67,11 +67,13 @@ class HTTP1ServerTest < MiniTest::Test
 
     connection << "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n"
     response = connection.readpartial(8192)
+    snooze
     assert !connection.eof?
     assert_equal("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nHi", response)
 
     connection << "GET / HTTP/1.1\r\n\r\n"
     response = connection.readpartial(8192)
+    snooze
     assert !connection.eof?
     expected = <<~HTTP.crlf_lines.chomp
       HTTP/1.1 200 OK
@@ -83,6 +85,7 @@ class HTTP1ServerTest < MiniTest::Test
 
     connection << "GET / HTTP/1.0\r\n\r\n"
     response = connection.readpartial(8192)
+    snooze
     assert connection.eof?
     assert_equal("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nHi", response)
   end
@@ -191,6 +194,7 @@ class HTTP1ServerTest < MiniTest::Test
 
     connection << "GET / HTTP/1.1\r\n\r\n"
     response = connection.readpartial(8192)
+    snooze
     assert !connection.eof?
     expected = <<~HTTP.crlf_lines.chomp
       HTTP/1.1 200 OK
@@ -209,6 +213,7 @@ class HTTP1ServerTest < MiniTest::Test
 
     snooze
     response = connection.readpartial(8192)
+    snooze
     assert !connection.eof?
     expected = <<~HTTP.crlf_lines
       HTTP/1.1 101 Switching Protocols
