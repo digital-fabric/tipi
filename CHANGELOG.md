@@ -1,3 +1,9 @@
+## 0.55 2023-07-29
+
+- Simplify HTTP/1 exception handling
+- Update H1P dependency
+- Update Extralite dependency (#28)
+
 ## 0.54 2023-05-28
 
 - Use `H1P.send_response` for sending response
