@@ -68,7 +68,7 @@ module Tipi
         # TODO: we'll want to get some kind of signal from the new controller once it's ready
         sleep 1
 
-        old_watcher.terminate(true)
+        old_watcher.terminate(graceful: true)
       end
     end
   end

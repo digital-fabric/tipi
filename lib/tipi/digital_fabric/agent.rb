@@ -162,7 +162,7 @@ module DigitalFabric
       # puts "Received shutdown message (#{@requests.size} pending requests)"
       # puts "  (Long running requests: #{@long_running_requests.size})"
       @shutdown = true
-      @long_running_requests.values.each { |f| f.terminate(true) }
+      @long_running_requests.values.each { |f| f.terminate(graceful: true) }
     end
 
     def recv_http_request(msg)

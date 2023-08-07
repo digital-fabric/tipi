@@ -295,10 +295,10 @@ module Tipi
         # TODO: find out how Terminate can leak like that (it's supposed to be
         # caught in Fiber#run)
       end
-      # trap('SIGTERM') { supervisor.terminate(true) }
+      # trap('SIGTERM') { supervisor.terminate(graceful: true) }
       # trap('SIGINT') do
       #   trap('SIGINT') { exit! }
-      #   supervisor.terminate(true)
+      #   supervisor.terminate(graceful: true)
       # end
 
       # supervisor.await
@@ -577,7 +577,7 @@ module Tipi
       fiber.attach_all_children_to(supervisor)
 
       # terminating the supervisor will
-      supervisor.terminate(true)
+      supervisor.terminate(graceful: true)
     end
 
     def add_connection_headers(app)
