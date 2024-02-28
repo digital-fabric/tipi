@@ -41,7 +41,7 @@ GEM
     polyphony (1.4)
     qeweney (0.18)
       escape_utils (~> 1.2.1)
-    rack (3.0.8)
+    rack (3.0.9.1)
     rake (13.0.6)
     ruby2_keywords (0.0.5)
     simplecov (0.22.0)
