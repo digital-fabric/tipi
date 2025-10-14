@@ -3,6 +3,7 @@ PATH
   specs:
     tipi (0.55)
       acme-client (~> 2.0.14)
+      base64 (~> 0.3)
       ever (~> 0.2)
       extralite (~> 2.1)
       h1p (~> 1.1)
@@ -21,6 +22,7 @@ GEM
     acme-client (2.0.14)
       faraday (>= 1.0, < 3.0.0)
       faraday-retry (>= 1.0, < 3.0.0)
+    base64 (0.3.0)
     cuba (3.9.3)
       rack (>= 1.6.0)
     docile (1.4.0)
