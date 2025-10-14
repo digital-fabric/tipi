@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.rdoc_options = ["--title", "tipi", "--main", "README.md"]
   s.extra_rdoc_files = ["README.md"]
   s.require_paths = ["lib"]
-  s.required_ruby_version = '>= 3.1'
+  s.required_ruby_version = '>= 3.2'
 
   s.executables   = ['tipi']
 
