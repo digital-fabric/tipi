@@ -13,7 +13,7 @@ PATH
       mutex_m (~> 0.3)
       polyphony (~> 1.4)
       qeweney (~> 0.18)
-      rack (>= 2.0.8, < 3.1.0)
+      rack (>= 2.0.8, < 3.3.0)
       websocket (~> 1.2.9)
 
 GEM
