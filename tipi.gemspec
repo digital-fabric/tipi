@@ -48,5 +48,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency  'simplecov',          '~>0.22.0'
   s.add_development_dependency  'memory_profiler',    '~>1.1.0'
 
-  s.add_development_dependency  'cuba',               '~>3.9.3'
+  s.add_development_dependency  'cuba',               '~>4.0.3'
 end
