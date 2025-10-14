@@ -46,7 +46,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency  'rake',               '~>13.3.0'
   s.add_development_dependency  'minitest',           '~>5.26.0'
   s.add_development_dependency  'simplecov',          '~>0.22.0'
-  s.add_development_dependency  'memory_profiler',    '~>1.0.1'
+  s.add_development_dependency  'memory_profiler',    '~>1.1.0'
 
   s.add_development_dependency  'cuba',               '~>3.9.3'
 end
