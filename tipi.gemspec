@@ -22,6 +22,8 @@ Gem::Specification.new do |s|
 
   s.executables   = ['tipi']
 
+  s.add_runtime_dependency      'mutex_m',            '~>0.3'
+
   s.add_runtime_dependency      'polyphony',          '~>1.4'
   s.add_runtime_dependency      'ever',               '~>0.2'
   s.add_runtime_dependency      'qeweney',            '~>0.18'
