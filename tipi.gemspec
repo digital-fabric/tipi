@@ -28,7 +28,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency      'polyphony',          '~>1.4'
   s.add_runtime_dependency      'ever',               '~>0.2'
   s.add_runtime_dependency      'qeweney',            '~>0.24'
-  s.add_runtime_dependency      'extralite',          '~>2.1'
+  s.add_runtime_dependency      'extralite',          '~>2.13'
   s.add_runtime_dependency      'h1p',                '~>1.1'
 
   s.add_runtime_dependency      'http-2',             '~>0.11'
