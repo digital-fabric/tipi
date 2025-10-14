@@ -38,7 +38,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency      'localhost',          '~>1.6.0'
 
   # for digital fabric
-  s.add_runtime_dependency      'msgpack',            '~>1.7.1'
+  s.add_runtime_dependency      'msgpack',            '~>1.8.0'
 
   s.add_development_dependency  'logger',             '~>1.7'
   s.add_development_dependency  'ostruct',            '~>0.3'

@@ -9,7 +9,7 @@ PATH
       h1p (~> 1.1)
       http-2 (~> 1.1)
       localhost (~> 1.6.0)
-      msgpack (~> 1.7.1)
+      msgpack (~> 1.8.0)
       mutex_m (~> 0.3)
       polyphony (~> 1.4)
       qeweney (~> 0.24)
@@ -45,7 +45,7 @@ GEM
     logger (1.7.0)
     memory_profiler (1.0.1)
     minitest (5.18.1)
-    msgpack (1.7.2)
+    msgpack (1.8.0)
     mutex_m (0.3.0)
     net-http (0.6.0)
       uri
