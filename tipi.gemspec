@@ -44,7 +44,7 @@ Gem::Specification.new do |s|
   s.add_development_dependency  'ostruct',            '~>0.3'
 
   s.add_development_dependency  'rake',               '~>13.3.0'
-  s.add_development_dependency  'minitest',           '~>5.18.1'
+  s.add_development_dependency  'minitest',           '~>5.26.0'
   s.add_development_dependency  'simplecov',          '~>0.22.0'
   s.add_development_dependency  'memory_profiler',    '~>1.0.1'
 
