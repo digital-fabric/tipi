@@ -13,7 +13,7 @@ require 'polyphony'
 
 ::Exception.__disable_sanitized_backtrace__ = true
 
-class MiniTest::Test
+class Minitest::Test
   def setup
     # trace "* setup #{self.name}"
     Fiber.current.setup_main_fiber

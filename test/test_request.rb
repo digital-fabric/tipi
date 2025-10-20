@@ -9,7 +9,7 @@ class String
   end
 end
 
-class RequestHeadersTest < MiniTest::Test
+class RequestHeadersTest < Minitest::Test
   def teardown
     @server&.interrupt if @server&.alive?
     snooze

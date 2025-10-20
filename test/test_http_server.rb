@@ -9,7 +9,7 @@ class String
   end
 end
 
-class HTTP1ServerTest < MiniTest::Test
+class HTTP1ServerTest < Minitest::Test
   def teardown
     @server&.interrupt if @server&.alive?
     sleep 0.01
