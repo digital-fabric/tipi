@@ -1,3 +1,10 @@
+## 0.56 2025-10-21
+
+- Update localhost, acme-client, websocket, http-2, extralite, qeweney, rack, bundler dependencies (#35)
+- Drop support for Ruby 3.1 (#35)
+- Add support for Ruby 3.3 and 3.4 (#35)
+
+
 ## 0.55 2023-07-29
 
 - Simplify HTTP/1 exception handling
