@@ -41,7 +41,7 @@ GEM
       faraday (~> 2.0)
     h1p (1.1)
     http-2 (1.1.1)
-    json (2.15.1)
+    json (2.15.2.1)
     localhost (1.6.0)
     logger (1.7.0)
     memory_profiler (1.1.0)
